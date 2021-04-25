@@ -1,0 +1,4 @@
+[submodule "extend"]
+	path = extern/extend
+	url = https://github.com/NasalDaemon/extend.git
+	branch = main
