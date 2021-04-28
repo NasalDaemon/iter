@@ -44,16 +44,9 @@ add_library(iter STATIC
   example/empty.cpp
   )
 
-target_precompile_headers(iter PUBLIC
-  extern/extend/include/extend/dollar_macros/define.hpp
-  include/iter.hpp
-  )
-
 add_executable(example_iter
   example/main.cpp
   )
-
-target_precompile_headers(example_iter REUSE_FROM iter)
 
 find_package(benchmark REQUIRED)
 
@@ -65,8 +58,6 @@ add_executable(bench_iter
   bench/triples.cpp
   bench/main.cpp
   )
-
-target_precompile_headers(bench_iter REUSE_FROM iter)
 
 target_link_libraries(bench_iter
   benchmark::benchmark
@@ -101,13 +92,25 @@ add_executable(test_iter
   test/sum.cpp
   )
 
-target_precompile_headers(test_iter PRIVATE
-  test/test.hpp
-  )
-
 target_link_libraries(test_iter
   ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} pthread
   )
+
+# Enable pre-compiled headers when cmake supports it
+if(${CMAKE_VERSION} VERSION_GREATER "3.16.0")
+  target_precompile_headers(iter PUBLIC
+    extern/extend/include/extend/dollar_macros/define.hpp
+    include/iter.hpp
+    )
+
+  target_precompile_headers(example_iter REUSE_FROM iter)
+
+  target_precompile_headers(bench_iter REUSE_FROM iter)
+
+  target_precompile_headers(test_iter PRIVATE
+    test/test.hpp
+    )
+endif()
 
 enable_testing()
 
