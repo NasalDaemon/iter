@@ -15,7 +15,7 @@ namespace iter::detail {
     private:
         using this_t = flatten_iter;
         using inner_t = value_t<I>;
-        static_assert(iterable<inner_t>);
+        static_assert(iterable<consume_t<I>>);
 
         constexpr static auto get_current(I& i) {
             if constexpr(iter<inner_t>)

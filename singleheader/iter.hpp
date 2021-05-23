@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210426
+#  define ITER_LIBRARY_VERSION 20210523
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -584,19 +584,10 @@ namespace iter::detail {
         ITER_FUNCTION(fun);\
     }
 
-#define ITER_ALIAS(fun, alias) \
+#define ITER_ALIAS(alias, ... /*of*/) \
     namespace iter {\
-        static constexpr auto& alias = fun;\
+        static constexpr auto& alias = __VA_ARGS__;\
     }
-
-#define ITER_FOR(val, i) \
-    while (auto val = iter::next(i))
-
-// When there is a return statement inside a loop, or the
-// item will be returned after the loop it is more efficient
-// to explicitly emplace the next item in the loop
-#define ITER_WHILE(val, i) \
-    for (; val; iter::detail::emplace_next(val, i))
 
 #if defined(__clang__)
 #  define ITER_ASSUME(condition) __builtin_assume(!!(condition))
@@ -1352,11 +1343,11 @@ namespace iter {
 #define INCLUDE_ITER_RANGE_HPP
 
 ITER_DECLARE(until)
-ITER_ALIAS(until, til)
+ITER_ALIAS(til, until)
 
 namespace iter {
     template<std::integral T = int>
-    struct range {
+    struct [[nodiscard]] range {
         using this_t = range;
         constexpr range(T begin = 0, T end = std::numeric_limits<T>::max()) : begin_{begin}, end_{end} {}
     private:
@@ -1377,7 +1368,7 @@ namespace iter {
     range(T) -> range<T>;
 
     namespace detail {
-        struct indices_iter {
+        struct [[nodiscard]] indices_iter {
             using this_t = indices_iter;
             indices_iter() = default;
         private:
@@ -1841,7 +1832,7 @@ namespace iter::detail {
     private:
         using this_t = flatten_iter;
         using inner_t = value_t<I>;
-        static_assert(iterable<inner_t>);
+        static_assert(iterable<consume_t<I>>);
 
         constexpr static auto get_current(I& i) {
             if constexpr(iter<inner_t>)
@@ -1881,7 +1872,7 @@ constexpr auto ITER_IMPL(flatten) (I&& iterable) {
 #define INCLUDE_ITER_FLATMAP_HPP
 
 ITER_DECLARE(flatmap)
-ITER_ALIAS(flatmap, flat_map)
+ITER_ALIAS(flat_map, flatmap)
 
 namespace iter::detail {
     template<iter I, std::invocable<consume_t<I>> F>
@@ -1949,7 +1940,7 @@ namespace iter::detail {
 
         constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {
             auto mapped = mapped_t{};
-            ITER_FOR (val, self.i) {
+            while (auto val = iter::next(self.i)) {
                 if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
                     return mapped;
                 }
@@ -2305,6 +2296,51 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
 
 #endif /* INCLUDE_ITER_CHAIN_HPP */
 
+#ifndef INCLUDE_ITER_CHUNKS_HPP
+#define INCLUDE_ITER_CHUNKS_HPP
+
+ITER_DECLARE(chunks)
+
+namespace iter::detail {
+    template<iter I>
+    struct [[nodiscard]] chunks_iter {
+        struct chunk {
+            std::uint32_t remaining;
+            using this_t = chunk;
+            constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+                auto next = iter::no_next<I>();
+                if (self.remaining--) [[likely]] {
+                    if (!emplace_next(next, self.outer().i)) [[unlikely]] {
+                        self.outer().size = 0;
+                    }
+                }
+                return next;
+            }
+            chunks_iter& outer() {
+                return reinterpret_cast<chunks_iter&>(*this);
+            }
+        } chunk_;
+        std::uint32_t size;
+        I i;
+
+        using this_t = chunks_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> chunk* {
+            if (self.size) [[likely]] {
+                self.chunk_.remaining = self.size;
+                return std::addressof(self.chunk_);
+            }
+            return nullptr;
+        }
+    };
+}
+
+template<iter::iterable I>
+constexpr auto ITER_IMPL(chunks) (I&& iterable, std::uint32_t size) {
+    return iter::detail::chunks_iter<std::remove_reference_t<I>>{{size}, size, (I&&)iterable};
+}
+
+#endif /* INCLUDE_ITER_CHUNKS_HPP */
+
 #ifndef INCLUDE_ITER_INSPECT_HPP
 #define INCLUDE_ITER_INSPECT_HPP
 
@@ -2464,11 +2500,18 @@ namespace iter {
     struct virtual_iter : virtual_iter<T, void> {
         virtual std::size_t size() const = 0;
         virtual GetType get(std::size_t index) = 0;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) { return self.get(index); }
+        constexpr auto ITER_UNSAFE_SIZE (this_t const& self) { return self.size(); }
     };
     template<concepts::next T>
     struct virtual_iter<T, void> {
         virtual T next() = 0;
         virtual ~virtual_iter() = default;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
     };
 
     namespace detail {
@@ -2476,16 +2519,18 @@ namespace iter {
         struct virtual_iter_impl final : virtual_iter<next_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
-            next_t<I> next() final { return iter::next(*this); }
+            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
         struct virtual_iter_impl<I> final : virtual_iter<next_t<I>, unsafe::get_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
-            next_t<I> next() final { return iter::next(*this); }
-            std::size_t size() const final { return iter::unsafe::size(*this); }
+            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
+            std::size_t size() const final {
+                return iter::unsafe::size(static_cast<I const&>(*this));
+            }
             unsafe::get_t<I> get(std::size_t index) final {
-                return iter::unsafe::get(*this, index);
+                return iter::unsafe::get(static_cast<I&>(*this), index);
             }
         };
 
@@ -2547,6 +2592,11 @@ namespace iter {
     boxed(I) -> boxed<next_t<I>, unsafe::get_t<I>>;
     template<iter::iter I, std::size_t Size, std::size_t Align>
     boxed(I, scratch<Size, Align>&) -> boxed<next_t<I>, unsafe::get_t<I>>;
+
+    template<iter I>
+    using virtual_t = iter::virtual_iter<iter::next_t<I>, iter::unsafe::get_t<I>>;
+    template<iter I>
+    using boxed_t = boxed<virtual_t<I>, detail::deleter>;
 }
 
 template<iter::iter I>
@@ -2566,12 +2616,12 @@ constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
 #define INCLUDE_ITER_FOREACH_HPP
 
 ITER_DECLARE(foreach)
-ITER_ALIAS(foreach, for_each)
+ITER_ALIAS(for_each, foreach)
 
 template<iter::iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
 constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         func(iter::detail::consume(val));
     }
 }
@@ -2579,7 +2629,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 template<iter::iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {}
+    while (auto val = iter::next(iter)) {}
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */
@@ -2588,13 +2638,13 @@ constexpr void ITER_IMPL(foreach) (I&& iterable) {
 #define INCLUDE_ITER_FOLD_HPP
 
 ITER_DECLARE(fold)
-ITER_ALIAS(fold, fold_left)
+ITER_ALIAS(fold_left, fold)
 
 template<iter::iterable I, class T, std::invocable<const T&, iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     auto acc = (T&&)init;
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         acc = func(iter::as_const(acc), iter::detail::consume(val));
     }
     return acc;
@@ -2628,7 +2678,7 @@ requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(sum) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> sum = 0;
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         sum += *val;
     }
     return sum;
@@ -2646,7 +2696,7 @@ requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(product) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> product = 1;
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         product *= *val;
     }
     return product;
@@ -2695,7 +2745,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     std::optional<iter::value_t<I>> result = std::nullopt;
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;
@@ -2721,7 +2771,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     iter::value_t<I> result = (T&&) fallback;
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;
@@ -2739,7 +2789,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     std::size_t size = iter::unsafe::size(iter);
     using get_t = decltype(iter::unsafe::get(iter, n));
-    if constexpr (std::is_lvalue_reference_v<I> && std::is_lvalue_reference_v<get_t>)
+    if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
         return size > n ? std::addressof(iter::unsafe::get(iter, n)) : nullptr;
     else
         return size > n ? MAKE_OPTIONAL(iter::unsafe::get(iter, n)) : std::nullopt;
@@ -2757,7 +2807,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     auto result = iter::no_next<decltype(iter)>();
     while (iter::detail::emplace_next(result, iter) && n-- > 0);
-    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<I>)
+    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<decltype(iter)>)
         return result;
     else
         return result ? std::make_optional(*result) : std::nullopt;
@@ -2778,166 +2828,116 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
 #ifndef INCLUDE_ITER_MAX_HPP
 #define INCLUDE_ITER_MAX_HPP
 
-ITER_DECLARE(max)
-ITER_DECLARE(max_by)
-
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(max) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    char i = 0;
-    auto current = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto next = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    while (iter::detail::emplace_next(next(), iter)) {
-        if (!current() || std::invoke((F&&) func, iter::as_const(*current()), iter::as_const(*next())) < 0)
-            i ^= 1;
-    }
-    return std::move(current());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(max) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    ITER_FOR (val, iter) {
-        if (!result || std::invoke((F&&) func, iter::as_const(*result), iter::as_const(*val)) < 0) [[unlikely]] {
-            result = *val;
-        }
-    }
-    return result;
-}
-
-template<iter::iterable I>
-requires std::three_way_comparable<iter::value_t<I>>
-constexpr auto ITER_IMPL(max) (I&& iterable) {
-    return iter::max((I&&) iterable, [](auto& max, auto& i) {
-        return max <=> i;
-    });
-}
-
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(max_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    while (iter::detail::emplace_next(next_result(), iter)) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*next_result()))));
-        if (current_proj() < next_proj())
-            i ^= 1;
-    }
-    return std::move(current_result());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(max_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    ITER_FOR (val, iter) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*val))));
-        if (current_proj() < next_proj()) {
-            result = *val;
-            i ^= 1;
-        }
-    }
-    return result;
-}
-
-#endif /* INCLUDE_ITER_MAX_HPP */
-
 #ifndef INCLUDE_ITER_MIN_HPP
 #define INCLUDE_ITER_MIN_HPP
 
 ITER_DECLARE(min)
 ITER_DECLARE(min_by)
 
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(min) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    char i = 0;
-    auto current = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto next = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    while (iter::detail::emplace_next(next(), iter)) {
-        if (!current() || std::invoke((F&&) func, iter::as_const(*next()), iter::as_const(*current())) < 0)
-            i ^= 1;
-    }
-    return std::move(current());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(min) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    ITER_FOR (val, iter) {
-        if (!result || std::invoke((F&&) func, iter::as_const(*val), iter::as_const(*result)) < 0) [[unlikely]] {
-            result = *val;
+namespace iter::detail::minmax {
+    template<class C, iter::concepts::optional_iterable I, class F>
+    constexpr auto apply(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        auto next = iter::no_next<I>(), current = iter::no_next<I>();
+        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        if (emplace_next()) {
+            current = std::move(next);
+            while (emplace_next())
+                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*current), iter::as_const(*next))))
+                    current = std::move(next);
         }
+        return current;
     }
-    return result;
-}
 
-template<iter::iterable I>
-requires std::three_way_comparable<iter::value_t<I>>
-constexpr auto ITER_IMPL(min) (I&& iterable) {
-    return iter::min((I&&) iterable, [](auto& min, auto& i) {
-        return min <=> i;
-    });
-}
-
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    while (iter::detail::emplace_next(next_result(), iter)) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*next_result()))));
-        if (!current_proj() || next_proj() < current_proj())
-            i ^= 1;
-    }
-    return std::move(current_result());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    ITER_FOR (val, iter) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*val))));
-        if (!current_proj() || next_proj() < current_proj()) {
+    template<class C, iter::concepts::pointer_iterable I, class F>
+    constexpr auto apply(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        iter::next_t<I> val{};
+        auto emplace_next = [&] { return val = iter::next(iter); };
+        std::optional<iter::value_t<I>> result;
+        if (emplace_next()) {
             result = *val;
-            i ^= 1;
+            while (emplace_next())
+                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*result), iter::as_const(*val))))
+                    *result = *val;
         }
+        return result;
     }
-    return result;
+
+    static constexpr auto min = [](auto&& l) { return l > 0; };
+    static constexpr auto max = [](auto&& l) { return l < 0; };
+
+    template<class C, iter::concepts::optional_iterable I, class F>
+    constexpr auto by(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        auto next = iter::no_next<I>(), current = iter::no_next<I>();
+        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        if (emplace_next()) {
+            auto current_proj = std::invoke((F&&) func, iter::as_const(*next));
+            current = std::move(next);
+            while (emplace_next()) {
+                auto next_proj = std::invoke((F&&) func, iter::as_const(*next));
+                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                    current = std::move(next);
+                    current_proj = std::move(next_proj);
+                }
+            }
+        }
+        return current;
+    }
+
+    template<class C, iter::concepts::pointer_iterable I, class F>
+    constexpr auto by(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        iter::next_t<I> val{};
+        auto emplace_next = [&] { return val = iter::next(iter); };
+        std::optional<iter::value_t<I>> result;
+        if (emplace_next()) {
+            auto current_proj = std::invoke((F&&) func, iter::as_const(*val));
+            result = *val;
+            while (emplace_next()) {
+                auto next_proj = std::invoke((F&&) func, iter::as_const(*val));
+                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                    *result = *val;
+                    current_proj = std::move(next_proj);
+                }
+            }
+        }
+        return result;
+    }
+
+    static constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
+    static constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
+}
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
+constexpr auto ITER_IMPL(min) (I&& iterable, F&& func = {}) {
+    return iter::detail::minmax::apply(iter::detail::minmax::min, (I&&) iterable, (F&&) func);
+}
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>> F>
+requires std::totally_ordered<std::invoke_result_t<F, iter::cref_t<I>>>
+constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
+    return iter::detail::minmax::by(iter::detail::minmax::min_by, (I&&) iterable, (F&&) func);
 }
 
 #endif /* INCLUDE_ITER_MIN_HPP */
+
+ITER_DECLARE(max)
+ITER_DECLARE(max_by)
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
+constexpr auto ITER_IMPL(max) (I&& iterable, F&& func = {}) {
+    return iter::detail::minmax::apply(iter::detail::minmax::max, (I&&) iterable, (F&&) func);
+}
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>> F>
+requires std::totally_ordered<std::invoke_result_t<F, iter::cref_t<I>>>
+constexpr auto ITER_IMPL(max_by) (I&& iterable, F&& func) {
+    return iter::detail::minmax::by(iter::detail::minmax::max_by, (I&&) iterable, (F&&) func);
+}
+
+#endif /* INCLUDE_ITER_MAX_HPP */
 
 #ifndef INCLUDE_ITER_FIND_LINEAR_HPP
 #define INCLUDE_ITER_FIND_LINEAR_HPP
@@ -2987,7 +2987,7 @@ ITER_DECLARE(any)
 template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(any) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         if (((P&&) predicate)(*val)) {
             return true;
         }
@@ -3006,7 +3006,7 @@ ITER_DECLARE(all)
 template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         if (!((P&&) predicate)(*val)) {
             return false;
         }
@@ -3031,10 +3031,10 @@ namespace iter {
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
     static constexpr tag::collect<C, A> collect;
-
-    static constexpr auto& to_vector = collect<std::vector>;
-    static constexpr auto& to_map = collect<std::map>;
 }
+
+ITER_ALIAS(to_vector, collect<std::vector>)
+ITER_ALIAS(to_map, collect<std::map>)
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter) {
@@ -3044,7 +3044,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     if constexpr (iter::concepts::random_access_iter<I>)
         container.reserve(iter::unsafe::size(iter));
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -3059,7 +3059,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter,
         reserve = std::max(reserve, iter::unsafe::size(iter));
     }
     container.reserve(reserve);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -3072,7 +3072,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     using V = std::tuple_element_t<1, KV>;
     using A = AT<std::pair<K const, V>>;
     std::map<K, V, std::remove_cvref_t<Comp>, A> container((Comp&&) compare);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace(iter::detail::consume(val));
     }
     return container;
@@ -3100,7 +3100,6 @@ namespace iter {
 
     template<std::size_t N = 2>
     static constexpr tag::partition<N> partition_;
-    static constexpr auto& partition = partition_<>;
 
     template<std::size_t I>
     struct index_t : index_t<I+1> {
@@ -3131,6 +3130,8 @@ namespace iter {
     };
 }
 
+ITER_ALIAS(partition, partition_<>)
+
 template<size_t N, iter::iterable I, class F>
 constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iterable, F&& func) {
     return iter::partition_<N>(iter::to_iter((I&&)iterable), (F&&)func);
@@ -3143,12 +3144,10 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) 
 
     if constexpr (iter::concepts::random_access_iter<I>) {
         std::size_t size = iter::unsafe::size(iter) / N;
-        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (std::get<Is>(out).reserve(size), ...);
-        }(std::make_index_sequence<N>{});
+        std::apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         auto slot = std::invoke((F&&) func, iter::as_const(*val));
         std::size_t index;
         if constexpr (std::is_same_v<bool, decltype(slot)>) {
@@ -3160,10 +3159,7 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) 
             index = slot.value();
         }
 
-        if constexpr (iter::concepts::optional_iter<I>)
-            out[index].emplace_back(std::move(*val));
-        else
-            out[index].emplace_back(*val);
+        out[index].emplace_back(iter::detail::consume(val));
     }
     return out;
 }
@@ -3184,8 +3180,6 @@ namespace iter {
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
     static constexpr tag::unzip<C, A> unzip_;
 
-    static constexpr auto& unzip = unzip_<>;
-
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
         struct unzipped;
@@ -3203,6 +3197,8 @@ namespace iter {
     }
 }
 
+ITER_ALIAS(unzip, unzip_<>)
+
 template<template<class...> class CT, template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
@@ -3213,7 +3209,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
             (c.reserve(size), ...);
         }, containers);
     }
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (std::get<Is>(containers).emplace_back(std::move(std::get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -3233,7 +3229,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter, std
         (c.reserve(reserve), ...);
     }, containers);
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (std::get<Is>(containers).emplace_back(std::move(std::get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -3257,9 +3253,9 @@ namespace iter {
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
     static constexpr tag::sorted<C, A> sorted_;
-
-    static constexpr auto& sorted = sorted_<>;
 }
+
+ITER_ALIAS(sorted, sorted_<>);
 
 template<template<class...> class CT, template<class> class AT,
          iter::iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>

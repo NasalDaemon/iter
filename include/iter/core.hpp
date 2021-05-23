@@ -37,19 +37,10 @@
         ITER_FUNCTION(fun);\
     }
 
-#define ITER_ALIAS(fun, alias) \
+#define ITER_ALIAS(alias, ... /*of*/) \
     namespace iter {\
-        static constexpr auto& alias = fun;\
+        static constexpr auto& alias = __VA_ARGS__;\
     }
-
-#define ITER_FOR(val, i) \
-    while (auto val = iter::next(i))
-
-// When there is a return statement inside a loop, or the
-// item will be returned after the loop it is more efficient
-// to explicitly emplace the next item in the loop
-#define ITER_WHILE(val, i) \
-    for (; val; iter::detail::emplace_next(val, i))
 
 #if defined(__clang__)
 #  define ITER_ASSUME(condition) __builtin_assume(!!(condition))

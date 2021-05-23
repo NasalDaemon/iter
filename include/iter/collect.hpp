@@ -14,10 +14,10 @@ namespace iter {
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
     static constexpr tag::collect<C, A> collect;
-
-    static constexpr auto& to_vector = collect<std::vector>;
-    static constexpr auto& to_map = collect<std::map>;
 }
+
+ITER_ALIAS(to_vector, collect<std::vector>)
+ITER_ALIAS(to_map, collect<std::map>)
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter) {
@@ -27,7 +27,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     if constexpr (iter::concepts::random_access_iter<I>)
         container.reserve(iter::unsafe::size(iter));
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -42,7 +42,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter,
         reserve = std::max(reserve, iter::unsafe::size(iter));
     }
     container.reserve(reserve);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -55,7 +55,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     using V = std::tuple_element_t<1, KV>;
     using A = AT<std::pair<K const, V>>;
     std::map<K, V, std::remove_cvref_t<Comp>, A> container((Comp&&) compare);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         container.emplace(iter::detail::consume(val));
     }
     return container;

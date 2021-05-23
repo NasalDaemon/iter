@@ -10,7 +10,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     std::size_t size = iter::unsafe::size(iter);
     using get_t = decltype(iter::unsafe::get(iter, n));
-    if constexpr (std::is_lvalue_reference_v<I> && std::is_lvalue_reference_v<get_t>)
+    if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
         return size > n ? std::addressof(iter::unsafe::get(iter, n)) : nullptr;
     else
         return size > n ? MAKE_OPTIONAL(iter::unsafe::get(iter, n)) : std::nullopt;
@@ -28,7 +28,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     auto result = iter::no_next<decltype(iter)>();
     while (iter::detail::emplace_next(result, iter) && n-- > 0);
-    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<I>)
+    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<decltype(iter)>)
         return result;
     else
         return result ? std::make_optional(*result) : std::nullopt;

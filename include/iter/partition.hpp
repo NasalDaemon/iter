@@ -13,7 +13,6 @@ namespace iter {
 
     template<std::size_t N = 2>
     static constexpr tag::partition<N> partition_;
-    static constexpr auto& partition = partition_<>;
 
     template<std::size_t I>
     struct index_t : index_t<I+1> {
@@ -44,6 +43,8 @@ namespace iter {
     };
 }
 
+ITER_ALIAS(partition, partition_<>)
+
 template<size_t N, iter::iterable I, class F>
 constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iterable, F&& func) {
     return iter::partition_<N>(iter::to_iter((I&&)iterable), (F&&)func);
@@ -56,12 +57,10 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) 
 
     if constexpr (iter::concepts::random_access_iter<I>) {
         std::size_t size = iter::unsafe::size(iter) / N;
-        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (std::get<Is>(out).reserve(size), ...);
-        }(std::make_index_sequence<N>{});
+        std::apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         auto slot = std::invoke((F&&) func, iter::as_const(*val));
         std::size_t index;
         if constexpr (std::is_same_v<bool, decltype(slot)>) {
@@ -73,10 +72,7 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) 
             index = slot.value();
         }
 
-        if constexpr (iter::concepts::optional_iter<I>)
-            out[index].emplace_back(std::move(*val));
-        else
-            out[index].emplace_back(*val);
+        out[index].emplace_back(iter::detail::consume(val));
     }
     return out;
 }

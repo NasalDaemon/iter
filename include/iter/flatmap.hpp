@@ -4,7 +4,7 @@
 #include "iter/core.hpp"
 
 ITER_DECLARE(flatmap)
-ITER_ALIAS(flatmap, flat_map)
+ITER_ALIAS(flat_map, flatmap)
 
 namespace iter::detail {
     template<iter I, std::invocable<consume_t<I>> F>

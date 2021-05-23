@@ -10,11 +10,18 @@ namespace iter {
     struct virtual_iter : virtual_iter<T, void> {
         virtual std::size_t size() const = 0;
         virtual GetType get(std::size_t index) = 0;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) { return self.get(index); }
+        constexpr auto ITER_UNSAFE_SIZE (this_t const& self) { return self.size(); }
     };
     template<concepts::next T>
     struct virtual_iter<T, void> {
         virtual T next() = 0;
         virtual ~virtual_iter() = default;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
     };
 
     namespace detail {
@@ -22,16 +29,18 @@ namespace iter {
         struct virtual_iter_impl final : virtual_iter<next_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
-            next_t<I> next() final { return iter::next(*this); }
+            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
         struct virtual_iter_impl<I> final : virtual_iter<next_t<I>, unsafe::get_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
-            next_t<I> next() final { return iter::next(*this); }
-            std::size_t size() const final { return iter::unsafe::size(*this); }
+            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
+            std::size_t size() const final {
+                return iter::unsafe::size(static_cast<I const&>(*this));
+            }
             unsafe::get_t<I> get(std::size_t index) final {
-                return iter::unsafe::get(*this, index);
+                return iter::unsafe::get(static_cast<I&>(*this), index);
             }
         };
 
@@ -93,6 +102,11 @@ namespace iter {
     boxed(I) -> boxed<next_t<I>, unsafe::get_t<I>>;
     template<iter::iter I, std::size_t Size, std::size_t Align>
     boxed(I, scratch<Size, Align>&) -> boxed<next_t<I>, unsafe::get_t<I>>;
+
+    template<iter I>
+    using virtual_t = iter::virtual_iter<iter::next_t<I>, iter::unsafe::get_t<I>>;
+    template<iter I>
+    using boxed_t = boxed<virtual_t<I>, detail::deleter>;
 }
 
 template<iter::iter I>

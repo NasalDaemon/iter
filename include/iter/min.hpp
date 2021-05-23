@@ -6,78 +6,91 @@
 ITER_DECLARE(min)
 ITER_DECLARE(min_by)
 
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(min) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    char i = 0;
-    auto current = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto next = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    while (iter::detail::emplace_next(next(), iter)) {
-        if (!current() || std::invoke((F&&) func, iter::as_const(*next()), iter::as_const(*current())) < 0)
-            i ^= 1;
-    }
-    return std::move(current());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F>
-constexpr auto ITER_IMPL(min) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    ITER_FOR (val, iter) {
-        if (!result || std::invoke((F&&) func, iter::as_const(*val), iter::as_const(*result)) < 0) [[unlikely]] {
-            result = *val;
+namespace iter::detail::minmax {
+    template<class C, iter::concepts::optional_iterable I, class F>
+    constexpr auto apply(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        auto next = iter::no_next<I>(), current = iter::no_next<I>();
+        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        if (emplace_next()) {
+            current = std::move(next);
+            while (emplace_next())
+                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*current), iter::as_const(*next))))
+                    current = std::move(next);
         }
+        return current;
     }
-    return result;
-}
 
-template<iter::iterable I>
-requires std::three_way_comparable<iter::value_t<I>>
-constexpr auto ITER_IMPL(min) (I&& iterable) {
-    return iter::min((I&&) iterable, [](auto& min, auto& i) {
-        return min <=> i;
-    });
-}
-
-template<iter::concepts::optional_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    iter::next_t<I> results[2] = {iter::no_next<I>(), iter::no_next<I>()};
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i ^ 1]; };
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_result = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return results[i]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    while (iter::detail::emplace_next(next_result(), iter)) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*next_result()))));
-        if (!current_proj() || next_proj() < current_proj())
-            i ^= 1;
-    }
-    return std::move(current_result());
-}
-
-template<iter::concepts::pointer_iterable I, std::invocable<iter::cref_t<I>> F>
-requires std::three_way_comparable<std::invoke_result_t<F, iter::cref_t<I>>>
-constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    std::optional<iter::value_t<I>> result;
-    using projection_t = std::invoke_result_t<F, iter::cref_t<I>>;
-    std::optional<projection_t> projections[2] = {std::nullopt, std::nullopt};
-    char i = 0;
-    auto current_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i ^ 1]; };
-    auto next_proj = [&]() -> auto& { ITER_ASSUME(i == 0 || i == 1); return projections[i]; };
-    ITER_FOR (val, iter) {
-        EMPLACE_NEW(next_proj(), MAKE_OPTIONAL(std::invoke((F&&) func, iter::as_const(*val))));
-        if (!current_proj() || next_proj() < current_proj()) {
+    template<class C, iter::concepts::pointer_iterable I, class F>
+    constexpr auto apply(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        iter::next_t<I> val{};
+        auto emplace_next = [&] { return val = iter::next(iter); };
+        std::optional<iter::value_t<I>> result;
+        if (emplace_next()) {
             result = *val;
-            i ^= 1;
+            while (emplace_next())
+                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*result), iter::as_const(*val))))
+                    *result = *val;
         }
+        return result;
     }
-    return result;
+
+    static constexpr auto min = [](auto&& l) { return l > 0; };
+    static constexpr auto max = [](auto&& l) { return l < 0; };
+
+    template<class C, iter::concepts::optional_iterable I, class F>
+    constexpr auto by(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        auto next = iter::no_next<I>(), current = iter::no_next<I>();
+        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        if (emplace_next()) {
+            auto current_proj = std::invoke((F&&) func, iter::as_const(*next));
+            current = std::move(next);
+            while (emplace_next()) {
+                auto next_proj = std::invoke((F&&) func, iter::as_const(*next));
+                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                    current = std::move(next);
+                    current_proj = std::move(next_proj);
+                }
+            }
+        }
+        return current;
+    }
+
+    template<class C, iter::concepts::pointer_iterable I, class F>
+    constexpr auto by(C&& comp, I&& iterable, F&& func) {
+        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        iter::next_t<I> val{};
+        auto emplace_next = [&] { return val = iter::next(iter); };
+        std::optional<iter::value_t<I>> result;
+        if (emplace_next()) {
+            auto current_proj = std::invoke((F&&) func, iter::as_const(*val));
+            result = *val;
+            while (emplace_next()) {
+                auto next_proj = std::invoke((F&&) func, iter::as_const(*val));
+                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                    *result = *val;
+                    current_proj = std::move(next_proj);
+                }
+            }
+        }
+        return result;
+    }
+
+    static constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
+    static constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
+}
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
+constexpr auto ITER_IMPL(min) (I&& iterable, F&& func = {}) {
+    return iter::detail::minmax::apply(iter::detail::minmax::min, (I&&) iterable, (F&&) func);
+}
+
+template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>> F>
+requires std::totally_ordered<std::invoke_result_t<F, iter::cref_t<I>>>
+constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
+    return iter::detail::minmax::by(iter::detail::minmax::min_by, (I&&) iterable, (F&&) func);
 }
 
 #endif /* INCLUDE_ITER_MIN_HPP */

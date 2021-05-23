@@ -15,8 +15,6 @@ namespace iter {
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
     static constexpr tag::unzip<C, A> unzip_;
 
-    static constexpr auto& unzip = unzip_<>;
-
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
         struct unzipped;
@@ -34,6 +32,8 @@ namespace iter {
     }
 }
 
+ITER_ALIAS(unzip, unzip_<>)
+
 template<template<class...> class CT, template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
@@ -44,7 +44,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
             (c.reserve(size), ...);
         }, containers);
     }
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (std::get<Is>(containers).emplace_back(std::move(std::get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -64,7 +64,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter, std
         (c.reserve(reserve), ...);
     }, containers);
 
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (std::get<Is>(containers).emplace_back(std::move(std::get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});

@@ -4,11 +4,11 @@
 #include "iter/core.hpp"
 
 ITER_DECLARE(until)
-ITER_ALIAS(until, til)
+ITER_ALIAS(til, until)
 
 namespace iter {
     template<std::integral T = int>
-    struct range {
+    struct [[nodiscard]] range {
         using this_t = range;
         constexpr range(T begin = 0, T end = std::numeric_limits<T>::max()) : begin_{begin}, end_{end} {}
     private:
@@ -29,7 +29,7 @@ namespace iter {
     range(T) -> range<T>;
 
     namespace detail {
-        struct indices_iter {
+        struct [[nodiscard]] indices_iter {
             using this_t = indices_iter;
             indices_iter() = default;
         private:

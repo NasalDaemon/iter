@@ -4,12 +4,12 @@
 #include "iter/core.hpp"
 
 ITER_DECLARE(foreach)
-ITER_ALIAS(foreach, for_each)
+ITER_ALIAS(for_each, foreach)
 
 template<iter::iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
 constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         func(iter::detail::consume(val));
     }
 }
@@ -17,7 +17,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 template<iter::iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
-    ITER_FOR (val, iter) {}
+    while (auto val = iter::next(iter)) {}
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */

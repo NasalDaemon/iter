@@ -12,8 +12,9 @@ cat > $DEFINE_FILE <<- EOM
 
 EOM
 
-grep -oE 'ITER_DECLARE\([^\)]+\)$' singleheader/iter.hpp \
+grep -oE '(ITER_DECLARE\([^\)]+\)$)|(ITER_ALIAS\([^,]+,.*\)$)' singleheader/iter.hpp \
     | sed -E 's|ITER_DECLARE\((\w+)\)|#define $\1 $(::iter::\1)|g' \
+    | sed -E 's|ITER_ALIAS\(([^,]+),.*\)|#define $\1 $(::iter::\1)|g' \
     >> $DEFINE_FILE
 grep -oE 'struct \w+ : xtd::tagged_bindable' singleheader/iter.hpp \
     | sed -E 's|struct (\w+) : xtd::tagged_bindable|#define $\1 $(::iter::\1)|g' \
@@ -34,8 +35,9 @@ cat > $UNDEF_FILE <<- EOM
 
 EOM
 
-grep -oE 'ITER_DECLARE\([^\)]+\)$' singleheader/iter.hpp \
+grep -oE '(ITER_DECLARE\([^\)]+\)$)|(ITER_ALIAS\([^,]+,.*\)$)' singleheader/iter.hpp \
     | sed -E 's|ITER_DECLARE\((\w+)\)|#undef $\1|g' \
+    | sed -E 's|ITER_ALIAS\(([^,]+),.*\)|#undef $\1|g' \
     >> $UNDEF_FILE
 grep -oE 'struct \w+ : xtd::tagged_bindable' singleheader/iter.hpp \
     | sed -E 's|struct (\w+) : xtd::tagged_bindable|#undef $\1|g' \

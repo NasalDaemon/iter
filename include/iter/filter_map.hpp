@@ -17,7 +17,7 @@ namespace iter::detail {
 
         constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {
             auto mapped = mapped_t{};
-            ITER_FOR (val, self.i) {
+            while (auto val = iter::next(self.i)) {
                 if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
                     return mapped;
                 }

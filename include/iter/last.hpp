@@ -41,7 +41,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     std::optional<iter::value_t<I>> result = std::nullopt;
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;
@@ -67,7 +67,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter((I&&) iterable);
     iter::value_t<I> result = (T&&) fallback;
-    ITER_FOR (val, iter) {
+    while (auto val = iter::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;

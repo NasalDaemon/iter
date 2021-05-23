@@ -26,12 +26,15 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(
     ${GNU_COMPILE_OPTIONS}
     "-fcoroutines"
-    "-fconcepts-diagnostics-depth=7"
+    "-fconcepts-diagnostics-depth=3"
     )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  # using Visual Studio C++
+  add_compile_options(
+    "/std:c++latest"
+    "$<$<CONFIG:Release>:/O2>"
+    )
 endif()
 
 option(ITER_GLOBAL_INVOKER "Overload same xtd_invoke_main for all iter xtd functions" OFF)
@@ -55,6 +58,7 @@ add_executable(bench_iter
   bench/chain.cpp
   bench/fibonacci.cpp
   bench/filter.cpp
+  bench/min.cpp
   bench/triples.cpp
   bench/main.cpp
   )
@@ -70,6 +74,7 @@ add_executable(test_iter
   test/all.cpp
   test/any.cpp
   test/chain.cpp
+  test/chunks.cpp
   test/collect.cpp
   test/compound.cpp
   test/cycle.cpp
@@ -88,6 +93,7 @@ add_executable(test_iter
   test/map_while.cpp
   test/max.cpp
   test/min.cpp
+  test/move.cpp
   test/range.cpp
   test/sum.cpp
   )
@@ -99,7 +105,7 @@ target_link_libraries(test_iter
 # Enable pre-compiled headers when cmake supports it
 if(${CMAKE_VERSION} VERSION_GREATER "3.16.0")
   target_precompile_headers(iter PUBLIC
-    extern/extend/include/extend/dollar_macros/define.hpp
+    include/iter/dollar_macros/define.hpp
     include/iter.hpp
     )
 

@@ -29,6 +29,7 @@
 #include "iter/cycle.hpp"
 
 #include "iter/chain.hpp"
+#include "iter/chunks.hpp"
 #include "iter/inspect.hpp"
 #include "iter/to_pointer.hpp"
 #include "iter/move.hpp"
