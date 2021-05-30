@@ -36,7 +36,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
+            if (val) [[likely]] {
                 return val;
             }
             // assume we are at the end of the underlying, so reinitialise

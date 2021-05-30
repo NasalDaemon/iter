@@ -48,6 +48,7 @@
 #undef $to_map
 #undef $partition
 #undef $unzip
+#undef $chunks_
 #undef $collect
 #undef $partition
 #undef $unzip

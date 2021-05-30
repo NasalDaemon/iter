@@ -23,9 +23,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
-                self.func(*val);
-            }
+            if (val) self.func(*val);
             return val;
         }
 

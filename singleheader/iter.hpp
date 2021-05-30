@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210523
+#  define ITER_LIBRARY_VERSION 20210530
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -1508,11 +1508,11 @@ namespace iter {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
 
         constexpr T* next() {
-            if (!m_coroutine)
+            if (!m_coroutine) [[unlikely]]
                 return nullptr;
 
             m_coroutine.resume();
-            if (m_coroutine.done()) {
+            if (m_coroutine.done()) [[unlikely]] {
                 m_coroutine.promise().rethrow_if_exception();
                 return nullptr;
             }
@@ -2197,7 +2197,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
+            if (val) [[likely]] {
                 return val;
             }
             // assume we are at the end of the underlying, so reinitialise
@@ -2299,44 +2299,75 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
 #ifndef INCLUDE_ITER_CHUNKS_HPP
 #define INCLUDE_ITER_CHUNKS_HPP
 
-ITER_DECLARE(chunks)
+XTD_INVOKER(iter_chunks)
+
+namespace iter {
+    namespace tag {
+        template<std::size_t N>
+        struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
+    }
+    template<std::size_t N = 0>
+    static constexpr tag::chunks_<N> chunks_;
+}
+
+ITER_ALIAS(chunks, chunks_<>)
 
 namespace iter::detail {
-    template<iter I>
+    template<iter I, std::size_t N>
     struct [[nodiscard]] chunks_iter {
-        struct chunk {
-            std::uint32_t remaining;
-            using this_t = chunk;
-            constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-                auto next = iter::no_next<I>();
-                if (self.remaining--) [[likely]] {
-                    if (!emplace_next(next, self.outer().i)) [[unlikely]] {
-                        self.outer().size = 0;
-                    }
-                }
-                return next;
-            }
-            chunks_iter& outer() {
-                return reinterpret_cast<chunks_iter&>(*this);
-            }
-        } chunk_;
-        std::uint32_t size;
         I i;
+        std::array<value_t<I>, N> data;
 
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> chunk* {
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            std::size_t n = 0;
+            while (auto next = iter::next(self.i)) {
+                self.data[n++] = consume(next);
+                if (n == N) [[unlikely]] break;
+            }
+            return n > 0 ? MAKE_OPTIONAL(self.data | take | n) : std::nullopt;
+        }
+    };
+
+    template<iter I>
+    struct [[nodiscard]] lazy_chunk_iter {
+        std::uint32_t size;
+        std::uint32_t remaining;
+        I i;
+
+        using this_t = lazy_chunk_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            auto next = iter::no_next<I>();
+            if (self.remaining--) [[likely]] {
+                if (!emplace_next(next, self.i)) [[unlikely]] {
+                    self.size = 0;
+                }
+            }
+            return next;
+        }
+    };
+
+    template<iter I>
+    struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
+        using this_t = chunks_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> lazy_chunk_iter<I>* {
             if (self.size) [[likely]] {
-                self.chunk_.remaining = self.size;
-                return std::addressof(self.chunk_);
+                self.remaining = self.size;
+                return std::addressof(self);
             }
             return nullptr;
         }
     };
 }
 
-template<iter::iterable I>
-constexpr auto ITER_IMPL(chunks) (I&& iterable, std::uint32_t size) {
-    return iter::detail::chunks_iter<std::remove_reference_t<I>>{{size}, size, (I&&)iterable};
+template<iter::iter I>
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{{size, size, (I&&)iterable}};
+}
+
+template<std::size_t N, iter::iter I>
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{(I&&)iterable, {}};
 }
 
 #endif /* INCLUDE_ITER_CHUNKS_HPP */
@@ -2364,9 +2395,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
-                self.func(*val);
-            }
+            if (val) self.func(*val);
             return val;
         }
 
@@ -2535,7 +2564,7 @@ namespace iter {
         };
 
         struct alignas(char) deleter {
-            char del = 1;
+            char const del = 1;
             template<class T>
             void operator()(T* ptr) {
                 if (del) delete ptr;

@@ -48,6 +48,7 @@
 #define $to_map $(::iter::to_map)
 #define $partition $(::iter::partition)
 #define $unzip $(::iter::unzip)
+#define $chunks_ $(::iter::chunks_)
 #define $collect $(::iter::collect)
 #define $partition $(::iter::partition)
 #define $unzip $(::iter::unzip)
