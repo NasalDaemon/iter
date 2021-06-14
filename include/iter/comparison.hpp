@@ -21,8 +21,8 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
     if (size != iter::unsafe::size(i2)) return false;
 
     for (std::size_t i = 0; i < size; ++i) {
-        auto item1 = iter::unsafe::get(i1, i);
-        auto item2 = iter::unsafe::get(i2, i);
+        decltype(auto) item1 = iter::unsafe::get(i1, i);
+        decltype(auto) item2 = iter::unsafe::get(i2, i);
         if (item1 != item2) return false;
     }
 

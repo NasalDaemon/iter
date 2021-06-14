@@ -49,9 +49,10 @@
 #undef $partition
 #undef $unzip
 #undef $chunks_
+#undef $window
 #undef $collect
-#undef $partition
-#undef $unzip
-#undef $sorted
+#undef $partition_
+#undef $unzip_
+#undef $sorted_
 
 #endif /* ITER_DOLLAR_MACROS_DEFINE_HPP */

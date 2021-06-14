@@ -24,9 +24,9 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     using T = iter::value_t<I>;
     using A = AT<T>;
     CT<T, A> container;
-    if constexpr (iter::concepts::random_access_iter<I>)
+    if constexpr (iter::concepts::random_access_iter<I>) {
         container.reserve(iter::unsafe::size(iter));
-
+    }
     while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }

@@ -96,6 +96,8 @@ add_executable(test_iter
   test/move.cpp
   test/range.cpp
   test/sum.cpp
+  test/window.cpp
+  test/wrap.cpp
   )
 
 target_link_libraries(test_iter

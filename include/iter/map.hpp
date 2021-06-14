@@ -20,11 +20,17 @@ namespace iter::detail {
     private:
         [[no_unique_address]] F func;
 
-        constexpr std::optional<std::invoke_result_t<F, consume_t<I>>> ITER_IMPL_THIS(next) (this_t& self)
+        using result_t = std::invoke_result_t<F, consume_t<I>>;
+        using mapped_t = std::conditional_t<std::is_reference_v<result_t>, std::remove_reference_t<result_t>*, std::optional<result_t>>;
+
+        constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            return val ? MAKE_OPTIONAL(self.func(consume(val))) : std::nullopt;
+            if constexpr (concepts::optional<mapped_t>)
+                return val ? MAKE_OPTIONAL(self.func(consume(val))) : std::nullopt;
+            else
+                return val ? std::addressof(self.func(consume(val))) : nullptr;
         }
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)

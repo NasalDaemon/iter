@@ -8,11 +8,11 @@ XTD_INVOKER(iter_partition)
 namespace iter {
     namespace tag {
         template<std::size_t N = 2>
-        struct partition : xtd::tagged_bindable<partition<N>, xtd::invokers::iter_partition> {};
+        struct partition_ : xtd::tagged_bindable<partition_<N>, xtd::invokers::iter_partition> {};
     }
 
     template<std::size_t N = 2>
-    static constexpr tag::partition<N> partition_;
+    static constexpr tag::partition_<N> partition_;
 
     template<std::size_t I>
     struct index_t : index_t<I+1> {
@@ -46,13 +46,13 @@ namespace iter {
 ITER_ALIAS(partition, partition_<>)
 
 template<size_t N, iter::iterable I, class F>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iterable, F&& func) {
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iterable, F&& func) {
     return iter::partition_<N>(iter::to_iter((I&&)iterable), (F&&)func);
 }
 
 template<size_t N, iter::iter I, class F>
 requires (N > 1)
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iter, F&& func) {
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iter, F&& func) {
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {

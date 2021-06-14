@@ -48,10 +48,11 @@
 #define $to_map $(::iter::to_map)
 #define $partition $(::iter::partition)
 #define $unzip $(::iter::unzip)
-#define $chunks_ $(::iter::chunks_)
-#define $collect $(::iter::collect)
-#define $partition $(::iter::partition)
-#define $unzip $(::iter::unzip)
-#define $sorted $(::iter::sorted)
+#define $chunks_(...) $(::iter::chunks_<__VA_ARGS__>)
+#define $window(...) $(::iter::window<__VA_ARGS__>)
+#define $collect(...) $(::iter::collect<__VA_ARGS__>)
+#define $partition_(...) $(::iter::partition_<__VA_ARGS__>)
+#define $unzip_(...) $(::iter::unzip_<__VA_ARGS__>)
+#define $sorted_(...) $(::iter::sorted_<__VA_ARGS__>)
 
 #endif /* ITER_DOLLAR_MACROS_DEFINE_HPP */

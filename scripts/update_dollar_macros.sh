@@ -17,7 +17,7 @@ grep -oE '(ITER_DECLARE\([^\)]+\)$)|(ITER_ALIAS\([^,]+,.*\)$)' singleheader/iter
     | sed -E 's|ITER_ALIAS\(([^,]+),.*\)|#define $\1 $(::iter::\1)|g' \
     >> $DEFINE_FILE
 grep -oE 'struct \w+ : xtd::tagged_bindable' singleheader/iter.hpp \
-    | sed -E 's|struct (\w+) : xtd::tagged_bindable|#define $\1 $(::iter::\1)|g' \
+    | sed -E 's|struct (\w+) : xtd::tagged_bindable|#define $\1(...) $(::iter::\1<__VA_ARGS__>)|g' \
     >> $DEFINE_FILE
 
 cat >> $DEFINE_FILE <<- EOM

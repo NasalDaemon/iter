@@ -1,4 +1,5 @@
 #include "test.hpp"
+#include "iter/wrap.hpp"
 
 TEST(TestChain, pointer_random_access) {
     constexpr auto c = once(0) |chain| once(1) |chain| once(2);
@@ -21,7 +22,7 @@ TEST(TestChain, pointer_random_access) {
 
 TEST(TestChain, pointer_random_access_rvo) {
     auto a = std::array<ctor_count<int>, 3>{0, 1, 2};
-    auto c1 = once_ref(a[0]) |chain| once_ref(a[1]) |chain| once_ref(a[2]);
+    auto c1 = wrap(once_ref(a[0])).chain(once_ref(a[1])).chain(once_ref(a[2]));
     using type = std::remove_cvref_t<decltype(c1)>;
     static_assert(concepts::pointer_iter<type>);
     static_assert(concepts::random_access_iter<type>);
