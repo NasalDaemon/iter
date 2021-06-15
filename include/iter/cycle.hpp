@@ -18,7 +18,7 @@ namespace iter::detail {
         constexpr cycle_iter(cycle_iter&& other)
             : base_t{static_cast<base_t&&>(other)}, i_orig{this->i} {}
 
-        I i_orig;
+        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig;
 
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
             requires this_t::random_access

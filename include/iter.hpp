@@ -62,4 +62,7 @@
 // Misc
 #include "iter/comparison.hpp"
 
+// Must be last
+#include "iter/wrap.hpp"
+
 #endif /* ITER_INCLUDE_ITER_HPP */

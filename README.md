@@ -45,14 +45,19 @@ void multiply(std::vector<float> const& x, std::vector<float> const& y, std::vec
 ```
 ##### Supports UFCS-style syntax via the [extend](https://github.com/NasalDaemon/extend) library.
 
-All functions in `iter` namespace can be called in these equivalent ways:
-* `iter::fun(like, that, ...)`
-* `like | iter::fun()` (for unary calls to `iter::fun` only)
-* `like | iter::fun(_, that, ...)`
-* `that | iter::fun(like, _, ...)`
-* `like | iter::fun | _` (for unary calls to `iter::fun`)
-* `like | iter::fun | that` (for binary calls to `iter::fun`)
-* `like $(iter::fun) (that, ...)` (after including [macros](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp) from extend).
+Since people like to write functional algorithms in many different styles, functions in the `iter` namespace support a wide range of calling styles. In practice, you will use only a subset corresponding to your preferred style.
+
+|Calling style|Notes|
+|--|--|
+| `iter::fun(like, that, ...)` | Simple free function syntax|
+| `iter::wrap(like).fun(that)` | Wraps an `iterable` `like` to enable method style calls. If `.fun(that)` returns an `iter`, then it will also be wrapped. |
+| <code>like &#124; iter::fun()</code> | Unary call to `iter::fun(like)` |
+| <code>like &#124; iter::fun(_, that, ...)</code> | Calls `iter::fun(like, that, ...)` |
+| <code>that &#124; iter::fun(like, _, ...)</code> | Calls `iter::fun(like, that, ...)` |
+| <code>like &#124; iter::fun &#124; that</code> | Binary call to `iter::fun(like, that)` |
+| <code>like &#124; iter::fun &#124; _</code> | Unary call to `iter::fun(like)` |
+| `like $(iter::fun) (that, ...)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
+| `like $fun (that, ...)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/dollar_macros/define.hpp). |
 
 ```c++
 void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vector<float>& c) {

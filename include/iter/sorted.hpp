@@ -15,7 +15,7 @@ namespace iter {
     static constexpr tag::sorted_<C, A> sorted_;
 }
 
-ITER_ALIAS(sorted, sorted_<>);
+ITER_ALIAS(sorted, sorted_<>)
 
 template<template<class...> class CT, template<class> class AT,
          iter::iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>

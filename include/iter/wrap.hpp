@@ -11,17 +11,28 @@ namespace iter {
     };
     template<iter I>
     struct [[nodiscard]] wrap<I> : I {
+
 #define ITER_X(fun) \
         template<class... Ts>\
         decltype(auto) fun(Ts&&... args) {\
             return invoke(::iter::fun, std::forward<Ts>(args)...);\
         }
-#include "iter/x_macros/iter_functions.hpp"
+#include "iter/x_macros/iter_functions_simple.ipp"
+#undef ITER_X
+
+#define ITER_EXPAND(...) __VA_ARGS__
+#define ITER_X(fun, tmplParams, tmplArgs) \
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        decltype(auto) fun(Ts&&... args) {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::forward<Ts>(args)...);\
+        }
+#include "iter/x_macros/iter_functions_tmpl.ipp"
+#undef ITER_EXPAND
 #undef ITER_X
 
         template<xtd::concepts::Bindable Tag, class... Ts>
         decltype(auto) invoke(Tag const& tag, Ts&&... args) {
-            auto call = [&]() -> decltype(auto) { return tag(static_cast<I&>(*this), std::forward<Ts>(args)...); };
+            auto call = [&]() -> decltype(auto) { return tag(*this, std::forward<Ts>(args)...); };
             if constexpr (iter<decltype(call())>)
                 return ::iter::wrap{call()};
             else
