@@ -41,6 +41,10 @@ namespace iter {
     };
 
     template<iter::iterable I>
+    requires (!iter::iter<I>)
+    wrap(I&&) -> wrap<I>;
+
+    template<iter::iter I>
     wrap(I) -> wrap<I>;
 }
 

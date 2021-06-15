@@ -5,7 +5,8 @@
 #include <vector>
 
 TEST(TestWrap, simple) {
-    auto s = wrap{std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}}
+    const auto arr = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto s = wrap{arr}
         .map([](auto i) { return i; })
         .sum();
     ASSERT_EQ(s, 45);

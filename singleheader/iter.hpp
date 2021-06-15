@@ -3602,6 +3602,10 @@ ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class
     };
 
     template<iter::iterable I>
+    requires (!iter::iter<I>)
+    wrap(I&&) -> wrap<I>;
+
+    template<iter::iter I>
     wrap(I) -> wrap<I>;
 }
 
