@@ -90,11 +90,11 @@ namespace iter {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
 
         constexpr T* next() {
-            if (!m_coroutine)
+            if (!m_coroutine) [[unlikely]]
                 return nullptr;
 
             m_coroutine.resume();
-            if (m_coroutine.done()) {
+            if (m_coroutine.done()) [[unlikely]] {
                 m_coroutine.promise().rethrow_if_exception();
                 return nullptr;
             }

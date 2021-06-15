@@ -30,6 +30,7 @@
 
 #include "iter/chain.hpp"
 #include "iter/chunks.hpp"
+#include "iter/window.hpp"
 #include "iter/inspect.hpp"
 #include "iter/to_pointer.hpp"
 #include "iter/move.hpp"
@@ -60,5 +61,8 @@
 
 // Misc
 #include "iter/comparison.hpp"
+
+// Must be last
+#include "iter/wrap.hpp"
 
 #endif /* ITER_INCLUDE_ITER_HPP */

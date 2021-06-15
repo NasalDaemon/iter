@@ -45,7 +45,7 @@ namespace iter {
         };
 
         struct alignas(char) deleter {
-            char del = 1;
+            char const del = 1;
             template<class T>
             void operator()(T* ptr) {
                 if (del) delete ptr;

@@ -100,7 +100,7 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-            if (self.pos == std::size(self.get_underlying()))
+            if (self.pos == std::size(self.get_underlying())) [[unlikely]]
                 self.pos = 0;
             auto result = std::addressof(self.get_underlying()[self.pos]);
             ++self.pos;
@@ -153,7 +153,7 @@ namespace iter::detail {
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t) {
             return *self.option;
         }
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> std::optional<T> {
             auto r = std::move(self.option);
             self.option.reset();
             return r;
@@ -182,9 +182,7 @@ namespace iter {
             return *self.ptr;
         }
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-            auto r = self.ptr;
-            self.ptr = nullptr;
-            return r;
+            return std::exchange(self.ptr, nullptr);
         }
     };
 

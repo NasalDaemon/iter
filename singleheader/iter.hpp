@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210523
+#  define ITER_LIBRARY_VERSION 20210615
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -502,10 +502,12 @@ namespace xtd::detail {
 // Semantically equivalent to `std::make_optional(expr)`, but constructs expr
 // directly inside the optional's payload without any intermediate moves
 #define MAKE_OPTIONAL(... /*expr*/) \
-    ::iter::detail::make_optional_impl([&]{ return __VA_ARGS__; })
+    ::iter::detail::make_optional_impl([&]() -> decltype(auto) { return (__VA_ARGS__); })
 
 namespace iter {
-    struct void_t {};
+    struct void_t {
+        template<class... Ts> constexpr void_t(Ts&&...) {}
+    };
     namespace detail {
         struct constexpr_new_tag {};
     }
@@ -1161,7 +1163,7 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-            if (self.pos == std::size(self.get_underlying()))
+            if (self.pos == std::size(self.get_underlying())) [[unlikely]]
                 self.pos = 0;
             auto result = std::addressof(self.get_underlying()[self.pos]);
             ++self.pos;
@@ -1214,7 +1216,7 @@ namespace iter::detail {
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t) {
             return *self.option;
         }
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> std::optional<T> {
             auto r = std::move(self.option);
             self.option.reset();
             return r;
@@ -1243,9 +1245,7 @@ namespace iter {
             return *self.ptr;
         }
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-            auto r = self.ptr;
-            self.ptr = nullptr;
-            return r;
+            return std::exchange(self.ptr, nullptr);
         }
     };
 
@@ -1508,11 +1508,11 @@ namespace iter {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
 
         constexpr T* next() {
-            if (!m_coroutine)
+            if (!m_coroutine) [[unlikely]]
                 return nullptr;
 
             m_coroutine.resume();
-            if (m_coroutine.done()) {
+            if (m_coroutine.done()) [[unlikely]] {
                 m_coroutine.promise().rethrow_if_exception();
                 return nullptr;
             }
@@ -1986,11 +1986,17 @@ namespace iter::detail {
     private:
         [[no_unique_address]] F func;
 
-        constexpr std::optional<std::invoke_result_t<F, consume_t<I>>> ITER_IMPL_THIS(next) (this_t& self)
+        using result_t = std::invoke_result_t<F, consume_t<I>>;
+        using mapped_t = std::conditional_t<std::is_reference_v<result_t>, std::remove_reference_t<result_t>*, std::optional<result_t>>;
+
+        constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            return val ? MAKE_OPTIONAL(self.func(consume(val))) : std::nullopt;
+            if constexpr (concepts::optional<mapped_t>)
+                return val ? MAKE_OPTIONAL(self.func(consume(val))) : std::nullopt;
+            else
+                return val ? std::addressof(self.func(consume(val))) : nullptr;
         }
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
@@ -2179,7 +2185,7 @@ namespace iter::detail {
         constexpr cycle_iter(cycle_iter&& other)
             : base_t{static_cast<base_t&&>(other)}, i_orig{this->i} {}
 
-        I i_orig;
+        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig;
 
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
             requires this_t::random_access
@@ -2197,7 +2203,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
+            if (val) [[likely]] {
                 return val;
             }
             // assume we are at the end of the underlying, so reinitialise
@@ -2299,47 +2305,184 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
 #ifndef INCLUDE_ITER_CHUNKS_HPP
 #define INCLUDE_ITER_CHUNKS_HPP
 
-ITER_DECLARE(chunks)
+XTD_INVOKER(iter_chunks)
+
+namespace iter {
+    namespace tag {
+        template<std::size_t N>
+        struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
+    }
+    template<std::size_t N = 0>
+    static constexpr tag::chunks_<N> chunks_;
+}
+
+ITER_ALIAS(chunks, chunks_<>)
 
 namespace iter::detail {
-    template<iter I>
-    struct [[nodiscard]] chunks_iter {
-        struct chunk {
-            std::uint32_t remaining;
-            using this_t = chunk;
-            constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-                auto next = iter::no_next<I>();
-                if (self.remaining--) [[likely]] {
-                    if (!emplace_next(next, self.outer().i)) [[unlikely]] {
-                        self.outer().size = 0;
-                    }
-                }
-                return next;
-            }
-            chunks_iter& outer() {
-                return reinterpret_cast<chunks_iter&>(*this);
-            }
-        } chunk_;
-        std::uint32_t size;
+    template<class T, std::size_t N>
+    struct chunks_iter_storage;
+
+    template<class T, std::size_t N>
+    requires std::is_trivially_default_constructible_v<T>
+    struct chunks_iter_storage<T, N>
+    {
+        std::array<T, N> buffer = {};
+        template<class V>
+        constexpr void assign(std::size_t n, V&& value) {
+            EMPLACE_NEW(buffer[n], (V&&) value);
+        }
+        constexpr auto to_iter(std::size_t n) { return take(buffer, n); }
+    };
+
+    template<class T, std::size_t N>
+    requires (!std::is_trivially_default_constructible_v<T>)
+    struct chunks_iter_storage<T, N>
+    {
+        std::array<std::aligned_union_t<0, T>, N> buffer = {};
+        std::size_t size = 0;
+
+        template<class V>
+        constexpr void assign(std::size_t n, V&& value) {
+            if (n == size) [[unlikely]]
+                new (std::addressof(buffer[size++]), constexpr_new_tag{}) T((V&&) value);
+            else
+                EMPLACE_NEW(array()[n], (V&&) value);
+        }
+        constexpr auto to_iter(std::size_t n) {
+            return take(array(), n);
+        }
+        chunks_iter_storage() = default;
+        constexpr chunks_iter_storage(chunks_iter_storage const& other) : buffer{}, size{other.size} {
+            auto& ours = array(); auto& theirs = other.array();
+            for (std::size_t i = 0; i < size; ++i)
+                ours[i] = theirs[i];
+        }
+        constexpr chunks_iter_storage(chunks_iter_storage&& other) : buffer{}, size{other.size} {
+            auto& ours = array(); auto& theirs = other.array();
+            for (std::size_t i = 0; i < size; ++i)
+                ours[i] = std::move(theirs[i]);
+        }
+        constexpr ~chunks_iter_storage() {
+            auto& arr = array();
+            while (size--) (arr[size]).~T();
+        }
+    private:
+        constexpr auto& array() {
+            using array_t = std::array<T, N>;
+            static_assert(sizeof(buffer) == sizeof(array_t));
+            return reinterpret_cast<array_t&>(buffer);
+        }
+    };
+
+    template<iter I, std::size_t N>
+    struct [[nodiscard]] chunks_iter : chunks_iter_storage<value_t<I>, N> {
         I i;
 
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> chunk* {
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            std::size_t n = 0;
+            while (auto next = iter::next(self.i)) {
+                self.assign(n++, consume(next));
+                if (n == N) [[unlikely]] break;
+            }
+            return n > 0 ? MAKE_OPTIONAL(self.to_iter(n)) : std::nullopt;
+        }
+    };
+
+    template<iter I>
+    struct [[nodiscard]] lazy_chunk_iter {
+        std::uint32_t size;
+        std::uint32_t remaining;
+        I i;
+
+        using this_t = lazy_chunk_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            auto next = iter::no_next<I>();
+            if (self.remaining--) [[likely]] {
+                if (!emplace_next(next, self.i)) [[unlikely]] {
+                    self.size = 0;
+                }
+            }
+            return next;
+        }
+    };
+
+    template<iter I>
+    struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
+        using this_t = chunks_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> lazy_chunk_iter<I>* {
             if (self.size) [[likely]] {
-                self.chunk_.remaining = self.size;
-                return std::addressof(self.chunk_);
+                self.remaining = self.size;
+                return std::addressof(self);
             }
             return nullptr;
         }
     };
 }
 
-template<iter::iterable I>
-constexpr auto ITER_IMPL(chunks) (I&& iterable, std::uint32_t size) {
-    return iter::detail::chunks_iter<std::remove_reference_t<I>>{{size}, size, (I&&)iterable};
+template<iter::iter I>
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{{size, size, (I&&)iterable}};
+}
+
+template<std::size_t N, iter::iter I>
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, {(I&&)iterable}};
 }
 
 #endif /* INCLUDE_ITER_CHUNKS_HPP */
+
+#ifndef INCLUDE_ITER_WINDOW_HPP
+#define INCLUDE_ITER_WINDOW_HPP
+
+XTD_INVOKER(iter_window)
+
+namespace iter {
+    namespace tag {
+        template<std::size_t N>
+        struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
+    }
+    template<std::size_t N = 2>
+    static constexpr tag::window<N> window;
+}
+
+namespace iter::detail {
+    template<class T, std::size_t N>
+    struct window_iter_storage {
+        std::array<T, N> buffer = {};
+        std::size_t size = 0;
+        std::size_t end = 0;
+        constexpr auto to_iter() {
+            using namespace xtd::literals;
+            return cycle(buffer) | skip(_, end) | take(_, size--);
+        }
+    };
+
+    template<iter I, std::size_t N>
+    struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
+        static_assert(N > 1, "Window must be of at least size 2");
+        I i;
+
+        using this_t = window_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            while (self.size < N) [[likely]] {
+                if (auto next = iter::next(self.i)) [[likely]] {
+                    self.buffer[self.end] = consume(next);
+                    ++self.size;
+                    self.end = (self.end + 1) % N;
+                } else break;
+            }
+            return self.size == N ? MAKE_OPTIONAL(self.to_iter()) : std::nullopt;
+        }
+    };
+}
+
+template<std::size_t N, iter::iter I>
+constexpr auto XTD_IMPL_TAG_(iter_window, iter::tag::window<N>) (I&& iterable) {
+    return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {(I&&)iterable}};
+}
+
+#endif /* INCLUDE_ITER_WINDOW_HPP */
 
 #ifndef INCLUDE_ITER_INSPECT_HPP
 #define INCLUDE_ITER_INSPECT_HPP
@@ -2364,9 +2507,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = iter::next(self.i);
-            if (val) {
-                self.func(*val);
-            }
+            if (val) self.func(*val);
             return val;
         }
 
@@ -2535,7 +2676,7 @@ namespace iter {
         };
 
         struct alignas(char) deleter {
-            char del = 1;
+            char const del = 1;
             template<class T>
             void operator()(T* ptr) {
                 if (del) delete ptr;
@@ -3041,9 +3182,9 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     using T = iter::value_t<I>;
     using A = AT<T>;
     CT<T, A> container;
-    if constexpr (iter::concepts::random_access_iter<I>)
+    if constexpr (iter::concepts::random_access_iter<I>) {
         container.reserve(iter::unsafe::size(iter));
-
+    }
     while (auto val = iter::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
@@ -3095,11 +3236,11 @@ XTD_INVOKER(iter_partition)
 namespace iter {
     namespace tag {
         template<std::size_t N = 2>
-        struct partition : xtd::tagged_bindable<partition<N>, xtd::invokers::iter_partition> {};
+        struct partition_ : xtd::tagged_bindable<partition_<N>, xtd::invokers::iter_partition> {};
     }
 
     template<std::size_t N = 2>
-    static constexpr tag::partition<N> partition_;
+    static constexpr tag::partition_<N> partition_;
 
     template<std::size_t I>
     struct index_t : index_t<I+1> {
@@ -3133,13 +3274,13 @@ namespace iter {
 ITER_ALIAS(partition, partition_<>)
 
 template<size_t N, iter::iterable I, class F>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iterable, F&& func) {
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iterable, F&& func) {
     return iter::partition_<N>(iter::to_iter((I&&)iterable), (F&&)func);
 }
 
 template<size_t N, iter::iter I, class F>
 requires (N > 1)
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition<N>) (I&& iter, F&& func) {
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iter, F&& func) {
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
@@ -3174,11 +3315,11 @@ XTD_INVOKER(iter_unzip)
 namespace iter {
     namespace tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-        struct unzip : xtd::tagged_bindable<unzip<C, A>, xtd::invokers::iter_unzip> {};
+        struct unzip_ : xtd::tagged_bindable<unzip_<C, A>, xtd::invokers::iter_unzip> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::unzip<C, A> unzip_;
+    static constexpr tag::unzip_<C, A> unzip_;
 
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
@@ -3200,7 +3341,7 @@ namespace iter {
 ITER_ALIAS(unzip, unzip_<>)
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 
@@ -3218,7 +3359,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter) {
 }
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip<CT, AT>)(I&& iter, std::size_t reserve) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 
@@ -3248,25 +3389,25 @@ XTD_INVOKER(iter_sorted)
 namespace iter {
     namespace tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-        struct sorted : xtd::tagged_bindable<sorted<C, A>, xtd::invokers::iter_sorted> {};
+        struct sorted_ : xtd::tagged_bindable<sorted_<C, A>, xtd::invokers::iter_sorted> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::sorted<C, A> sorted_;
+    static constexpr tag::sorted_<C, A> sorted_;
 }
 
-ITER_ALIAS(sorted, sorted_<>);
+ITER_ALIAS(sorted, sorted_<>)
 
 template<template<class...> class CT, template<class> class AT,
          iter::iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted<CT, AT>)(I&& iter, P&& predicate) {
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
     auto container = iter::collect<CT, AT>((I&&) iter);
     std::sort(std::begin(container), std::end(container), (P&&) predicate);
     return container;
 }
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted<CT, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter) {
     auto container = iter::collect<CT, AT>((I&&) iter);
     std::sort(std::begin(container), std::end(container));
     return container;
@@ -3296,8 +3437,8 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
     if (size != iter::unsafe::size(i2)) return false;
 
     for (std::size_t i = 0; i < size; ++i) {
-        auto item1 = iter::unsafe::get(i1, i);
-        auto item2 = iter::unsafe::get(i2, i);
+        decltype(auto) item1 = iter::unsafe::get(i1, i);
+        decltype(auto) item2 = iter::unsafe::get(i2, i);
         if (item1 != item2) return false;
     }
 
@@ -3318,5 +3459,152 @@ constexpr auto operator<=>(I1&& i1, I2&& i2) {
 }
 
 #endif /* INCLUDE_ITER_COMPARISON_HPP */
+
+// Must be last
+#ifndef INCLUDE_ITER_WRAP_HPP
+#define INCLUDE_ITER_WRAP_HPP
+
+namespace iter {
+    template<iterable I>
+    struct [[nodiscard]] wrap : wrap<iter_t<I>> {
+        template<class II>
+        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter((II&&) iterable)} {}
+    };
+    template<iter I>
+    struct [[nodiscard]] wrap<I> : I {
+
+#define ITER_X(fun) \
+        template<class... Ts>\
+        decltype(auto) fun(Ts&&... args) {\
+            return invoke(::iter::fun, std::forward<Ts>(args)...);\
+        }
+/* Do not modify, generated by scripts/update_x_macros.sh */
+
+// Invoke iter::next on this iter
+ITER_X(next)
+// Invoke iter::cycle on this iter
+ITER_X(cycle)
+// Invoke iter::filter on this iter
+ITER_X(filter)
+// Invoke iter::take on this iter
+ITER_X(take)
+// Invoke iter::take_while on this iter
+ITER_X(take_while)
+// Invoke iter::skip on this iter
+ITER_X(skip)
+// Invoke iter::skip_while on this iter
+ITER_X(skip_while)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
+// Invoke iter::flatmap on this iter
+ITER_X(flatmap)
+// Invoke iter::flat_map (aka iter::flatmap) on this iter
+ITER_X(flat_map)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::map on this iter
+ITER_X(map)
+// Invoke iter::map_while on this iter
+ITER_X(map_while)
+// Invoke iter::zip on this iter
+ITER_X(zip)
+// Invoke iter::enumerate on this iter
+ITER_X(enumerate)
+// Invoke iter::chain on this iter
+ITER_X(chain)
+// Invoke iter::chunks (aka iter::chunks_<>) on this iter
+ITER_X(chunks)
+// Invoke iter::inspect on this iter
+ITER_X(inspect)
+// Invoke iter::move on this iter
+ITER_X(move)
+// Invoke iter::box on this iter
+ITER_X(box)
+// Invoke iter::foreach on this iter
+ITER_X(foreach)
+// Invoke iter::for_each (aka iter::foreach) on this iter
+ITER_X(for_each)
+// Invoke iter::fold on this iter
+ITER_X(fold)
+// Invoke iter::fold_left (aka iter::fold) on this iter
+ITER_X(fold_left)
+// Invoke iter::reduce on this iter
+ITER_X(reduce)
+// Invoke iter::sum on this iter
+ITER_X(sum)
+// Invoke iter::product on this iter
+ITER_X(product)
+// Invoke iter::last on this iter
+ITER_X(last)
+// Invoke iter::nth on this iter
+ITER_X(nth)
+// Invoke iter::min on this iter
+ITER_X(min)
+// Invoke iter::min_by on this iter
+ITER_X(min_by)
+// Invoke iter::max on this iter
+ITER_X(max)
+// Invoke iter::max_by on this iter
+ITER_X(max_by)
+// Invoke iter::find_linear on this iter
+ITER_X(find_linear)
+// Invoke iter::find_map on this iter
+ITER_X(find_map)
+// Invoke iter::any on this iter
+ITER_X(any)
+// Invoke iter::all on this iter
+ITER_X(all)
+// Invoke iter::to_vector (aka iter::collect<std::vector>) on this iter
+ITER_X(to_vector)
+// Invoke iter::to_map (aka iter::collect<std::map>) on this iter
+ITER_X(to_map)
+// Invoke iter::partition (aka iter::partition_<>) on this iter
+ITER_X(partition)
+// Invoke iter::unzip (aka iter::unzip_<>) on this iter
+ITER_X(unzip)
+// Invoke iter::sorted (aka iter::sorted_<>) on this iter
+ITER_X(sorted)
+
+#undef ITER_X
+
+#define ITER_EXPAND(...) __VA_ARGS__
+#define ITER_X(fun, tmplParams, tmplArgs) \
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        decltype(auto) fun(Ts&&... args) {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::forward<Ts>(args)...);\
+        }
+/* Do not modify, generated by scripts/update_x_macros.sh */
+
+// Invoke iter::N on this iter
+ITER_X(chunks_, (std::size_t N = 0), (N))
+// Invoke iter::N on this iter
+ITER_X(window, (std::size_t N = 2), (N))
+// Invoke iter::C, A on this iter
+ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::N on this iter
+ITER_X(partition_, (std::size_t N = 2), (N))
+// Invoke iter::C, A on this iter
+ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::C, A on this iter
+ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+
+#undef ITER_EXPAND
+#undef ITER_X
+
+        template<xtd::concepts::Bindable Tag, class... Ts>
+        decltype(auto) invoke(Tag const& tag, Ts&&... args) {
+            auto call = [&]() -> decltype(auto) { return tag(*this, std::forward<Ts>(args)...); };
+            if constexpr (iter<decltype(call())>)
+                return ::iter::wrap{call()};
+            else
+                return call();
+        }
+    };
+
+    template<iter::iterable I>
+    wrap(I) -> wrap<I>;
+}
+
+#endif /* INCLUDE_ITER_WRAP_HPP */
 
 #endif /* ITER_INCLUDE_ITER_HPP */

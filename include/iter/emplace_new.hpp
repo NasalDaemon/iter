@@ -9,10 +9,12 @@
 // Semantically equivalent to `std::make_optional(expr)`, but constructs expr
 // directly inside the optional's payload without any intermediate moves
 #define MAKE_OPTIONAL(... /*expr*/) \
-    ::iter::detail::make_optional_impl([&]{ return __VA_ARGS__; })
+    ::iter::detail::make_optional_impl([&]() -> decltype(auto) { return (__VA_ARGS__); })
 
 namespace iter {
-    struct void_t {};
+    struct void_t {
+        template<class... Ts> constexpr void_t(Ts&&...) {}
+    };
     namespace detail {
         struct constexpr_new_tag {};
     }
