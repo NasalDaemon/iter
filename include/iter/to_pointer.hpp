@@ -25,7 +25,7 @@ namespace iter::detail {
         using this_t = to_pointer_iter;
 
         template<class T> requires (!std::same_as<to_pointer_iter, std::remove_cvref_t<T>>)
-        constexpr to_pointer_iter(T&& in) : this_t::base_t{(T&&) in}, store{} {}
+        constexpr to_pointer_iter(T&& in) : this_t::base_t{FWD(in)}, store{} {}
 
     private:
         // If iter::unsafe::get returns a value, then we need to store it to return a pointer to storage
@@ -48,9 +48,9 @@ namespace iter::detail {
 template<iter::iter I>
 constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     if constexpr (iter::concepts::pointer_iter<I>) {
-        return (I&&)iter;
+        return FWD(iter);
     } else {
-        return iter::detail::to_pointer_iter{(I&&)iter};
+        return iter::detail::to_pointer_iter{FWD(iter)};
     }
 }
 

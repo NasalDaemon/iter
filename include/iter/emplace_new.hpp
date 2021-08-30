@@ -31,9 +31,9 @@ namespace iter::detail {
         if constexpr (std::assignable_from<T&, T>)
             if (std::is_constant_evaluated())
                 // placement new not strictly speaking constexpr although GCC allows it
-                return current = ((F&&) ctor).template operator()<T>();
+                return current = (FWD(ctor)).template operator()<T>();
         current.~T();
-        new (std::addressof(current), constexpr_new_tag{}) T(((F&&) ctor).template operator()<T>());
+        new (std::addressof(current), constexpr_new_tag{}) T((FWD(ctor)).template operator()<T>());
         return current;
     }
 
@@ -42,7 +42,7 @@ namespace iter::detail {
     struct rvo_ctor : rvo_empty_base {
         T value;
         template<class F>
-        rvo_ctor(F&& f) : value{std::invoke((F&&)f)} {}
+        rvo_ctor(F&& f) : value{std::invoke(FWD(f))} {}
     };
 
     template<class F>
@@ -53,15 +53,15 @@ namespace iter::detail {
         static_assert(sizeof(return_t) == sizeof(emplace_t));
 
         return_t option;
-        new (std::addressof(option)) emplace_t(std::in_place, (F&&)func);
+        new (std::addressof(option)) emplace_t(std::in_place, FWD(func));
         return option;
     }
 
     template<class F>
     constexpr auto make_optional_impl(F&& func) {
         return std::is_constant_evaluated()
-            ? std::make_optional(std::invoke((F&&) func))
-            : make_optional_runtime_impl((F&&) func);
+            ? std::make_optional(std::invoke(FWD(func)))
+            : make_optional_runtime_impl(FWD(func));
     }
 }
 

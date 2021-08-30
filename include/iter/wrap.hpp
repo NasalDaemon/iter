@@ -7,7 +7,7 @@ namespace iter {
     template<iterable I>
     struct [[nodiscard]] wrap : wrap<iter_t<I>> {
         template<class II>
-        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter((II&&) iterable)} {}
+        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
     };
     template<iter I>
     struct [[nodiscard]] wrap<I> : I {

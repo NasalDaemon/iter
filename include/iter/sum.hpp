@@ -9,7 +9,7 @@ template<iter::iterable I>
 requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(sum) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> sum = 0;
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
     while (auto val = iter::next(iter)) {
         sum += *val;
     }

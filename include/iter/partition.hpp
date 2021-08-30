@@ -47,7 +47,7 @@ ITER_ALIAS(partition, partition_<>)
 
 template<size_t N, iter::iterable I, class F>
 constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iterable, F&& func) {
-    return iter::partition_<N>(iter::to_iter((I&&)iterable), (F&&)func);
+    return iter::partition_<N>(iter::to_iter(FWD(iterable)), FWD(func));
 }
 
 template<size_t N, iter::iter I, class F>
@@ -61,7 +61,7 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>)
     }
 
     while (auto val = iter::next(iter)) {
-        auto slot = std::invoke((F&&) func, iter::as_const(*val));
+        auto slot = std::invoke(FWD(func), iter::as_const(*val));
         std::size_t index;
         if constexpr (std::is_same_v<bool, decltype(slot)>) {
             static_assert(N == 2, "Boolean predicate function only permitted with iter::partition<2>.");

@@ -11,7 +11,7 @@ namespace iter::detail {
 
         template<class T>
         requires (!std::same_as<std::remove_cvref_t<T>, cycle_iter>)
-        constexpr explicit cycle_iter(T&& i_) : base_t{(T&&) i_}, i_orig{this->i} {}
+        constexpr explicit cycle_iter(T&& i_) : base_t{FWD(i_)}, i_orig{this->i} {}
 
         constexpr cycle_iter(cycle_iter const& other)
             : base_t{static_cast<base_t const&>(other)}, i_orig{this->i} {}
@@ -52,12 +52,12 @@ namespace iter::detail {
 
 template<iter::iter I>
 constexpr auto ITER_IMPL(cycle) (I&& iter) {
-    return iter::detail::cycle_iter((I&&) iter);
+    return iter::detail::cycle_iter(FWD(iter));
 }
 
 template<iter::iterable I>
 constexpr auto ITER_IMPL(cycle) (I&& iterable) {
-    return iter::cycle(iter::to_iter((I&&) iterable));
+    return iter::cycle(iter::to_iter(FWD(iterable)));
 }
 
 #endif /* INCLUDE_ITER_CYCLE_HPP */

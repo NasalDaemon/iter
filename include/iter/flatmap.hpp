@@ -10,7 +10,7 @@ namespace iter::detail {
     template<iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] flatmap_iter {
         template<class T, class U>
-        constexpr flatmap_iter(T&& i, U&& f) : i{(T&&)i}, func{(U&&)f} {}
+        constexpr flatmap_iter(T&& i, U&& f) : i{FWD(i)}, func{FWD(f)} {}
 
     private:
         using this_t = flatmap_iter;
@@ -52,7 +52,7 @@ namespace iter::detail {
 
 template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::detail::flatmap_iter{iter::to_iter((I&&) iterable), (F&&)func};
+    return iter::detail::flatmap_iter{iter::to_iter(FWD(iterable)), FWD(func)};
 }
 
 #include "iter/filter_map.hpp"
@@ -62,7 +62,7 @@ template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
 requires iter::concepts::optional_next<std::invoke_result_t<F, iter::consume_t<I>>>
       || iter::concepts::pointer_next<std::invoke_result_t<F, iter::consume_t<I>>>
 constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::filter_map((I&&) iterable, (F&&) func);
+    return iter::filter_map(FWD(iterable), FWD(func));
 }
 
 #endif /* INCLUDE_ITER_FLATMAP_HPP */

@@ -9,13 +9,13 @@ ITER_DECLARE(min_by)
 namespace iter::detail::minmax {
     template<class C, iter::concepts::optional_iterable I, class F>
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
         auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
             current = std::move(next);
             while (emplace_next())
-                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*current), iter::as_const(*next))))
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*current), iter::as_const(*next))))
                     current = std::move(next);
         }
         return current;
@@ -23,14 +23,14 @@ namespace iter::detail::minmax {
 
     template<class C, iter::concepts::pointer_iterable I, class F>
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
         auto emplace_next = [&] { return val = iter::next(iter); };
         std::optional<iter::value_t<I>> result;
         if (emplace_next()) {
             result = *val;
             while (emplace_next())
-                if (std::invoke((C&&) comp, std::invoke((F&&) func, iter::as_const(*result), iter::as_const(*val))))
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*val))))
                     *result = *val;
         }
         return result;
@@ -41,15 +41,15 @@ namespace iter::detail::minmax {
 
     template<class C, iter::concepts::optional_iterable I, class F>
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
         auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
-            auto current_proj = std::invoke((F&&) func, iter::as_const(*next));
+            auto current_proj = std::invoke(FWD(func), iter::as_const(*next));
             current = std::move(next);
             while (emplace_next()) {
-                auto next_proj = std::invoke((F&&) func, iter::as_const(*next));
-                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                auto next_proj = std::invoke(FWD(func), iter::as_const(*next));
+                if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
                     current = std::move(next);
                     current_proj = std::move(next_proj);
                 }
@@ -60,16 +60,16 @@ namespace iter::detail::minmax {
 
     template<class C, iter::concepts::pointer_iterable I, class F>
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter((I&&) iterable);
+        decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
         auto emplace_next = [&] { return val = iter::next(iter); };
         std::optional<iter::value_t<I>> result;
         if (emplace_next()) {
-            auto current_proj = std::invoke((F&&) func, iter::as_const(*val));
+            auto current_proj = std::invoke(FWD(func), iter::as_const(*val));
             result = *val;
             while (emplace_next()) {
-                auto next_proj = std::invoke((F&&) func, iter::as_const(*val));
-                if (std::invoke((C&&) comp, iter::as_const(current_proj), iter::as_const(next_proj))) {
+                auto next_proj = std::invoke(FWD(func), iter::as_const(*val));
+                if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
                     *result = *val;
                     current_proj = std::move(next_proj);
                 }
@@ -84,13 +84,13 @@ namespace iter::detail::minmax {
 
 template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
 constexpr auto ITER_IMPL(min) (I&& iterable, F&& func = {}) {
-    return iter::detail::minmax::apply(iter::detail::minmax::min, (I&&) iterable, (F&&) func);
+    return iter::detail::minmax::apply(iter::detail::minmax::min, FWD(iterable), FWD(func));
 }
 
 template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>> F>
 requires std::totally_ordered<std::invoke_result_t<F, iter::cref_t<I>>>
 constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
-    return iter::detail::minmax::by(iter::detail::minmax::min_by, (I&&) iterable, (F&&) func);
+    return iter::detail::minmax::by(iter::detail::minmax::min_by, FWD(iterable), FWD(func));
 }
 
 #endif /* INCLUDE_ITER_MIN_HPP */

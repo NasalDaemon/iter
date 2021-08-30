@@ -9,7 +9,7 @@ namespace iter::detail {
     // Tie only those arguments that are lvalue-references
     template<class... Ts>
     static constexpr std::tuple<Ts...> half_tie(Ts&&... ins) {
-        return {(Ts&&)ins...};
+        return {FWD(ins)...};
     }
 
     // Simply dereference pointers to avoid copy/move construction
@@ -35,7 +35,7 @@ namespace iter::detail {
         template<class... Ts>
         requires (sizeof...(Ts) == sizeof...(I))
         constexpr zip_iter(Ts&&... ins)
-            : i{(Ts&&)ins...}
+            : i{FWD(ins)...}
         {
             if constexpr (this_t::random_access) {
                 this->size = std::apply([](auto&... iters) {
@@ -46,21 +46,21 @@ namespace iter::detail {
 
         template<class... Ts, class... Us>
         constexpr zip_iter(zip_iter<Ts...>&& zi, Us&&... ins)
-            : zip_iter(std::index_sequence_for<Ts...>{}, std::move(zi), (Us&&) ins...)
+            : zip_iter(std::index_sequence_for<Ts...>{}, std::move(zi), FWD(ins)...)
         {}
         template<class... Ts, class... Us>
         constexpr zip_iter(const zip_iter<Ts...>& zi, Us&&... ins)
-            : zip_iter(std::index_sequence_for<Ts...>{}, std::move(zi), (Us&&) ins...)
+            : zip_iter(std::index_sequence_for<Ts...>{}, std::move(zi), FWD(ins)...)
         {}
 
     private:
         template<size_t... Is, class... Ts, class... Us>
         constexpr zip_iter(std::index_sequence<Is...>, zip_iter<Ts...>&& zi, Us&&... ins)
-            : zip_iter(std::move(std::get<Is>(zi.i))..., (Us&&) ins...)
+            : zip_iter(std::move(std::get<Is>(zi.i))..., FWD(ins)...)
         {}
         template<size_t... Is, class... Ts, class... Us>
         constexpr zip_iter(std::index_sequence<Is...>, const zip_iter<Ts...>& zi, Us&&... ins)
-            : zip_iter(std::get<Is>(zi.i)..., (Us&&) ins...)
+            : zip_iter(std::get<Is>(zi.i)..., FWD(ins)...)
         {}
 
         std::tuple<I...> i;
@@ -71,7 +71,7 @@ namespace iter::detail {
             return std::apply([](auto&&... is) {
                 return std::invoke([]<class... Ts>(Ts&&... vals)  {
                     return (... && vals)
-                        ? MAKE_OPTIONAL(half_tie(unwrap_next((Ts&&)vals)...))
+                        ? MAKE_OPTIONAL(half_tie(unwrap_next(FWD(vals))...))
                         : std::nullopt;
                 }, iter::next(is)...);
             }, self.i);
@@ -94,7 +94,7 @@ namespace iter::detail {
 
 template<iter::iterable... I>
 constexpr auto ITER_IMPL(zip) (I&&... iterables) {
-    return iter::detail::zip_iter{iter::to_iter((I&&) iterables)...};
+    return iter::detail::zip_iter{iter::to_iter(FWD(iterables))...};
 }
 
 #endif /* INCLUDE_ITER_ZIP_HPP */

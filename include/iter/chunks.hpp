@@ -28,7 +28,7 @@ namespace iter::detail {
         std::array<T, N> buffer = {};
         template<class V>
         constexpr void assign(std::size_t n, V&& value) {
-            EMPLACE_NEW(buffer[n], (V&&) value);
+            EMPLACE_NEW(buffer[n], FWD(value));
         }
         constexpr auto to_iter(std::size_t n) { return take(buffer, n); }
     };
@@ -43,9 +43,9 @@ namespace iter::detail {
         template<class V>
         constexpr void assign(std::size_t n, V&& value) {
             if (n == size) [[unlikely]]
-                new (std::addressof(buffer[size++]), constexpr_new_tag{}) T((V&&) value);
+                new (std::addressof(buffer[size++]), constexpr_new_tag{}) T(FWD(value));
             else
-                EMPLACE_NEW(array()[n], (V&&) value);
+                EMPLACE_NEW(array()[n], FWD(value));
         }
         constexpr auto to_iter(std::size_t n) {
             return take(array(), n);
@@ -121,12 +121,12 @@ namespace iter::detail {
 
 template<iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
-    return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{{size, size, (I&&)iterable}};
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{{size, size, FWD(iterable)}};
 }
 
 template<std::size_t N, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
-    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, {(I&&)iterable}};
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }
 
 #endif /* INCLUDE_ITER_CHUNKS_HPP */

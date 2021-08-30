@@ -12,7 +12,7 @@ namespace iter::detail {
 
         template<class T>
         constexpr take_iter(T&& i, std::size_t n)
-            : this_t::base_t{(T&&) i}
+            : this_t::base_t{FWD(i)}
             , n{n}
         {}
 
@@ -44,7 +44,7 @@ namespace iter::detail {
 
 template<iter::iterable I>
 constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
-    return iter::detail::take_iter(iter::to_iter((I&&) iterable), n);
+    return iter::detail::take_iter(iter::to_iter(FWD(iterable)), n);
 }
 
 #endif /* INCLUDE_ITER_TAKE_HPP */

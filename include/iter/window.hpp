@@ -49,7 +49,7 @@ namespace iter::detail {
 
 template<std::size_t N, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_window, iter::tag::window<N>) (I&& iterable) {
-    return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {(I&&)iterable}};
+    return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }
 
 #endif /* INCLUDE_ITER_WINDOW_HPP */

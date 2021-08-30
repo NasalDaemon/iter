@@ -54,7 +54,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     using K = std::tuple_element_t<0, KV>;
     using V = std::tuple_element_t<1, KV>;
     using A = AT<std::pair<K const, V>>;
-    std::map<K, V, std::remove_cvref_t<Comp>, A> container((Comp&&) compare);
+    std::map<K, V, std::remove_cvref_t<Comp>, A> container(FWD(compare));
     while (auto val = iter::next(iter)) {
         container.emplace(iter::detail::consume(val));
     }
@@ -65,7 +65,7 @@ template<template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&& iter) {
     using KV = iter::value_t<I>;
     using K = std::tuple_element_t<0, KV>;
-    return iter::collect<std::map, AT>((I&&) iter, std::less<K>{});
+    return iter::collect<std::map, AT>(FWD(iter), std::less<K>{});
 }
 
 #endif /* INCLUDE_ITER_COLLECT_HPP */

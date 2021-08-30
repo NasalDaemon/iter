@@ -8,7 +8,7 @@ ITER_DECLARE(enumerate)
 
 template<iter::iterable I>
 constexpr auto ITER_IMPL(enumerate) (I&& iterable) {
-    return iter::zip((I&&)iterable, iter::indices);
+    return iter::zip(FWD(iterable), iter::indices);
 }
 
 #endif /* INCLUDE_ITER_ENUMERATE_HPP */

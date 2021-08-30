@@ -12,8 +12,8 @@ namespace iter::detail {
 
         template<class T, class U>
         constexpr inspect_iter(T&& i, U&& f)
-            : this_t::base_t{(T&&)i}
-            , func{(U&&)f}
+            : this_t::base_t{FWD(i)}
+            , func{FWD(f)}
         {}
 
     private:
@@ -42,7 +42,7 @@ namespace iter::detail {
 
 template<iter::iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
-    return iter::detail::inspect_iter{iter::to_iter((I&&) iterable), std::move(func)};
+    return iter::detail::inspect_iter{iter::to_iter(FWD(iterable)), std::move(func)};
 }
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */

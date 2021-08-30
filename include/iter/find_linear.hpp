@@ -7,10 +7,10 @@ ITER_DECLARE(find_linear)
 
 template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(find_linear) (I&& iterable, P&& predicate) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto val = iter::no_next<decltype(iter)>();
     while (iter::detail::emplace_next(val, iter)) {
-        if (std::invoke((P&&) predicate, *val)) {
+        if (std::invoke(FWD(predicate), *val)) {
             break;
         }
     }

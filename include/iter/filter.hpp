@@ -31,7 +31,7 @@ namespace iter::detail {
 
 template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
-    return iter::detail::filter_iter{iter::to_iter((I&&) iterable), (P&&) pred};
+    return iter::detail::filter_iter{iter::to_iter(FWD(iterable)), FWD(pred)};
 }
 
 #endif /* INCLUDE_ITER_FILTER_HPP */

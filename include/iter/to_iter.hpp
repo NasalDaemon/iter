@@ -32,7 +32,7 @@ namespace iter::detail {
         template<class... Ts>
         requires (owner)
         container_iter(std::in_place_t, Ts&&... ins)
-            : underlying{(Ts&&)ins...}
+            : underlying{FWD(ins)...}
             , pos{0}
         {}
 
@@ -82,7 +82,7 @@ namespace iter::detail {
         struct cycle;
 
         constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) requires (owner) {
-            return cycle{(this_t&&) self};
+            return cycle{FWD(self)};
         }
     };
 
@@ -134,12 +134,12 @@ namespace iter::concepts {
 
 template<iter::concepts::container T>
 constexpr auto ITER_IMPL(to_iter) (T&& container) {
-    return iter::detail::container_iter<T>{std::in_place, (T&&)container};
+    return iter::detail::container_iter<T>{std::in_place, FWD(container)};
 }
 template<iter::iterable T>
 requires iter::concepts::container<T> && (std::remove_cvref_t<T>::owner)
 constexpr auto ITER_IMPL(cycle) (T&& container) {
-    return typename iter::detail::container_iter<T>::cycle{{std::in_place, (T&&)container}};
+    return typename iter::detail::container_iter<T>::cycle{{std::in_place, FWD(container)}};
 }
 
 namespace iter::detail {
@@ -166,7 +166,7 @@ namespace iter::detail {
 
 template<iter::concepts::optional T>
 constexpr auto ITER_IMPL(to_iter) (T&& optional) {
-    return iter::detail::optional_to_iter{(T&&) optional};
+    return iter::detail::optional_to_iter{FWD(optional)};
 }
 
 namespace iter {

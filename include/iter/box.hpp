@@ -28,13 +28,13 @@ namespace iter {
         template<iter I>
         struct virtual_iter_impl final : virtual_iter<next_t<I>>, I {
             template<class... Ts>
-            constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
+            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
         struct virtual_iter_impl<I> final : virtual_iter<next_t<I>, unsafe::get_t<I>>, I {
             template<class... Ts>
-            constexpr virtual_iter_impl(Ts&&... in) : I{(Ts&&) in...} {}
+            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
             std::size_t size() const final {
                 return iter::unsafe::size(static_cast<I const&>(*this));
@@ -58,7 +58,7 @@ namespace iter {
     struct scratch : void_t {
         template<class T, class... Ts>
         requires (sizeof(T) <= Size) && (alignof(T) <= Align) && (Align % alignof(T) == 0)
-        T* make(Ts&&... ins) { return std::launder(new (std::addressof(storage)) T((Ts&&) ins...)); }
+        T* make(Ts&&... ins) { return std::launder(new (std::addressof(storage)) T(FWD(ins)...)); }
     private:
         std::aligned_storage_t<Size, Align> storage;
     };
@@ -72,14 +72,14 @@ namespace iter {
         requires std::same_as<T, next_t<I>>
              && (!random_access || std::same_as<U, unsafe::get_t<I>>)
         constexpr boxed(I&& to_box)
-            : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>((I&&) to_box)}
+            : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
         {}
 
         template<iter I, std::size_t Size, std::size_t Align>
         requires std::same_as<T, next_t<I>>
              && (!random_access || std::same_as<U, unsafe::get_t<I>>)
         constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
-            : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>((I&&) to_box), {0}}
+            : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
         {}
 
         template<class OU> requires (!random_access)
@@ -111,12 +111,12 @@ namespace iter {
 
 template<iter::iter I>
 constexpr auto ITER_IMPL(box) (I&& iter) {
-    return iter::boxed((I&&) iter);
+    return iter::boxed(FWD(iter));
 }
 
 template<iter::iter I, std::size_t Size, std::size_t Align>
 constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
-    return iter::boxed((I&&) iter, scratch);
+    return iter::boxed(FWD(iter), scratch);
 }
 
 #endif /* INCLUDE_ITER_BOX_HPP */

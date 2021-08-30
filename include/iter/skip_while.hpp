@@ -11,7 +11,7 @@ namespace iter::detail {
         using this_t = skip_while_iter;
 
         template<class T, std::predicate<cref_t<I>> U>
-        constexpr skip_while_iter(T&& i, U&& pred) : i{(T&&) i}, pred{std::make_optional((U&&) pred)}
+        constexpr skip_while_iter(T&& i, U&& pred) : i{FWD(i)}, pred{std::make_optional(FWD(pred))}
         {}
 
     private:
@@ -39,7 +39,7 @@ namespace iter::detail {
 
 template<iter::iterable I, std::predicate<iter::cref_t<I>> P>
 constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
-    return iter::detail::skip_while_iter(iter::to_iter((I&&) iterable), (P&&) pred);
+    return iter::detail::skip_while_iter(iter::to_iter(FWD(iterable)), FWD(pred));
 }
 
 #endif /* INCLUDE_ITER_SKIP_WHILE_HPP */

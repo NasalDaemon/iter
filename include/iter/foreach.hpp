@@ -8,7 +8,7 @@ ITER_ALIAS(for_each, foreach)
 
 template<iter::iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
 constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
     while (auto val = iter::next(iter)) {
         func(iter::detail::consume(val));
     }
@@ -16,8 +16,8 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 
 template<iter::iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
-    decltype(auto) iter = iter::to_iter((I&&) iterable);
-    while (auto val = iter::next(iter)) {}
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
+    while (iter::next(iter)) {}
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */

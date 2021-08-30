@@ -58,7 +58,7 @@ template<class T>
 ctor_count(T) -> ctor_count<T>;
 
 constexpr auto counter_wrap = []<class T>(T&& in) {
-    return ctor_count((T&&) in);
+    return ctor_count(FWD(in));
 };
 constexpr auto counter_unwrap = []<class T>(ctor_count<T> const& in) {
     return in.value;

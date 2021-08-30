@@ -10,7 +10,7 @@ namespace iter {
         using this_t = compound;
 
         template<class T, class U>
-        constexpr compound(T&& init, U&& func) : value{(T&&) init}, func{(U&&) func} {}
+        constexpr compound(T&& init, U&& func) : value{FWD(init)}, func{FWD(func)} {}
 
     private:
         std::optional<A> value;

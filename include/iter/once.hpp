@@ -10,7 +10,7 @@ namespace iter {
         using this_t = once;
         template<class... Ts>
         requires std::constructible_from<T, Ts...>
-        constexpr once(Ts&&... ins) : value{T((Ts&&) ins...)}, on{true} {}
+        constexpr once(Ts&&... ins) : value{T(FWD(ins)...)}, on{true} {}
     private:
         T value;
         bool on;

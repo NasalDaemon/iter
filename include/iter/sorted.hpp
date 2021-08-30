@@ -20,14 +20,14 @@ ITER_ALIAS(sorted, sorted_<>)
 template<template<class...> class CT, template<class> class AT,
          iter::iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>
 constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
-    auto container = iter::collect<CT, AT>((I&&) iter);
-    std::sort(std::begin(container), std::end(container), (P&&) predicate);
+    auto container = iter::collect<CT, AT>(FWD(iter));
+    std::sort(std::begin(container), std::end(container), FWD(predicate));
     return container;
 }
 
 template<template<class...> class CT, template<class> class AT, iter::iter I>
 constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter) {
-    auto container = iter::collect<CT, AT>((I&&) iter);
+    auto container = iter::collect<CT, AT>(FWD(iter));
     std::sort(std::begin(container), std::end(container));
     return container;
 }

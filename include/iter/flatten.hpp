@@ -10,7 +10,7 @@ namespace iter::detail {
     struct [[nodiscard]] flatten_iter {
         template<iter T>
         requires (!std::same_as<std::remove_cvref_t<T>, flatten_iter>)
-        constexpr explicit flatten_iter(T&& i_) : i{(T&&)i_}, current{} {}
+        constexpr explicit flatten_iter(T&& i_) : i{FWD(i_)}, current{} {}
 
     private:
         using this_t = flatten_iter;
@@ -46,7 +46,7 @@ namespace iter::detail {
 
 template<iter::iterable I>
 constexpr auto ITER_IMPL(flatten) (I&& iterable) {
-    return iter::detail::flatten_iter{iter::to_iter((I&&) iterable)};
+    return iter::detail::flatten_iter{iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_FLATTEN_HPP */

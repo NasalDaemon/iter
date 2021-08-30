@@ -117,7 +117,7 @@ void c_triples(int n, F&& func) {
         for (int x = 1; x < z; ++x) {
             for (int y = x; y < z; ++y) {
                 if (x*x + y*y == z*z) {
-                    std::invoke((F&&) func, x, y, z);
+                    std::invoke(FWD(func), x, y, z);
                     if (++i == n) return;
                 }
             }

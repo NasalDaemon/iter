@@ -9,6 +9,10 @@
 #include <memory>
 #include <limits>
 
+#ifndef FWD
+#  define FWD(arg) static_cast<decltype(arg)&&>(arg)
+#endif
+
 #include "iter/emplace_new.hpp"
 
 #ifndef ITER_GLOBAL_INVOKER
@@ -165,11 +169,11 @@ namespace iter {
 
         template<class T>
         concept pointer_iterable = pointer_iter<T> || requires (T&& it) {
-            { iter::to_iter((T&&)it) } -> pointer_iter;
+            { iter::to_iter(FWD(it)) } -> pointer_iter;
         };
         template<class T>
         concept optional_iterable = optional_iter<T> || requires (T&& it) {
-            { iter::to_iter((T&&)it) } -> optional_iter;
+            { iter::to_iter(FWD(it)) } -> optional_iter;
         };
         template<class T>
         concept iterable = iter<T> || pointer_iterable<T> || optional_iterable<T>;
@@ -383,7 +387,7 @@ namespace iter {
             using base_t = enable_random_access;
 
             template<class T>
-            constexpr enable_random_access(T&& in) : i{(T&&)in} {}
+            constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
             I i;
         };
@@ -397,7 +401,7 @@ namespace iter {
             using base_t = enable_random_access;
 
             template<class T>
-            constexpr enable_random_access(T&& in) : i{(T&&)in} {}
+            constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
             I i;
             std::size_t index = 0;
@@ -487,7 +491,7 @@ using iter::end;
 // the iter::iterable concept -- DO NOT REMOVE.
 template<iter::iter I>
 constexpr auto ITER_IMPL(to_iter) (I&& iter) -> I&& {
-    return (I&&)iter;
+    return FWD(iter);
 }
 
 // Define unsafe random access functions as deleted by default

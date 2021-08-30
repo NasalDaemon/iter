@@ -13,8 +13,8 @@ namespace iter::detail {
 
         template<class T, class U>
         constexpr map_iter(T&& i, U&& f)
-            : this_t::base_t{(T&&) i}
-            , func{(U&&) f}
+            : this_t::base_t{FWD(i)}
+            , func{FWD(f)}
         {}
 
     private:
@@ -53,7 +53,7 @@ namespace iter::detail {
 
 template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
-    return iter::detail::map_iter{iter::to_iter((I&&) iterable), (F&&) func};
+    return iter::detail::map_iter{iter::to_iter(FWD(iterable)), FWD(func)};
 }
 
 #endif /* INCLUDE_ITER_MAP_HPP */
