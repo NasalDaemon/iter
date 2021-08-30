@@ -6,7 +6,7 @@
 ITER_DECLARE(filter)
 
 namespace iter::detail {
-    template<iter I, std::predicate<ref_t<I>> P>
+    template<assert_iter I, std::predicate<ref_t<I>> P>
     struct [[nodiscard]] filter_iter {
         using this_t = filter_iter;
 
@@ -29,7 +29,7 @@ namespace iter::detail {
     filter_iter(I, P) -> filter_iter<I, P>;
 }
 
-template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
+template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
     return iter::detail::filter_iter{iter::to_iter(FWD(iterable)), FWD(pred)};
 }

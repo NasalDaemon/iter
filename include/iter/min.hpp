@@ -82,12 +82,12 @@ namespace iter::detail::minmax {
     static constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
 }
 
-template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
+template<iter::assert_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
 constexpr auto ITER_IMPL(min) (I&& iterable, F&& func = {}) {
     return iter::detail::minmax::apply(iter::detail::minmax::min, FWD(iterable), FWD(func));
 }
 
-template<iter::concepts::iterable I, std::invocable<iter::cref_t<I>> F>
+template<iter::assert_iterable I, std::invocable<iter::cref_t<I>> F>
 requires std::totally_ordered<std::invoke_result_t<F, iter::cref_t<I>>>
 constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
     return iter::detail::minmax::by(iter::detail::minmax::min_by, FWD(iterable), FWD(func));

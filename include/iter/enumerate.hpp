@@ -6,7 +6,7 @@
 
 ITER_DECLARE(enumerate)
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(enumerate) (I&& iterable) {
     return iter::zip(FWD(iterable), iter::indices);
 }

@@ -6,7 +6,7 @@
 ITER_DECLARE(chain)
 
 namespace iter::detail {
-    template<iter I1, iter I2>
+    template<assert_iter I1, assert_iter I2>
     struct [[nodiscard]] chain_iter : enable_random_access<chain_iter<I1, I2>, I1, I2> {
         static_assert(std::same_as<value_t<I1>, value_t<I2>>);
 
@@ -65,7 +65,7 @@ namespace iter::detail {
     chain_iter(I1, I2) -> chain_iter<I1, I2>;
 }
 
-template<iter::iterable I1, iter::iterable I2>
+template<iter::assert_iterable I1, iter::assert_iterable I2>
 constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     return iter::detail::chain_iter{iter::to_iter(FWD(iterable1)),
                                     iter::to_iter(FWD(iterable2))};

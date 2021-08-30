@@ -73,7 +73,7 @@ namespace iter::detail {
         }
     };
 
-    template<iter I, std::size_t N>
+    template<assert_iter I, std::size_t N>
     struct [[nodiscard]] chunks_iter : chunks_iter_storage<value_t<I>, N> {
         I i;
 
@@ -88,7 +88,7 @@ namespace iter::detail {
         }
     };
 
-    template<iter I>
+    template<assert_iter I>
     struct [[nodiscard]] lazy_chunk_iter {
         std::uint32_t size;
         std::uint32_t remaining;
@@ -106,7 +106,7 @@ namespace iter::detail {
         }
     };
 
-    template<iter I>
+    template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> lazy_chunk_iter<I>* {
@@ -119,12 +119,12 @@ namespace iter::detail {
     };
 }
 
-template<iter::iter I>
+template<iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{{size, size, FWD(iterable)}};
 }
 
-template<std::size_t N, iter::iter I>
+template<std::size_t N, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }

@@ -6,7 +6,7 @@
 ITER_DECLARE(inspect)
 
 namespace iter::detail {
-    template<iter I, concepts::inspector<ref_t<I>> F>
+    template<assert_iter I, concepts::inspector<ref_t<I>> F>
     struct [[nodiscard]] inspect_iter : enable_random_access<inspect_iter<I, F>, I> {
         using this_t = inspect_iter;
 
@@ -40,7 +40,7 @@ namespace iter::detail {
     inspect_iter(I, F) -> inspect_iter<I, F>;
 }
 
-template<iter::iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
+template<iter::assert_iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
     return iter::detail::inspect_iter{iter::to_iter(FWD(iterable)), std::move(func)};
 }

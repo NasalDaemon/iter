@@ -6,7 +6,7 @@
 ITER_DECLARE(flatten)
 
 namespace iter::detail {
-    template<iter I>
+    template<assert_iter I>
     struct [[nodiscard]] flatten_iter {
         template<iter T>
         requires (!std::same_as<std::remove_cvref_t<T>, flatten_iter>)
@@ -18,7 +18,7 @@ namespace iter::detail {
         static_assert(iterable<consume_t<I>>);
 
         constexpr static auto get_current(I& i) {
-            if constexpr(iter<inner_t>)
+            if constexpr (iter<inner_t>)
                 return iter::next(i);
             else {
                 auto val = iter::next(i);
@@ -44,7 +44,7 @@ namespace iter::detail {
     flatten_iter(I) -> flatten_iter<I>;
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(flatten) (I&& iterable) {
     return iter::detail::flatten_iter{iter::to_iter(FWD(iterable))};
 }

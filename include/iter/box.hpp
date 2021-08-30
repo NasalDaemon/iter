@@ -109,12 +109,12 @@ namespace iter {
     using boxed_t = boxed<virtual_t<I>, detail::deleter>;
 }
 
-template<iter::iter I>
+template<iter::assert_iter I>
 constexpr auto ITER_IMPL(box) (I&& iter) {
     return iter::boxed(FWD(iter));
 }
 
-template<iter::iter I, std::size_t Size, std::size_t Align>
+template<iter::assert_iter I, std::size_t Size, std::size_t Align>
 constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
     return iter::boxed(FWD(iter), scratch);
 }

@@ -5,7 +5,7 @@
 
 ITER_DECLARE(find_linear)
 
-template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
+template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(find_linear) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto val = iter::no_next<decltype(iter)>();

@@ -45,7 +45,7 @@ namespace iter::detail {
     to_pointer_iter(I) -> to_pointer_iter<I>;
 }
 
-template<iter::iter I>
+template<iter::assert_iter I>
 constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     if constexpr (iter::concepts::pointer_iter<I>) {
         return FWD(iter);

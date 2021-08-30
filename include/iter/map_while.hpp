@@ -6,7 +6,7 @@
 ITER_DECLARE(map_while)
 
 namespace iter::detail {
-    template<iter I, std::invocable<consume_t<I>> F>
+    template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] map_while_iter {
         using this_t = map_while_iter;
         using mapped_t = std::invoke_result_t<F, ref_t<I>>;
@@ -25,7 +25,7 @@ namespace iter::detail {
     map_while_iter(I, P) -> map_while_iter<I, P>;
 }
 
-template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
     return iter::detail::map_while_iter{iter::to_iter(FWD(iterable)), FWD(func)};
 }

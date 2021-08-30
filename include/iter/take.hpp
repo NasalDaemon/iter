@@ -6,7 +6,7 @@
 ITER_DECLARE(take)
 
 namespace iter::detail {
-    template<iter I>
+    template<assert_iter I>
     struct take_iter : enable_random_access<take_iter<I>, I> {
         using this_t = take_iter;
 
@@ -42,7 +42,7 @@ namespace iter::detail {
     take_iter(I, std::size_t) -> take_iter<I>;
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
     return iter::detail::take_iter(iter::to_iter(FWD(iterable)), n);
 }

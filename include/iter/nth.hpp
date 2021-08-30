@@ -23,7 +23,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
     return size > n ? iter::unsafe::get(iter, n) : FWD(fallback);
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto result = iter::no_next<decltype(iter)>();
@@ -34,7 +34,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
         return result ? std::make_optional(*result) : std::nullopt;
 }
 
-template<iter::iterable I, class T>
+template<iter::assert_iterable I, class T>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto result = iter::no_next<decltype(iter)>();

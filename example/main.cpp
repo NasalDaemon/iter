@@ -167,7 +167,7 @@ int main() {
             if (i % 2 == 0)
                 return empty<int> | box | s;
             else
-                return once(i) |filter|[](auto&&){return true;} | box | s;
+                return once(i) |filter| [](auto&&){return true;} | box | s;
             }
         | foreach | [](int i) {
             std::cout << "made it: " << i << "\n"; };

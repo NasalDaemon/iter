@@ -19,7 +19,7 @@ namespace iter {
 ITER_ALIAS(to_vector, collect<std::vector>)
 ITER_ALIAS(to_map, collect<std::map>)
 
-template<template<class...> class CT, template<class> class AT, iter::iter I>
+template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter) {
     using T = iter::value_t<I>;
     using A = AT<T>;
@@ -33,7 +33,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     return container;
 }
 
-template<template<class...> class CT, template<class> class AT, iter::iter I>
+template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter, std::size_t reserve) {
     using T = iter::value_t<I>;
     using A = AT<T>;
@@ -48,7 +48,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter,
     return container;
 }
 
-template<template<class> class AT, iter::iter I, class Comp>
+template<template<class> class AT, iter::assert_iter I, class Comp>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&& iter, Comp&& compare) {
     using KV = iter::value_t<I>;
     using K = std::tuple_element_t<0, KV>;
@@ -61,7 +61,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     return container;
 }
 
-template<template<class> class AT, iter::iter I>
+template<template<class> class AT, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&& iter) {
     using KV = iter::value_t<I>;
     using K = std::tuple_element_t<0, KV>;

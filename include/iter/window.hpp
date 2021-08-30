@@ -28,7 +28,7 @@ namespace iter::detail {
         }
     };
 
-    template<iter I, std::size_t N>
+    template<assert_iter I, std::size_t N>
     struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
         static_assert(N > 1, "Window must be of at least size 2");
         I i;
@@ -47,7 +47,7 @@ namespace iter::detail {
     };
 }
 
-template<std::size_t N, iter::iter I>
+template<std::size_t N, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_window, iter::tag::window<N>) (I&& iterable) {
     return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }

@@ -6,7 +6,7 @@
 ITER_DECLARE(filter_map)
 
 namespace iter::detail {
-    template<iter I, std::invocable<consume_t<I>> F>
+    template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] filter_map_iter {
         using this_t = filter_map_iter;
         using mapped_t = std::invoke_result_t<F, ref_t<I>>;
@@ -30,7 +30,7 @@ namespace iter::detail {
     filter_map_iter(I, P) -> filter_map_iter<I, P>;
 }
 
-template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
     return iter::detail::filter_map_iter{iter::to_iter(FWD(iterable)), FWD(func)};
 }

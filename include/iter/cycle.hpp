@@ -4,7 +4,7 @@
 #include "iter/core.hpp"
 
 namespace iter::detail {
-    template<iter::iter I>
+    template<assert_iter I>
     struct cycle_iter : enable_random_access<cycle_iter<I>, I> {
         using this_t = cycle_iter;
         using base_t = typename this_t::base_t;

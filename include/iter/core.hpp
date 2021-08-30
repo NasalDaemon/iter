@@ -177,10 +177,30 @@ namespace iter {
         };
         template<class T>
         concept iterable = iter<T> || pointer_iterable<T> || optional_iterable<T>;
+
+        namespace assert {
+            template<class T>
+            struct iter {
+                static constexpr bool value = concepts::iter<T>;
+                static_assert(concepts::iterable<T>, "iter constraint not satisfied");
+            };
+            template<class T>
+            struct iterable {
+                static constexpr bool value = concepts::iterable<T>;
+                static_assert(concepts::iterable<T>, "iterable constraint not satisfied");
+            };
+        }
+
+        template<class T>
+        concept assert_iter = assert::iter<T>::value || iter<T>;
+        template<class T>
+        concept assert_iterable = assert::iterable<T>::value || iterable<T>;
     }
 
     using concepts::iter;
     using concepts::iterable;
+    using concepts::assert_iter;
+    using concepts::assert_iterable;
 
     namespace unsafe {
         template<class I>

@@ -7,7 +7,7 @@
 ITER_DECLARE(map)
 
 namespace iter::detail {
-    template<iter I, std::invocable<consume_t<I>> F>
+    template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
         using this_t = map_iter;
 
@@ -51,7 +51,7 @@ namespace iter::detail {
     map_iter(I, F) -> map_iter<I, F>;
 }
 
-template<iter::iterable I, std::invocable<iter::consume_t<I>> F>
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
     return iter::detail::map_iter{iter::to_iter(FWD(iterable)), FWD(func)};
 }

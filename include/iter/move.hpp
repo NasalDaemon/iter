@@ -6,7 +6,7 @@
 ITER_DECLARE(move)
 
 namespace iter::detail {
-    template<iter::iter I>
+    template<iter::assert_iter I>
     struct move_iter : enable_random_access<move_iter<I>, I> {
         using this_t = move_iter;
 
@@ -34,7 +34,7 @@ namespace iter::detail {
     move_iter(T) -> move_iter<T>;
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
     if constexpr (iter::concepts::move_next<iter::next_t<I>>)
         return FWD(iterable);

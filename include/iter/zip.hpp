@@ -23,12 +23,12 @@ namespace iter::detail {
             return (*in);
     }
 
-    template<iter... I>
+    template<assert_iter... I>
     requires (sizeof...(I) > 1)
     struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
         using this_t = zip_iter;
 
-        template<iter... T>
+        template<assert_iter... T>
         requires (sizeof...(T) > 1)
         friend struct zip_iter;
 
@@ -92,7 +92,7 @@ namespace iter::detail {
     zip_iter(zip_iter<ZI...>, I...) -> zip_iter<ZI..., I...>;
 }
 
-template<iter::iterable... I>
+template<iter::assert_iterable... I>
 constexpr auto ITER_IMPL(zip) (I&&... iterables) {
     return iter::detail::zip_iter{iter::to_iter(FWD(iterables))...};
 }

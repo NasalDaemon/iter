@@ -33,7 +33,7 @@ namespace iter::detail {
                 // placement new not strictly speaking constexpr although GCC allows it
                 return current = (FWD(ctor)).template operator()<T>();
         current.~T();
-        new (std::addressof(current), constexpr_new_tag{}) T((FWD(ctor)).template operator()<T>());
+        new (std::addressof(current), constexpr_new_tag{}) T(FWD(ctor).template operator()<T>());
         return current;
     }
 

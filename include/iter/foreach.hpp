@@ -6,7 +6,7 @@
 ITER_DECLARE(foreach)
 ITER_ALIAS(for_each, foreach)
 
-template<iter::iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
+template<iter::assert_iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
 constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     while (auto val = iter::next(iter)) {
@@ -14,7 +14,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
     }
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     while (iter::next(iter)) {}

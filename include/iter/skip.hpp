@@ -6,7 +6,7 @@
 ITER_DECLARE(skip)
 
 namespace iter::detail {
-    template<iter I>
+    template<assert_iter I>
     struct skip_iter : enable_random_access<skip_iter<I>, I> {
         using this_t = skip_iter;
 
@@ -51,7 +51,7 @@ namespace iter::detail {
     skip_iter(I, std::size_t) -> skip_iter<I>;
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
     return iter::detail::skip_iter(iter::to_iter(FWD(iterable)), n);
 }

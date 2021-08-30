@@ -6,7 +6,7 @@
 ITER_DECLARE(take_while)
 
 namespace iter::detail {
-    template<iter I, std::predicate<ref_t<I>> P>
+    template<assert_iter I, std::predicate<ref_t<I>> P>
     struct take_while_iter {
         using this_t = take_while_iter;
 
@@ -23,7 +23,7 @@ namespace iter::detail {
     take_while_iter(I, P) -> take_while_iter<I, P>;
 }
 
-template<iter::iterable I, std::predicate<iter::ref_t<I>> P>
+template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(take_while) (I&& iterable, P&& predicate) {
     return iter::detail::take_while_iter{iter::to_iter(FWD(iterable)), FWD(predicate)};
 }

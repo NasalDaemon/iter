@@ -5,7 +5,7 @@
 
 ITER_DECLARE(sum)
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(sum) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> sum = 0;

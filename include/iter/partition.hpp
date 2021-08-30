@@ -45,7 +45,7 @@ namespace iter {
 
 ITER_ALIAS(partition, partition_<>)
 
-template<size_t N, iter::iterable I, class F>
+template<size_t N, iter::assert_iterable I, class F>
 constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iterable, F&& func) {
     return iter::partition_<N>(iter::to_iter(FWD(iterable)), FWD(func));
 }

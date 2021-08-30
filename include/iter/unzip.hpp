@@ -34,7 +34,7 @@ namespace iter {
 
 ITER_ALIAS(unzip, unzip_<>)
 
-template<template<class...> class CT, template<class> class AT, iter::iter I>
+template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
@@ -52,7 +52,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     return containers;
 }
 
-template<template<class...> class CT, template<class> class AT, iter::iter I>
+template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};

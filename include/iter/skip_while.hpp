@@ -6,7 +6,7 @@
 ITER_DECLARE(skip_while)
 
 namespace iter::detail {
-    template<iter I, std::predicate<cref_t<I>> P>
+    template<assert_iter I, std::predicate<cref_t<I>> P>
     struct skip_while_iter {
         using this_t = skip_while_iter;
 
@@ -37,7 +37,7 @@ namespace iter::detail {
     skip_while_iter(I, P) -> skip_while_iter<I, P>;
 }
 
-template<iter::iterable I, std::predicate<iter::cref_t<I>> P>
+template<iter::assert_iterable I, std::predicate<iter::cref_t<I>> P>
 constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
     return iter::detail::skip_while_iter(iter::to_iter(FWD(iterable)), FWD(pred));
 }
