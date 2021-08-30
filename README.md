@@ -5,7 +5,7 @@ Functional C++20 iterator library.
 Small, single header, feature-rich, functional C++20 iterator library that aims to be simple, composable, and easily extensible. Much of the simplicity in the design is owed to the [extend library](https://github.com/NasalDaemon/extend).
 
 - [x] Single header
-- [x] Simple implementation (~2500 source lines all-in)
+- [x] Simple implementation (~3000 source lines all-in)
 - [x] Minimal std library dependencies: `<type_traits> <concepts> <functional> <optional> <limits> <memory>`
 - [x] `constexpr`/`consteval` friendly
 - [x] Interoperable with range-based for loops
@@ -50,7 +50,7 @@ Since people like to write functional algorithms in many different styles, funct
 |Calling style|Notes|
 |--|--|
 | `iter::fun(like, that, ...)` | Simple free function syntax|
-| `iter::wrap(like).fun(that)` | Wraps an `iterable` `like` to enable method style calls. If `.fun(that)` returns an `iter`, then it will also be wrapped. |
+| `iter::wrap(like).fun(that)` | Wraps an `iterable` `like` to enable method style calls. If `iter::fun(that)` returns an `iter`, then it will also be wrapped. |
 | <code>like &#124; iter::fun()</code> | Unary call to `iter::fun(like)` |
 | <code>like &#124; iter::fun(_, that, ...)</code> | Calls `iter::fun(like, that, ...)` |
 | <code>that &#124; iter::fun(like, _, ...)</code> | Calls `iter::fun(like, that, ...)` |
@@ -70,7 +70,7 @@ void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vec
 ```
 ##### Functionality and nomenclature similar by existing functional iterator libraries in other languages, such as rust, python, scala.
 
-`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`
+`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`
 
 ```c++
 float weighted_sum(std::vector<float> const& a) {

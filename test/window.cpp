@@ -1,5 +1,4 @@
 #include "test.hpp"
-#include "iter/dollar_macros/define.hpp"
 
 TEST(TestWindow, twos) {
     auto it = range(0, 10) | iter::window<2>();

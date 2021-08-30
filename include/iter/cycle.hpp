@@ -55,7 +55,7 @@ constexpr auto ITER_IMPL(cycle) (I&& iter) {
     return iter::detail::cycle_iter(FWD(iter));
 }
 
-template<iter::iterable I>
+template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(cycle) (I&& iterable) {
     return iter::cycle(iter::to_iter(FWD(iterable)));
 }
