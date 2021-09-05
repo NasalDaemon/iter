@@ -6,21 +6,15 @@
 ITER_DECLARE(zip)
 
 namespace iter::detail {
-    // Tie only those arguments that are lvalue-references
-    template<class... Ts>
-    static constexpr tuple<Ts...> half_tie(Ts&&... ins) {
-        return {FWD(ins)...};
-    }
-
     // Simply dereference pointers to avoid copy/move construction
     // but unwrap optionals into new instances
     template<class T>
-    static constexpr decltype(auto) unwrap_next(T&& in) {
+    static constexpr auto lazy_unwrap_next(T&& in) {
         using t = std::decay_t<T>;
         if constexpr (concepts::optional_next<t>)
-            return typename t::value_type(std::move(*in));
+            return [&] { return std::move(*in); };
         else
-            return (*in);
+            return [&]() -> auto&& { return *in; };
     }
 
     template<assert_iter... I>
@@ -34,9 +28,9 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             return apply([](auto&&... is) {
-                return std::invoke([](auto&&... vals)  {
+                return std::invoke([](auto&&... vals) {
                     return (... && vals)
-                        ? MAKE_OPTIONAL(half_tie(unwrap_next(FWD(vals))...))
+                        ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
                         : std::nullopt;
                 }, iter::next(is)...);
             }, self.i);
@@ -46,7 +40,7 @@ namespace iter::detail {
             requires this_t::random_access
         {
             return apply([=](auto&&... is) {
-                return half_tie(iter::unsafe::get(is, index)...);
+                return make_tuple_lazy([&]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
             }, self.i);
         }
     };

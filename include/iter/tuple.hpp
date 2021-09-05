@@ -53,6 +53,12 @@ namespace iter {
         return detail::get<I>(std::forward<Tuple>(tuple));
     }
 
+    // Make a tuple with element types exactly the same as those returned from lazy_values
+    template<std::invocable<>... Fs>
+    tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
+        return {std::invoke(FWD(lazy_values))...};
+    }
+
     template<class F, concepts::decays_to_tuple Tuple>
     decltype(auto) apply(F&& func, Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
