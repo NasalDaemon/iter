@@ -131,11 +131,12 @@ namespace iter {
     template<class... Ts, std::invocable<Ts&...> F>
     requires concepts::generator<std::invoke_result_t<F, Ts&...>>
     constexpr auto ITER_IMPL(cycle) (F&& invocable, Ts&&... args) {
-        return [make_iter = std::forward<F>(invocable), ...args = std::forward<Ts>(args)] () mutable
+        return [make_iter = std::forward<F>(invocable), ...as = std::forward<Ts>(args)] () mutable
             -> std::invoke_result_t<F, Ts&...>
         {
             while(true)
-                for (auto it = make_iter(static_cast<Ts&>(args)...); auto next = iter::next(it);)
+                for (auto it = make_iter(static_cast<Ts&>(as)...);
+                     auto next = iter::next(it);)
                     co_yield detail::consume(next);
         }();
     }

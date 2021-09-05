@@ -10,19 +10,11 @@ namespace iter::detail {
     struct [[nodiscard]] chain_iter : enable_random_access<chain_iter<I1, I2>, I1, I2> {
         static_assert(std::same_as<value_t<I1>, value_t<I2>>);
 
-        template<class T, class U>
-        constexpr chain_iter(T&& i1, U&& i2) : i1{FWD(i1)}, i2{FWD(i2)}
-        {
-            if constexpr (this_t::random_access) {
-                this->size = iter::unsafe::size(*this->i1) + iter::unsafe::size(this->i2);
-            }
-        }
+        std::optional<I1> i1;
+        [[no_unique_address]] I2 i2;
 
     private:
         using this_t = chain_iter;
-
-        std::optional<I1> i1;
-        [[no_unique_address]] I2 i2;
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires this_t::random_access
@@ -62,13 +54,18 @@ namespace iter::detail {
     };
 
     template<class I1, class I2>
-    chain_iter(I1, I2) -> chain_iter<I1, I2>;
+    chain_iter(std::optional<I1>, I2) -> chain_iter<I1, I2>;
 }
 
 template<iter::assert_iterable I1, iter::assert_iterable I2>
 constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
-    return iter::detail::chain_iter{iter::to_iter(FWD(iterable1)),
-                                    iter::to_iter(FWD(iterable2))};
+    if constexpr (iter::concepts::random_access_iterable<I1> && iter::concepts::random_access_iterable<I2>) {
+        auto chain = iter::detail::chain_iter{.i1 = MAKE_OPTIONAL(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
+        chain.size = iter::unsafe::size(*chain.i1) + iter::unsafe::size(chain.i2);
+        return chain;
+    } else {
+        return iter::detail::chain_iter{.i1 = MAKE_OPTIONAL(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
+    }
 }
 
 #endif /* INCLUDE_ITER_CHAIN_HPP */

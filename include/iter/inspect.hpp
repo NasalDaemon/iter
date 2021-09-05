@@ -8,17 +8,10 @@ ITER_DECLARE(inspect)
 namespace iter::detail {
     template<assert_iter I, concepts::inspector<ref_t<I>> F>
     struct [[nodiscard]] inspect_iter : enable_random_access<inspect_iter<I, F>, I> {
-        using this_t = inspect_iter;
-
-        template<class T, class U>
-        constexpr inspect_iter(T&& i, U&& f)
-            : this_t::base_t{FWD(i)}
-            , func{FWD(f)}
-        {}
-
-    private:
         [[no_unique_address]] F func;
 
+    private:
+        using this_t = inspect_iter;
         constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
@@ -42,7 +35,8 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
-    return iter::detail::inspect_iter{iter::to_iter(FWD(iterable)), std::move(func)};
+    return iter::detail::inspect_iter<iter::iter_t<I>, F>{
+        {.i = iter::to_iter(FWD(iterable))}, std::move(func)};
 }
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */

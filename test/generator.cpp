@@ -52,7 +52,7 @@ TEST(GeneratorTest, cycle) {
     ASSERT_EQ(45, make_range_10() | sum());
     ASSERT_EQ(45, make_range_to(10) | sum());
     ASSERT_EQ(90, make_range_10 |cycle|  _ |take| 20 | sum());
-    ASSERT_EQ(90, make_range_to |cycle| 10 |take| 20 | sum());
+    ASSERT_EQ(90, [](int i) { return make_range_to(i); } |cycle| 10 |take| 20 | sum());
 }
 
 #endif // INCLUDE_ITER_GENERATOR_HPP

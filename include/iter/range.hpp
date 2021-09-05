@@ -10,10 +10,8 @@ namespace iter {
     template<std::integral T = int>
     struct [[nodiscard]] range {
         using this_t = range;
-        constexpr range(T begin = 0, T end = std::numeric_limits<T>::max()) : begin_{begin}, end_{end} {}
-    private:
         T begin_;
-        T end_;
+        T end_ = std::numeric_limits<T>::max();
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             return self.begin_ < self.end_ ? std::optional(self.begin_++) : std::nullopt;
         }
@@ -27,6 +25,8 @@ namespace iter {
 
     template<class T>
     range(T) -> range<T>;
+    template<class T>
+    range(T, T) -> range<T>;
 
     namespace detail {
         struct [[nodiscard]] indices_iter {

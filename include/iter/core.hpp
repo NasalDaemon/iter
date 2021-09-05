@@ -14,6 +14,7 @@
 #endif
 
 #include "iter/emplace_new.hpp"
+#include "iter/tuple.hpp"
 
 #ifndef ITER_GLOBAL_INVOKER
 #  define ITER_INVOKER(name) XTD_INVOKER(iter_ ## name)
@@ -146,7 +147,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_move_next = false;
         template<class T>
-        constexpr bool is_move_next<detail::move_next<T>> = true;
+        constexpr bool is_move_next<iter::detail::move_next<T>> = true;
         template<class T>
         concept move_next = is_move_next<std::remove_cvref_t<T>>;
 
@@ -230,12 +231,12 @@ namespace iter {
 
         template<iterable I>
         struct force_iter<I> {
-            using type = decltype(iter::to_iter(std::declval<I>()));
+            using type = std::remove_cvref_t<decltype(iter::to_iter(std::declval<I>()))>;
         };
 
         template<iter I>
         struct force_iter<I> {
-            using type = I;
+            using type = std::remove_cvref_t<I>;
         };
     }
 
@@ -401,30 +402,22 @@ namespace iter {
         requires (!concepts::random_access_iter<I>)
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = false;
+            [[no_unique_address]] I i;
 
         protected:
             using this_t = enable_random_access;
             using base_t = enable_random_access;
-
-            template<class T>
-            constexpr enable_random_access(T&& in) : i{FWD(in)} {}
-
-            [[no_unique_address]] I i;
         };
 
         template<class Self, concepts::random_access_iter I>
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = true;
+            [[no_unique_address]] I i;
+            std::size_t index = 0;
 
         protected:
             using this_t = enable_random_access;
             using base_t = enable_random_access;
-
-            template<class T>
-            constexpr enable_random_access(T&& in) : i{FWD(in)} {}
-
-            [[no_unique_address]] I i;
-            std::size_t index = 0;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return iter::unsafe::size(base.i);
@@ -450,13 +443,12 @@ namespace iter {
         requires (sizeof...(I) > 1)
         struct enable_random_access<Self, I...> {
             static constexpr bool random_access = true;
+            std::size_t index = 0;
+            std::size_t size = 0;
 
         protected:
             using this_t = enable_random_access;
             using base_t = enable_random_access;
-
-            std::size_t index = 0;
-            std::size_t size = 0;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return base.size;
@@ -497,7 +489,6 @@ namespace iter {
             using include_t = include_if;
         };
     }
-
 }
 
 using iter::begin;

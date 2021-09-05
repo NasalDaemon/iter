@@ -10,9 +10,6 @@ namespace iter::detail {
     struct move_iter : enable_random_access<move_iter<I>, I> {
         using this_t = move_iter;
 
-        template<class T> requires (!std::same_as<this_t, std::remove_cvref_t<T>>)
-        constexpr explicit move_iter(T&& i) : this_t::base_t{FWD(i)} {}
-
         constexpr move_next<next_t<I>> ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
@@ -39,7 +36,7 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
     if constexpr (iter::concepts::move_next<iter::next_t<I>>)
         return FWD(iterable);
     else
-        return iter::detail::move_iter(iter::to_iter(FWD(iterable)));
+        return iter::detail::move_iter{iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_MOVE_HPP */

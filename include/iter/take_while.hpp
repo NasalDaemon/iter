@@ -25,7 +25,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(take_while) (I&& iterable, P&& predicate) {
-    return iter::detail::take_while_iter{iter::to_iter(FWD(iterable)), FWD(predicate)};
+    return iter::detail::take_while_iter{.i = iter::to_iter(FWD(iterable)), .pred = FWD(predicate)};
 }
 
 #endif /* INCLUDE_ITER_TAKE_WHILE_HPP */

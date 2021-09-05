@@ -8,11 +8,6 @@ ITER_DECLARE(flatten)
 namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] flatten_iter {
-        template<iter T>
-        requires (!std::same_as<std::remove_cvref_t<T>, flatten_iter>)
-        constexpr explicit flatten_iter(T&& i_) : i{FWD(i_)}, current{} {}
-
-    private:
         using this_t = flatten_iter;
         using inner_t = value_t<I>;
         static_assert(iterable<consume_t<I>>);
@@ -27,7 +22,7 @@ namespace iter::detail {
         }
 
         [[no_unique_address]] I i;
-        decltype(this_t::get_current(std::declval<I&>())) current;
+        decltype(this_t::get_current(std::declval<I&>())) current{};
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             auto val = no_next<iter_t<inner_t>>();
@@ -46,7 +41,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(flatten) (I&& iterable) {
-    return iter::detail::flatten_iter{iter::to_iter(FWD(iterable))};
+    return iter::detail::flatten_iter{.i = iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_FLATTEN_HPP */

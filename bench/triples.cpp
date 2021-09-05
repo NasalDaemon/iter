@@ -47,7 +47,7 @@ auto triples_flatmap_virtual() {
         return range(1, z) |flatmap| [=](int x) {
             return range(x, z) |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? once<std::tuple<int, int, int>>(x, y, z) | box | s
+                    ? once<std::tuple<int, int, int>>{{x, y, z}} | box | s
                     : empty<std::tuple<int, int, int>> | box | s;
             };
         };

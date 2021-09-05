@@ -9,18 +9,14 @@ ITER_ALIAS(flat_map, flatmap)
 namespace iter::detail {
     template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] flatmap_iter {
-        template<class T, class U>
-        constexpr flatmap_iter(T&& i, U&& f) : i{FWD(i)}, func{FWD(f)} {}
-
-    private:
         using this_t = flatmap_iter;
         using invoke_result = std::invoke_result_t<F, consume_t<I>>;
         static_assert(iterable<invoke_result>);
         using inner_iter_t = iter_t<invoke_result>;
 
+        std::optional<inner_iter_t> current = std::nullopt;
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
-        std::optional<inner_iter_t> current;
 
         constexpr auto get_current() {
             auto next = iter::next(i);
@@ -52,7 +48,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::detail::flatmap_iter{iter::to_iter(FWD(iterable)), FWD(func)};
+    return iter::detail::flatmap_iter{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
 #include "iter/filter_map.hpp"

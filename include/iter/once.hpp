@@ -8,12 +8,8 @@ namespace iter {
     template<class T>
     struct once {
         using this_t = once;
-        template<class... Ts>
-        requires std::constructible_from<T, Ts...>
-        constexpr once(Ts&&... ins) : value{T(FWD(ins)...)}, on{true} {}
-    private:
         [[no_unique_address]] T value;
-        bool on;
+        bool on = true;
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
             return 1;
         }
@@ -23,7 +19,7 @@ namespace iter {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             return self.on ? (self.on = false, std::addressof(self.value)) : nullptr;
         }
-        constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {
+        constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) {
@@ -31,8 +27,8 @@ namespace iter {
         }
     };
 
-    template<class F>
-    once(F) -> once<F>;
+    template<class T>
+    once(T) -> once<T>;
 
     template<class T>
     struct once_ref {

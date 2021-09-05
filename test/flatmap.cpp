@@ -46,8 +46,8 @@ TEST(TestFlatmap, nested_flatmap) {
                 .inspect([](auto& c2) {
                     ASSERT_EQ(c2.total(), 0); })
                 .flatmap([c1 = std::move(c1)](auto&& c2) {
-                    using type = std::tuple<ctor_count<int>, ctor_count<int>>;
-                    return once<type>(c1, std::move(c2)); }); })
+                    using type = tuple<ctor_count<int>, ctor_count<int>>;
+                    return once<type>{{c1, std::move(c2)}}; }); })
         .foreach(xtd::apply([](auto& c1, auto& c2) {
             ASSERT_LT(c2.value, c1.value);
             ASSERT_EQ(c1.copies, 1); // constructing tuple in once

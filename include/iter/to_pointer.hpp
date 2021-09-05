@@ -24,10 +24,6 @@ namespace iter::detail {
     struct [[nodiscard]] to_pointer_iter<I> : enable_random_access<to_pointer_iter<I>, I> {
         using this_t = to_pointer_iter;
 
-        template<class T> requires (!std::same_as<to_pointer_iter, std::remove_cvref_t<T>>)
-        constexpr to_pointer_iter(T&& in) : this_t::base_t{FWD(in)}, store{} {}
-
-    private:
         // If iter::unsafe::get returns a value, then we need to store it to return a pointer to storage
         static constexpr bool get_val = !std::is_reference_v<decltype(iter::unsafe::get(std::declval<I&>(), 0ul))>;
         [[no_unique_address]] std::conditional_t<get_val, next_t<I>, void_t> store;

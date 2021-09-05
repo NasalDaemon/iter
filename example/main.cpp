@@ -10,7 +10,7 @@ using namespace iter;
 
 float getsum1(const std::array<float, 64>& a) {
     float fsum = 0;
-    for (auto [a, i] : iter::zip(a, iter::indices) ) {
+    for (auto [a, i] : iter::zip(a, iter::indices)) {
         fsum += a * i;
     }
     return fsum;

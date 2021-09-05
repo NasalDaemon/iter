@@ -9,14 +9,6 @@ namespace iter::detail {
     template<assert_iter I>
     struct skip_iter : enable_random_access<skip_iter<I>, I> {
         using this_t = skip_iter;
-
-        template<class T>
-        constexpr skip_iter(T&& i, std::size_t n)
-            : this_t::base_t{FWD(i)}
-            , n{n}
-        {}
-
-    private:
         std::size_t n;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
@@ -53,7 +45,8 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
-    return iter::detail::skip_iter(iter::to_iter(FWD(iterable)), n);
+    return iter::detail::skip_iter<iter::iter_t<I>>{
+        {.i = iter::to_iter(FWD(iterable))}, n};
 }
 
 #endif /* INCLUDE_ITER_SKIP_HPP */

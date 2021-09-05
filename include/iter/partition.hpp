@@ -57,7 +57,7 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>)
 
     if constexpr (iter::concepts::random_access_iter<I>) {
         std::size_t size = iter::unsafe::size(iter) / N;
-        std::apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
+        apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
     while (auto val = iter::next(iter)) {

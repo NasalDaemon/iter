@@ -7,15 +7,10 @@ namespace iter {
     template<class A, class F>
     requires std::constructible_from<std::optional<A>, std::invoke_result_t<F, A const&>>
     struct compound {
-        using this_t = compound;
-
-        template<class T, class U>
-        constexpr compound(T&& init, U&& func) : value{FWD(init)}, func{FWD(func)} {}
-
-    private:
         std::optional<A> value;
         [[no_unique_address]] F func;
 
+        using this_t = compound;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             auto result = std::move(self.value);
             if (result) {
