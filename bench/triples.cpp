@@ -11,7 +11,7 @@ auto triples_filter_map() {
                 |filter| [=](int y) {
                     return x*x + y*y == z*z; }
                 |map| [=](int y) {
-                    return std::tuple(x, y, z); };
+                    return tuple{x, y, z}; };
         };
     };
 }
@@ -21,7 +21,7 @@ auto triples_map_filter() {
         return range(1, z) |flatmap| [=](int x) {
             return range(x, z)
                 |map| [=](int y) {
-                    return std::tuple(x, y, z); }
+                    return tuple{x, y, z}; }
                 |filter| xtd::apply([](int x, int y, int z) {
                     return x*x + y*y == z*z; });
         };
@@ -33,7 +33,7 @@ auto triples_flatmap() {
         return range(1, z) |flatmap| [=](int x) {
             return range(x, z) |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? MAKE_OPTIONAL(std::tuple(x, y, z))
+                    ? MAKE_OPTIONAL(tuple{x, y, z})
                     : std::nullopt;
             };
         };
@@ -47,8 +47,8 @@ auto triples_flatmap_virtual() {
         return range(1, z) |flatmap| [=](int x) {
             return range(x, z) |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? once<std::tuple<int, int, int>>{{x, y, z}} | box | s
-                    : empty<std::tuple<int, int, int>> | box | s;
+                    ? box(once<std::tuple<int, int, int>>{{x, y, z}}, s)
+                    : box(empty<std::tuple<int, int, int>>, s);
             };
         };
     };
@@ -243,12 +243,12 @@ BENCHMARK(bench_c_make_triples)->Arg(1000);
 
 #ifdef INCLUDE_ITER_GENERATOR_HPP
 
-generator<std::tuple<int, int, int>> gen_triples() {
+generator<tuple<int, int, int>> gen_triples() {
     for (int z = 1; true; ++z) {
         for (int x = 1; x < z; ++x) {
             for (int y = x; y < z; ++y) {
                 if (x*x + y*y == z*z) {
-                    co_yield std::tuple(x, y, z);
+                    co_yield {x, y, z};
                 }
             }
         }
