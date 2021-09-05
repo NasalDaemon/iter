@@ -10,7 +10,7 @@ namespace iter::detail {
     struct [[nodiscard]] filter_iter {
         using this_t = filter_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
         constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {

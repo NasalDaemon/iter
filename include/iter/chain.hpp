@@ -22,7 +22,7 @@ namespace iter::detail {
         using this_t = chain_iter;
 
         std::optional<I1> i1;
-        I2 i2;
+        [[no_unique_address]] I2 i2;
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires this_t::random_access

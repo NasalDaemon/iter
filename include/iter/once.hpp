@@ -12,7 +12,7 @@ namespace iter {
         requires std::constructible_from<T, Ts...>
         constexpr once(Ts&&... ins) : value{T(FWD(ins)...)}, on{true} {}
     private:
-        T value;
+        [[no_unique_address]] T value;
         bool on;
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
             return 1;

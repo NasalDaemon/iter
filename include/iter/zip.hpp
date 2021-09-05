@@ -63,7 +63,7 @@ namespace iter::detail {
             : zip_iter(std::get<Is>(zi.i)..., FWD(ins)...)
         {}
 
-        std::tuple<I...> i;
+        [[no_unique_address]] std::tuple<I...> i;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)

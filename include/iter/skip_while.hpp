@@ -15,7 +15,7 @@ namespace iter::detail {
         {}
 
     private:
-        I i;
+        [[no_unique_address]] I i;
         std::optional<P> pred;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

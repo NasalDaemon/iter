@@ -10,7 +10,7 @@ namespace iter::detail {
     struct take_while_iter {
         using this_t = take_while_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
         constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {

@@ -26,7 +26,7 @@ namespace iter::detail {
             }
         }
 
-        I i;
+        [[no_unique_address]] I i;
         decltype(this_t::get_current(std::declval<I&>())) current;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

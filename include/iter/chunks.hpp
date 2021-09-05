@@ -43,9 +43,10 @@ namespace iter::detail {
         template<class V>
         constexpr void assign(std::size_t n, V&& value) {
             if (n == size) [[unlikely]]
-                new (std::addressof(buffer[size++]), constexpr_new_tag{}) T(FWD(value));
+                size++;
             else
-                EMPLACE_NEW(array()[n], FWD(value));
+                array()[n].~T();
+            new (std::addressof(buffer[n]), constexpr_new_tag{}) T(FWD(value));
         }
         constexpr auto to_iter(std::size_t n) {
             return take(array(), n);
@@ -75,7 +76,7 @@ namespace iter::detail {
 
     template<assert_iter I, std::size_t N>
     struct [[nodiscard]] chunks_iter : chunks_iter_storage<value_t<I>, N> {
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = chunks_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -92,7 +93,7 @@ namespace iter::detail {
     struct [[nodiscard]] lazy_chunk_iter {
         std::uint32_t size;
         std::uint32_t remaining;
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = lazy_chunk_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

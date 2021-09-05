@@ -18,7 +18,7 @@ namespace iter::detail {
         static_assert(iterable<invoke_result>);
         using inner_iter_t = iter_t<invoke_result>;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
         std::optional<inner_iter_t> current;
 

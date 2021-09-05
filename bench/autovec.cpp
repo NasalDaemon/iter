@@ -100,10 +100,26 @@ void bench_std_seq_sum(benchmark::State& state)
     }
 }
 
+void bench_iter_chain_sum(benchmark::State& state)
+{
+    std::array<int, 128> a{};
+    std::array<int, 128> b{};
+    std::array<int, 128> c{};
+
+    for (auto _ : state) {
+        auto it = iter::wrap(a).chain(b).chain(c);
+        static_assert(iter::concepts::random_access_iter<decltype(it)>);
+        auto sum = it.sum();
+        benchmark::DoNotOptimize(sum > 10);
+    }
+}
+
 BENCHMARK(bench_iter_zip_sum);
 BENCHMARK(bench_std_zip_sum);
 BENCHMARK(bench_iter_seq_sum);
 BENCHMARK(bench_std_seq_sum);
+BENCHMARK(bench_iter_chain_sum);
+BENCHMARK(bench_iter_chain_sum);
 
 void bench_iter_enumerate(benchmark::State& state)
 {

@@ -31,7 +31,7 @@ namespace iter::detail {
     template<assert_iter I, std::size_t N>
     struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
         static_assert(N > 1, "Window must be of at least size 2");
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = window_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

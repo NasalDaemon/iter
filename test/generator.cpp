@@ -41,4 +41,18 @@ TEST(GeneratorTest, void_generator) {
     ASSERT_EQ(s, 45);
 }
 
+generator<int> make_range_to(int limit) {
+    for (int i = 0; i < limit; ++i)
+        co_yield i;
+}
+
+generator<int> make_range_10() { return make_range_to(10); }
+
+TEST(GeneratorTest, cycle) {
+    ASSERT_EQ(45, make_range_10() | sum());
+    ASSERT_EQ(45, make_range_to(10) | sum());
+    ASSERT_EQ(90, make_range_10 |cycle|  _ |take| 20 | sum());
+    ASSERT_EQ(90, make_range_to |cycle| 10 |take| 20 | sum());
+}
+
 #endif // INCLUDE_ITER_GENERATOR_HPP

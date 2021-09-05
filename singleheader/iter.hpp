@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210830
+#  define ITER_LIBRARY_VERSION 20210905
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -958,7 +958,7 @@ namespace iter {
             template<class T>
             constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
-            I i;
+            [[no_unique_address]] I i;
         };
 
         template<class Self, concepts::random_access_iter I>
@@ -972,7 +972,7 @@ namespace iter {
             template<class T>
             constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
-            I i;
+            [[no_unique_address]] I i;
             std::size_t index = 0;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
@@ -1315,7 +1315,7 @@ namespace iter {
         requires std::constructible_from<T, Ts...>
         constexpr once(Ts&&... ins) : value{T(FWD(ins)...)}, on{true} {}
     private:
-        T value;
+        [[no_unique_address]] T value;
         bool on;
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
             return 1;
@@ -1451,6 +1451,17 @@ namespace iter {
     template<class T>
     class generator;
 
+    namespace concepts {
+        namespace detail {
+            template<class T>
+            static constexpr bool is_generator = false;
+            template<class T>
+            constexpr bool is_generator<generator<T>> = true;
+        }
+        template<class T>
+        concept generator = detail::is_generator<T>;
+    }
+
     namespace detail {
         template<class T>
         struct generator_promise {
@@ -1558,6 +1569,25 @@ namespace iter {
         using coroutine_handle = std::coroutine_handle<generator_promise<T>>;
         return generator<T>{coroutine_handle::from_promise(*this)};
     }
+
+    template<class... Ts, std::invocable<Ts&...> F>
+    requires concepts::generator<std::invoke_result_t<F, Ts&...>>
+    constexpr auto ITER_IMPL(cycle) (F&& invocable, Ts&&... args) {
+        return [make_iter = std::forward<F>(invocable), ...args = std::forward<Ts>(args)] () mutable
+            -> std::invoke_result_t<F, Ts&...>
+        {
+            while(true)
+                for (auto it = make_iter(static_cast<Ts&>(args)...); auto next = iter::next(it);)
+                    co_yield detail::consume(next);
+        }();
+    }
+    template<std::invocable<> F>
+    requires concepts::generator<std::invoke_result_t<F>>
+    constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
+        for (auto make_iter = std::forward<F>(invocable); true; )
+            for (auto it = make_iter(); auto next = iter::next(it);)
+                co_yield detail::consume(next);
+    }
 }
 
 #endif /* INCLUDE_ITER_GENERATOR_HPP */
@@ -1576,7 +1606,7 @@ namespace iter {
 
     private:
         std::optional<A> value;
-        F func;
+        [[no_unique_address]] F func;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             auto result = std::move(self.value);
@@ -1631,7 +1661,7 @@ namespace iter::detail {
     struct [[nodiscard]] filter_iter {
         using this_t = filter_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
         constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {
@@ -1716,7 +1746,7 @@ namespace iter::detail {
     struct take_while_iter {
         using this_t = take_while_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
         constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {
@@ -1809,7 +1839,7 @@ namespace iter::detail {
         {}
 
     private:
-        I i;
+        [[no_unique_address]] I i;
         std::optional<P> pred;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -1867,7 +1897,7 @@ namespace iter::detail {
             }
         }
 
-        I i;
+        [[no_unique_address]] I i;
         decltype(this_t::get_current(std::declval<I&>())) current;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -1910,7 +1940,7 @@ namespace iter::detail {
         static_assert(iterable<invoke_result>);
         using inner_iter_t = iter_t<invoke_result>;
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
         std::optional<inner_iter_t> current;
 
@@ -1959,7 +1989,7 @@ namespace iter::detail {
         using mapped_t = std::invoke_result_t<F, ref_t<I>>;
         static_assert(concepts::optional_next<mapped_t> || concepts::pointer_next<mapped_t>);
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {
@@ -2057,10 +2087,10 @@ namespace iter::detail {
     template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] map_while_iter {
         using this_t = map_while_iter;
-        using mapped_t = std::invoke_result_t<F, ref_t<I>>;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
         static_assert(concepts::optional_next<mapped_t> || concepts::pointer_next<mapped_t>);
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {
@@ -2143,7 +2173,7 @@ namespace iter::detail {
             : zip_iter(std::get<Is>(zi.i)..., FWD(ins)...)
         {}
 
-        std::tuple<I...> i;
+        [[no_unique_address]] std::tuple<I...> i;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
@@ -2246,8 +2276,9 @@ constexpr auto ITER_IMPL(cycle) (I&& iter) {
     return iter::detail::cycle_iter(FWD(iter));
 }
 
-template<iter::assert_iterable I>
+template<class I>
 constexpr auto ITER_IMPL(cycle) (I&& iterable) {
+    static_assert(iter::iterable<I>);
     return iter::cycle(iter::to_iter(FWD(iterable)));
 }
 
@@ -2275,7 +2306,7 @@ namespace iter::detail {
         using this_t = chain_iter;
 
         std::optional<I1> i1;
-        I2 i2;
+        [[no_unique_address]] I2 i2;
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires this_t::random_access
@@ -2368,9 +2399,10 @@ namespace iter::detail {
         template<class V>
         constexpr void assign(std::size_t n, V&& value) {
             if (n == size) [[unlikely]]
-                new (std::addressof(buffer[size++]), constexpr_new_tag{}) T(FWD(value));
+                size++;
             else
-                EMPLACE_NEW(array()[n], FWD(value));
+                array()[n].~T();
+            new (std::addressof(buffer[n]), constexpr_new_tag{}) T(FWD(value));
         }
         constexpr auto to_iter(std::size_t n) {
             return take(array(), n);
@@ -2400,7 +2432,7 @@ namespace iter::detail {
 
     template<assert_iter I, std::size_t N>
     struct [[nodiscard]] chunks_iter : chunks_iter_storage<value_t<I>, N> {
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = chunks_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -2417,7 +2449,7 @@ namespace iter::detail {
     struct [[nodiscard]] lazy_chunk_iter {
         std::uint32_t size;
         std::uint32_t remaining;
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = lazy_chunk_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -2485,7 +2517,7 @@ namespace iter::detail {
     template<assert_iter I, std::size_t N>
     struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
         static_assert(N > 1, "Window must be of at least size 2");
-        I i;
+        [[no_unique_address]] I i;
 
         using this_t = window_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
@@ -2565,7 +2597,7 @@ namespace iter::detail {
     struct [[nodiscard]] to_pointer_iter {
         using this_t = to_pointer_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         next_t<I> store = std::nullopt;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

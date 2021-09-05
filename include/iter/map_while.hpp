@@ -9,10 +9,10 @@ namespace iter::detail {
     template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] map_while_iter {
         using this_t = map_while_iter;
-        using mapped_t = std::invoke_result_t<F, ref_t<I>>;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
         static_assert(concepts::optional_next<mapped_t> || concepts::pointer_next<mapped_t>);
 
-        I i;
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {

@@ -10,7 +10,7 @@ namespace iter::detail {
     struct [[nodiscard]] to_pointer_iter {
         using this_t = to_pointer_iter;
 
-        I i;
+        [[no_unique_address]] I i;
         next_t<I> store = std::nullopt;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {

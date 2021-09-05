@@ -9,6 +9,17 @@ namespace iter {
     template<class T>
     class generator;
 
+    namespace concepts {
+        namespace detail {
+            template<class T>
+            static constexpr bool is_generator = false;
+            template<class T>
+            constexpr bool is_generator<generator<T>> = true;
+        }
+        template<class T>
+        concept generator = detail::is_generator<T>;
+    }
+
     namespace detail {
         template<class T>
         struct generator_promise {
@@ -115,6 +126,25 @@ namespace iter {
     generator<T> detail::generator_promise<T>::get_return_object() noexcept {
         using coroutine_handle = std::coroutine_handle<generator_promise<T>>;
         return generator<T>{coroutine_handle::from_promise(*this)};
+    }
+
+    template<class... Ts, std::invocable<Ts&...> F>
+    requires concepts::generator<std::invoke_result_t<F, Ts&...>>
+    constexpr auto ITER_IMPL(cycle) (F&& invocable, Ts&&... args) {
+        return [make_iter = std::forward<F>(invocable), ...args = std::forward<Ts>(args)] () mutable
+            -> std::invoke_result_t<F, Ts&...>
+        {
+            while(true)
+                for (auto it = make_iter(static_cast<Ts&>(args)...); auto next = iter::next(it);)
+                    co_yield detail::consume(next);
+        }();
+    }
+    template<std::invocable<> F>
+    requires concepts::generator<std::invoke_result_t<F>>
+    constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
+        for (auto make_iter = std::forward<F>(invocable); true; )
+            for (auto it = make_iter(); auto next = iter::next(it);)
+                co_yield detail::consume(next);
     }
 }
 

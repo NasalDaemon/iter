@@ -409,7 +409,7 @@ namespace iter {
             template<class T>
             constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
-            I i;
+            [[no_unique_address]] I i;
         };
 
         template<class Self, concepts::random_access_iter I>
@@ -423,7 +423,7 @@ namespace iter {
             template<class T>
             constexpr enable_random_access(T&& in) : i{FWD(in)} {}
 
-            I i;
+            [[no_unique_address]] I i;
             std::size_t index = 0;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {

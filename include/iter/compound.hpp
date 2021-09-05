@@ -14,7 +14,7 @@ namespace iter {
 
     private:
         std::optional<A> value;
-        F func;
+        [[no_unique_address]] F func;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
             auto result = std::move(self.value);
