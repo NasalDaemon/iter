@@ -41,7 +41,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(flatten) (I&& iterable) {
-    return iter::detail::flatten_iter{.i = iter::to_iter(FWD(iterable))};
+    return iter::detail::flatten_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_FLATTEN_HPP */

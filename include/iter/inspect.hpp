@@ -36,7 +36,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
-    return iter::detail::inspect_iter{.i = iter::to_iter(FWD(iterable)), .func = std::move(func)};
+    return iter::detail::inspect_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = std::move(func)};
 }
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */

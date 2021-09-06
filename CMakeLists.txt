@@ -18,6 +18,7 @@ set(GNU_COMPILE_OPTIONS
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(
     ${GNU_COMPILE_OPTIONS}
+    "-Wno-missing-braces"
     "-fcoroutines-ts"
     "-Wno-dollar-in-identifier-extension"
     "-stdlib=libstdc++"

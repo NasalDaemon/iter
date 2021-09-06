@@ -38,7 +38,7 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
     if constexpr (iter::concepts::move_next<iter::next_t<I>>)
         return FWD(iterable);
     else
-        return iter::detail::move_iter{.i = iter::to_iter(FWD(iterable))};
+        return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_MOVE_HPP */

@@ -3,7 +3,7 @@
 static_assert(concepts::random_access_iter<decltype(range())>);
 
 TEST(TestRange, last) {
-    auto r = range(0, 10);
+    auto r = range{0, 10};
     ASSERT_EQ(r | next(), 0);
     ASSERT_EQ(r | last(), 9);
 }
@@ -15,14 +15,14 @@ TEST(TestRange, default) {
 }
 
 TEST(TestRange, fuse) {
-    auto r = range(0, 10);
+    auto r = range{0, 10};
     while(next(r));
     ASSERT_FALSE(next(r).has_value());
     ASSERT_FALSE(next(r).has_value());
 }
 
 TEST(TestRange, empty) {
-    auto r = range(0, 0);
+    auto r = range{0, 0};
     ASSERT_FALSE(next(r).has_value());
     ASSERT_FALSE(next(r).has_value());
 }

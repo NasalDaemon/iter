@@ -32,7 +32,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
-    return iter::detail::filter_map_iter{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+    return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
 #endif /* INCLUDE_ITER_FILTER_MAP_HPP */

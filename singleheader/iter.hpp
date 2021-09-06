@@ -1445,9 +1445,9 @@ namespace iter {
     };
 
     template<class T>
-    range(T) -> range<T>;
+    range{T} -> range<T>;
     template<class T>
-    range(T, T) -> range<T>;
+    range{T, T} -> range<T>;
 
     namespace detail {
         struct [[nodiscard]] indices_iter {

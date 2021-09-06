@@ -49,7 +49,7 @@ namespace iter {
 
     template<std::size_t I, concepts::decays_to_tuple Tuple>
     auto&& get(Tuple&& tuple) {
-        static_assert(I < tuple.size(), "Tuple index out of bounds");
+        static_assert(I < std::remove_cvref_t<Tuple>::size(), "Tuple index out of bounds");
         return detail::get<I>(std::forward<Tuple>(tuple));
     }
 
@@ -63,14 +63,14 @@ namespace iter {
     decltype(auto) apply(F&& func, Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             return std::invoke(std::forward<F>(func), get<Is>(std::forward<Tuple>(tuple))...);
-        }(std::make_index_sequence<tuple.size()>{});
+        }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 
     template<class T, concepts::decays_to_tuple Tuple>
     decltype(auto) make_from_tuple(Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             return T(get<Is>(std::forward<Tuple>(tuple))...);
-        }(std::make_index_sequence<tuple.size()>{});
+        }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 }
 

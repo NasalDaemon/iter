@@ -128,7 +128,7 @@ constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, 
 
 template<std::size_t N, iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
-    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, {.i = FWD(iterable)}};
+    return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, .i = FWD(iterable)};
 }
 
 #endif /* INCLUDE_ITER_CHUNKS_HPP */

@@ -43,7 +43,7 @@ namespace iter::detail {
 
 template<iter::iter I>
 constexpr auto ITER_IMPL(cycle) (I&& iter) {
-    return iter::detail::cycle_iter{.i = FWD(iter)};
+    return iter::detail::cycle_iter<std::remove_cvref_t<I>>{.i = FWD(iter)};
 }
 
 template<class I>

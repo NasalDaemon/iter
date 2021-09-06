@@ -36,12 +36,12 @@ TEST(TestFlatMap, rvo) {
 }
 
 TEST(TestFlatmap, nested_flatmap) {
-    wrap(range(0, 10))
+    wrap{range{0, 10}}
         .map(counter_wrap)
         .inspect([](auto& c1) {
             ASSERT_EQ(c1.total(), 0); })
         .flatmap([](auto&& c1) {
-            return wrap(range(0, c1.value))
+            return wrap{range{0, c1.value}}
                 .map(counter_wrap)
                 .inspect([](auto& c2) {
                     ASSERT_EQ(c2.total(), 0); })

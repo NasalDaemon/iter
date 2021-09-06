@@ -25,7 +25,7 @@ TEST(TestCycle, indices_take) {
 }
 
 TEST(TestCycle, once) {
-    constexpr auto o = once(9) | cycle();
+    constexpr auto o = once{9} | cycle();
     using type = std::remove_cvref_t<decltype(o)>;
     static_assert(concepts::random_access_iter<type>);
     static_assert(unsafe::size(o) == std::numeric_limits<std::size_t>::max());

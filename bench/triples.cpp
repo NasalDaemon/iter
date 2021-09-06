@@ -5,9 +5,9 @@ using namespace xtd::literals;
 using namespace iter;
 
 auto triples_filter_map() {
-    return range(1) |flatmap| [](int z) {
-        return range(1, z) |flatmap| [=](int x) {
-            return range(x, z)
+    return range{1} |flatmap| [](int z) {
+        return range{1, z} |flatmap| [=](int x) {
+            return range{x, z}
                 |filter| [=](int y) {
                     return x*x + y*y == z*z; }
                 |map| [=](int y) {
@@ -17,9 +17,9 @@ auto triples_filter_map() {
 }
 
 auto triples_map_filter() {
-    return range(1) |flatmap| [](int z) {
-        return range(1, z) |flatmap| [=](int x) {
-            return range(x, z)
+    return range{1} |flatmap| [](int z) {
+        return range{1, z} |flatmap| [=](int x) {
+            return range{x, z}
                 |map| [=](int y) {
                     return tuple{x, y, z}; }
                 |filter| xtd::apply([](int x, int y, int z) {
@@ -29,9 +29,9 @@ auto triples_map_filter() {
 }
 
 auto triples_flatmap() {
-    return range(1) |flatmap| [](int z) {
-        return range(1, z) |flatmap| [=](int x) {
-            return range(x, z) |flatmap| [=](int y) {
+    return range{1} |flatmap| [](int z) {
+        return range{1, z} |flatmap| [=](int x) {
+            return range{x, z} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
                     ? MAKE_OPTIONAL(tuple{x, y, z})
                     : std::nullopt;
@@ -43,9 +43,9 @@ auto triples_flatmap() {
 static scratch<24> s = {};
 
 auto triples_flatmap_virtual() {
-    return range(1) |flatmap| [](int z) {
-        return range(1, z) |flatmap| [=](int x) {
-            return range(x, z) |flatmap| [=](int y) {
+    return range{1} |flatmap| [](int z) {
+        return range{1, z} |flatmap| [=](int x) {
+            return range{x, z} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
                     ? box(once<std::tuple<int, int, int>>{{x, y, z}}, s)
                     : box(empty<std::tuple<int, int, int>>, s);

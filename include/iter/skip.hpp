@@ -46,7 +46,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
-    return iter::detail::skip_iter{.i = iter::to_iter(FWD(iterable)), .n = n};
+    return iter::detail::skip_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
 #endif /* INCLUDE_ITER_SKIP_HPP */

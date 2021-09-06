@@ -51,9 +51,9 @@ constexpr auto get1(size_t max) {
 }
 
 constexpr auto triples() {
-    return range(1) |flatmap| [](int z) {
-        return range(1, z+1) |flatmap| [=](int x) {
-            return range(x, z+1) |flatmap| [=](int y) {
+    return range{1} |flatmap| [](int z) {
+        return range{1, z+1} |flatmap| [=](int x) {
+            return range{x, z+1} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
                     ? std::optional(std::tuple(x, y, z))
                     : std::nullopt;
@@ -78,9 +78,9 @@ consteval auto get2(size_t max) {
 
 int main() {
 
-    std::cout << "==: " << (once(1) $take(1) < once(1)) << "\n";
-    std::cout << "!=: " << (once(1) $take(1) <= once(1)) << "\n";
-    auto cmp = repeat{1} $take(0) <=> once(1);
+    std::cout << "==: " << (once{1} $take(1) < once{1}) << "\n";
+    std::cout << "!=: " << (once{1} $take(1) <= once{1}) << "\n";
+    auto cmp = repeat{1} $take(0) <=> once{1};
     auto cmp_int = cmp == 0 ? 0 : cmp < 0 ? -1 : 1;
     std::cout << "<=>: " << cmp_int << "\n";
 
@@ -126,7 +126,7 @@ int main() {
     std::cout << "\nlast: " << *last << "\n";
 
     auto [_1, _2, _3] = std::tuple(1, 2, 3);
-    auto two = once(_1) |chain| once(_2) |chain| generate{[i = 3]()mutable{ return std::optional(i++); }};
+    auto two = once{_1} |chain| once{_2} |chain| generate{[i = 3]()mutable{ return std::optional(i++); }};
     // static_assert(concepts::random_access_iter<decltype(two)>);
     static_assert(concepts::optional_iter<decltype(two)>);
 
@@ -150,7 +150,7 @@ int main() {
         std::cout << "repeat: " << i << "\n";
     }
 
-    for (auto i : compound(1, [](auto i) { return i * 10; }) |take_while| [](auto i) { return i < 100'000'000; }) {
+    for (auto i : compound{1, [](auto i) { return i * 10; }} |take_while| [](auto i) { return i < 100'000'000; }) {
         std::cout << "compound: " << i << "\n";
     }
 
@@ -160,14 +160,14 @@ int main() {
     static_assert(sizeof(detail::deleter) == 1);
     static_assert(alignof(detail::deleter) == 1);
 
-    range(0, 10)
+    range{0, 10}
         | inspect | [](int i) {
             std::cout << "entering flatmap: " << i << "\n"; }
         | flatmap | [&s](int i) -> boxed<int*> {
             if (i % 2 == 0)
                 return empty<int> | box | s;
             else
-                return once(i) |filter| [](auto&&){return true;} | box | s;
+                return once{i} |filter| [](auto&&){return true;} | box | s;
             }
         | foreach | [](int i) {
             std::cout << "made it: " << i << "\n"; };

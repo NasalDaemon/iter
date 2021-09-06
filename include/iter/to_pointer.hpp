@@ -47,7 +47,7 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     if constexpr (iter::concepts::pointer_iter<I>) {
         return FWD(iter);
     } else {
-        return iter::detail::to_pointer_iter{.i = FWD(iter)};
+        return iter::detail::to_pointer_iter<iter::iter_t<I>>{.i = FWD(iter)};
     }
 }
 
