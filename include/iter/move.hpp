@@ -8,6 +8,8 @@ ITER_DECLARE(move)
 namespace iter::detail {
     template<iter::assert_iter I>
     struct move_iter : enable_random_access<move_iter<I>, I> {
+        [[no_unique_address]] I i;
+
         using this_t = move_iter;
 
         constexpr move_next<next_t<I>> ITER_IMPL_THIS(next) (this_t& self)
@@ -36,7 +38,7 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
     if constexpr (iter::concepts::move_next<iter::next_t<I>>)
         return FWD(iterable);
     else
-        return iter::detail::move_iter{iter::to_iter(FWD(iterable))};
+        return iter::detail::move_iter{.i = iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_MOVE_HPP */

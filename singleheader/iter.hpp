@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210905
+#  define ITER_LIBRARY_VERSION 20210906
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -619,6 +619,12 @@ namespace iter {
         return detail::get<I>(std::forward<Tuple>(tuple));
     }
 
+    // Make a tuple with element types exactly the same as those returned from lazy_values
+    template<std::invocable<>... Fs>
+    tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
+        return {std::invoke(FWD(lazy_values))...};
+    }
+
     template<class F, concepts::decays_to_tuple Tuple>
     decltype(auto) apply(F&& func, Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
@@ -727,7 +733,7 @@ namespace iter {
         template<class T>
         requires concepts::pointer<T> || concepts::optional<T>
         struct move_next {
-            T next;
+            T next = {};
             using value_type = decltype(get_value_t(next));
             constexpr auto&& operator*() {
                 return std::move(*next);
@@ -743,6 +749,11 @@ namespace iter {
             }
             constexpr move_next& operator=(std::nullptr_t) requires concepts::pointer<T> {
                 next = nullptr;
+                return *this;
+            }
+            constexpr move_next& operator=(std::nullopt_t) requires concepts::optional<T> {
+                next.reset();
+                return *this;
             }
         };
 
@@ -816,7 +827,7 @@ namespace iter {
             template<class T>
             struct iter {
                 static constexpr bool value = concepts::iter<T>;
-                static_assert(concepts::iterable<T>, "iter constraint not satisfied");
+                static_assert(concepts::iter<T>, "iter constraint not satisfied");
             };
             template<class T>
             struct iterable {
@@ -1035,7 +1046,6 @@ namespace iter {
         requires (!concepts::random_access_iter<I>)
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = false;
-            [[no_unique_address]] I i;
 
         protected:
             using this_t = enable_random_access;
@@ -1045,7 +1055,6 @@ namespace iter {
         template<class Self, concepts::random_access_iter I>
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = true;
-            [[no_unique_address]] I i;
             std::size_t index = 0;
 
         protected:
@@ -1053,7 +1062,7 @@ namespace iter {
             using base_t = enable_random_access;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
-                return iter::unsafe::size(base.i);
+                return iter::unsafe::size(static_cast<Self const&>(base).i);
             }
             constexpr auto ITER_IMPL_THIS(next) (this_t& base) {
                 auto index = base.index++;
@@ -1098,28 +1107,6 @@ namespace iter {
         template<class F, class T>
         concept inspector = requires (F func, T t) {
             { func(t) } -> std::same_as<void>;
-        };
-    }
-
-    namespace detail {
-        template<bool If, class IfTrue, class IfFalse = void>
-        struct include_if;
-
-        template<class IfTrue>
-        struct include_if<false, IfTrue, void> {
-            using include_t = include_if;
-            template<class... Ts>
-            constexpr include_if(Ts&&...) noexcept {}
-        };
-
-        template<class IfTrue, class IfFalse>
-        struct include_if<false, IfTrue, IfFalse> : IfFalse {
-            using include_t = include_if;
-        };
-
-        template<class IfTrue, class IfFalse>
-        struct include_if<true, IfTrue, IfFalse> : IfTrue {
-            using include_t = include_if;
         };
     }
 }
@@ -1647,10 +1634,9 @@ namespace iter {
         return [make_iter = std::forward<F>(invocable), ...as = std::forward<Ts>(args)] () mutable
             -> std::invoke_result_t<F, Ts&...>
         {
-            while(true)
-                for (auto it = make_iter(static_cast<Ts&>(as)...);
-                     auto next = iter::next(it);)
-                    co_yield detail::consume(next);
+            while (true)
+                for (auto it = make_iter(static_cast<Ts&>(as)...); auto next = iter::next(it);)
+                    co_yield *next;
         }();
     }
     template<std::invocable<> F>
@@ -1658,7 +1644,7 @@ namespace iter {
     constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
         for (auto make_iter = std::forward<F>(invocable); true; )
             for (auto it = make_iter(); auto next = iter::next(it);)
-                co_yield detail::consume(next);
+                co_yield *next;
     }
 }
 
@@ -1762,8 +1748,10 @@ ITER_DECLARE(take)
 namespace iter::detail {
     template<assert_iter I>
     struct take_iter : enable_random_access<take_iter<I>, I> {
-        using this_t = take_iter;
+        [[no_unique_address]] I i;
         std::size_t n;
+
+        using this_t = take_iter;
 
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
@@ -1790,8 +1778,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
-    return iter::detail::take_iter<iter::iter_t<I>>{
-        {.i = iter::to_iter(FWD(iterable))}, n};
+    return iter::detail::take_iter{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
 #endif /* INCLUDE_ITER_TAKE_HPP */
@@ -1834,9 +1821,10 @@ ITER_DECLARE(skip)
 namespace iter::detail {
     template<assert_iter I>
     struct skip_iter : enable_random_access<skip_iter<I>, I> {
-        using this_t = skip_iter;
+        [[no_unique_address]] I i;
         std::size_t n;
 
+        using this_t = skip_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
@@ -1871,8 +1859,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
-    return iter::detail::skip_iter<iter::iter_t<I>>{
-        {.i = iter::to_iter(FWD(iterable))}, n};
+    return iter::detail::skip_iter{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
 #endif /* INCLUDE_ITER_SKIP_HPP */
@@ -2068,6 +2055,7 @@ ITER_DECLARE(map)
 namespace iter::detail {
     template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
     private:
@@ -2105,8 +2093,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
-    return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{
-        {.i = iter::to_iter(FWD(iterable))}, FWD(func)};
+    return iter::detail::map_iter{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
 #endif /* INCLUDE_ITER_MAP_HPP */
@@ -2149,21 +2136,15 @@ constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
 ITER_DECLARE(zip)
 
 namespace iter::detail {
-    // Tie only those arguments that are lvalue-references
-    template<class... Ts>
-    static constexpr tuple<Ts...> half_tie(Ts&&... ins) {
-        return {FWD(ins)...};
-    }
-
     // Simply dereference pointers to avoid copy/move construction
     // but unwrap optionals into new instances
     template<class T>
-    static constexpr decltype(auto) unwrap_next(T&& in) {
+    static constexpr auto lazy_unwrap_next(T&& in) {
         using t = std::decay_t<T>;
         if constexpr (concepts::optional_next<t>)
-            return typename t::value_type(std::move(*in));
+            return [&] { return std::move(*in); };
         else
-            return (*in);
+            return [&]() -> auto&& { return *in; };
     }
 
     template<assert_iter... I>
@@ -2177,9 +2158,9 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             return apply([](auto&&... is) {
-                return std::invoke([](auto&&... vals)  {
+                return std::invoke([](auto&&... vals) {
                     return (... && vals)
-                        ? MAKE_OPTIONAL(half_tie(unwrap_next(FWD(vals))...))
+                        ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
                         : std::nullopt;
                 }, iter::next(is)...);
             }, self.i);
@@ -2189,7 +2170,7 @@ namespace iter::detail {
             requires this_t::random_access
         {
             return apply([=](auto&&... is) {
-                return half_tie(iter::unsafe::get(is, index)...);
+                return make_tuple_lazy([&]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
             }, self.i);
         }
     };
@@ -2239,7 +2220,8 @@ namespace iter::detail {
     template<assert_iter I>
     struct cycle_iter : enable_random_access<cycle_iter<I>, I> {
         using this_t = cycle_iter;
-        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = this->i;
+        [[no_unique_address]] I i;
+        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;
 
     private:
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
@@ -2274,7 +2256,7 @@ namespace iter::detail {
 
 template<iter::iter I>
 constexpr auto ITER_IMPL(cycle) (I&& iter) {
-    return iter::detail::cycle_iter{FWD(iter)};
+    return iter::detail::cycle_iter{.i = FWD(iter)};
 }
 
 template<class I>
@@ -2547,6 +2529,7 @@ ITER_DECLARE(inspect)
 namespace iter::detail {
     template<assert_iter I, concepts::inspector<ref_t<I>> F>
     struct [[nodiscard]] inspect_iter : enable_random_access<inspect_iter<I, F>, I> {
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
     private:
@@ -2574,8 +2557,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
-    return iter::detail::inspect_iter<iter::iter_t<I>, F>{
-        {.i = iter::to_iter(FWD(iterable))}, std::move(func)};
+    return iter::detail::inspect_iter{.i = iter::to_iter(FWD(iterable)), .func = std::move(func)};
 }
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */
@@ -2605,7 +2587,8 @@ namespace iter::detail {
         using this_t = to_pointer_iter;
 
         // If iter::unsafe::get returns a value, then we need to store it to return a pointer to storage
-        static constexpr bool get_val = !std::is_reference_v<decltype(iter::unsafe::get(std::declval<I&>(), 0ul))>;
+        static constexpr bool get_val = !std::is_reference_v<unsafe::get_t<I>>;
+        [[no_unique_address]] I i;
         [[no_unique_address]] std::conditional_t<get_val, next_t<I>, void_t> store;
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index) {
@@ -2626,7 +2609,7 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     if constexpr (iter::concepts::pointer_iter<I>) {
         return FWD(iter);
     } else {
-        return iter::detail::to_pointer_iter{FWD(iter)};
+        return iter::detail::to_pointer_iter{.i = FWD(iter)};
     }
 }
 
@@ -2640,6 +2623,8 @@ ITER_DECLARE(move)
 namespace iter::detail {
     template<iter::assert_iter I>
     struct move_iter : enable_random_access<move_iter<I>, I> {
+        [[no_unique_address]] I i;
+
         using this_t = move_iter;
 
         constexpr move_next<next_t<I>> ITER_IMPL_THIS(next) (this_t& self)
@@ -2668,7 +2653,7 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
     if constexpr (iter::concepts::move_next<iter::next_t<I>>)
         return FWD(iterable);
     else
-        return iter::detail::move_iter{iter::to_iter(FWD(iterable))};
+        return iter::detail::move_iter{.i = iter::to_iter(FWD(iterable))};
 }
 
 #endif /* INCLUDE_ITER_MOVE_HPP */
@@ -2679,8 +2664,8 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
 ITER_DECLARE(box)
 
 namespace iter {
-    template<concepts::next T, class GetType = void>
-    struct virtual_iter : virtual_iter<T, void> {
+    template<concepts::next Next, class GetType = void>
+    struct virtual_iter : virtual_iter<Next, void> {
         virtual std::size_t size() const = 0;
         virtual GetType get(std::size_t index) = 0;
     private:
@@ -2688,9 +2673,9 @@ namespace iter {
         constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) { return self.get(index); }
         constexpr auto ITER_UNSAFE_SIZE (this_t const& self) { return self.size(); }
     };
-    template<concepts::next T>
-    struct virtual_iter<T, void> {
-        virtual T next() = 0;
+    template<concepts::next Next>
+    struct virtual_iter<Next, void> {
+        virtual Next next() = 0;
         virtual ~virtual_iter() = default;
     private:
         using this_t = virtual_iter;
@@ -2718,10 +2703,10 @@ namespace iter {
         };
 
         struct alignas(char) deleter {
-            char const del = 1;
+            char const heap = 1;
             template<class T>
-            void operator()(T* ptr) {
-                if (del) delete ptr;
+            void operator()(T* ptr) const {
+                if (heap) delete ptr;
                 else ptr->~T();
             }
         };
@@ -2736,39 +2721,39 @@ namespace iter {
         std::aligned_storage_t<Size, Align> storage;
     };
 
-    template<concepts::next T, class U = void>
+    template<concepts::next Next, class Get = void>
     struct boxed {
         using this_t = boxed;
-        static constexpr bool random_access = !std::same_as<U, void>;
+        static constexpr bool random_access = !std::same_as<Get, void>;
 
         template<iter I>
-        requires std::same_as<T, next_t<I>>
-             && (!random_access || std::same_as<U, unsafe::get_t<I>>)
+        requires std::same_as<Next, next_t<I>>
+             && (!random_access || std::same_as<Get, unsafe::get_t<I>>)
         constexpr boxed(I&& to_box)
             : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
         {}
 
         template<iter I, std::size_t Size, std::size_t Align>
-        requires std::same_as<T, next_t<I>>
-             && (!random_access || std::same_as<U, unsafe::get_t<I>>)
+        requires std::same_as<Next, next_t<I>>
+             && (!random_access || std::same_as<Get, unsafe::get_t<I>>)
         constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
             : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
         {}
 
         template<class OU> requires (!random_access)
-        constexpr boxed(boxed<T, OU>&& other) : it{std::move(other.it)} {}
+        constexpr boxed(boxed<Next, OU>&& other) : it{std::move(other.it)} {}
 
     private:
         template<concepts::next, class> friend struct boxed;
-        constexpr T ITER_IMPL_THIS(next) (this_t& self) { return self.it->next(); }
+        constexpr Next ITER_IMPL_THIS(next) (this_t& self) { return self.it->next(); }
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) requires random_access {
             return self.it->size();
         }
-        constexpr U ITER_UNSAFE_GET (this_t& self, std::size_t index) requires random_access {
+        constexpr Get ITER_UNSAFE_GET (this_t& self, std::size_t index) requires random_access {
             return self.it->get(index);
         }
 
-        std::unique_ptr<virtual_iter<T, U>, detail::deleter> it;
+        std::unique_ptr<virtual_iter<Next, Get>, detail::deleter> it;
     };
 
     template<iter::iter I>
@@ -2779,7 +2764,7 @@ namespace iter {
     template<iter I>
     using virtual_t = iter::virtual_iter<iter::next_t<I>, iter::unsafe::get_t<I>>;
     template<iter I>
-    using boxed_t = boxed<virtual_t<I>, detail::deleter>;
+    using boxed_t = boxed<next_t<I>, unsafe::get_t<I>>;
 }
 
 template<iter::assert_iter I>

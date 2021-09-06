@@ -8,9 +8,10 @@ ITER_DECLARE(skip)
 namespace iter::detail {
     template<assert_iter I>
     struct skip_iter : enable_random_access<skip_iter<I>, I> {
-        using this_t = skip_iter;
+        [[no_unique_address]] I i;
         std::size_t n;
 
+        using this_t = skip_iter;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
@@ -45,8 +46,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
-    return iter::detail::skip_iter<iter::iter_t<I>>{
-        {.i = iter::to_iter(FWD(iterable))}, n};
+    return iter::detail::skip_iter{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
 #endif /* INCLUDE_ITER_SKIP_HPP */

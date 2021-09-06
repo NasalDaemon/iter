@@ -134,10 +134,9 @@ namespace iter {
         return [make_iter = std::forward<F>(invocable), ...as = std::forward<Ts>(args)] () mutable
             -> std::invoke_result_t<F, Ts&...>
         {
-            while(true)
-                for (auto it = make_iter(static_cast<Ts&>(as)...);
-                     auto next = iter::next(it);)
-                    co_yield detail::consume(next);
+            while (true)
+                for (auto it = make_iter(static_cast<Ts&>(as)...); auto next = iter::next(it);)
+                    co_yield *next;
         }();
     }
     template<std::invocable<> F>
@@ -145,7 +144,7 @@ namespace iter {
     constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
         for (auto make_iter = std::forward<F>(invocable); true; )
             for (auto it = make_iter(); auto next = iter::next(it);)
-                co_yield detail::consume(next);
+                co_yield *next;
     }
 }
 

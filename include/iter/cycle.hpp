@@ -7,7 +7,8 @@ namespace iter::detail {
     template<assert_iter I>
     struct cycle_iter : enable_random_access<cycle_iter<I>, I> {
         using this_t = cycle_iter;
-        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = this->i;
+        [[no_unique_address]] I i;
+        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;
 
     private:
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
@@ -42,7 +43,7 @@ namespace iter::detail {
 
 template<iter::iter I>
 constexpr auto ITER_IMPL(cycle) (I&& iter) {
-    return iter::detail::cycle_iter{FWD(iter)};
+    return iter::detail::cycle_iter{.i = FWD(iter)};
 }
 
 template<class I>

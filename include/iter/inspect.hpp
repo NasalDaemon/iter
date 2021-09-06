@@ -8,6 +8,7 @@ ITER_DECLARE(inspect)
 namespace iter::detail {
     template<assert_iter I, concepts::inspector<ref_t<I>> F>
     struct [[nodiscard]] inspect_iter : enable_random_access<inspect_iter<I, F>, I> {
+        [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
     private:
@@ -35,8 +36,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, iter::concepts::inspector<iter::ref_t<I>> F>
 constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
-    return iter::detail::inspect_iter<iter::iter_t<I>, F>{
-        {.i = iter::to_iter(FWD(iterable))}, std::move(func)};
+    return iter::detail::inspect_iter{.i = iter::to_iter(FWD(iterable)), .func = std::move(func)};
 }
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */

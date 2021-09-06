@@ -25,7 +25,8 @@ namespace iter::detail {
         using this_t = to_pointer_iter;
 
         // If iter::unsafe::get returns a value, then we need to store it to return a pointer to storage
-        static constexpr bool get_val = !std::is_reference_v<decltype(iter::unsafe::get(std::declval<I&>(), 0ul))>;
+        static constexpr bool get_val = !std::is_reference_v<unsafe::get_t<I>>;
+        [[no_unique_address]] I i;
         [[no_unique_address]] std::conditional_t<get_val, next_t<I>, void_t> store;
 
         constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index) {
@@ -46,7 +47,7 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     if constexpr (iter::concepts::pointer_iter<I>) {
         return FWD(iter);
     } else {
-        return iter::detail::to_pointer_iter{FWD(iter)};
+        return iter::detail::to_pointer_iter{.i = FWD(iter)};
     }
 }
 

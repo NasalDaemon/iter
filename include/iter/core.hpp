@@ -94,7 +94,7 @@ namespace iter {
         template<class T>
         requires concepts::pointer<T> || concepts::optional<T>
         struct move_next {
-            T next;
+            T next = {};
             using value_type = decltype(get_value_t(next));
             constexpr auto&& operator*() {
                 return std::move(*next);
@@ -110,6 +110,11 @@ namespace iter {
             }
             constexpr move_next& operator=(std::nullptr_t) requires concepts::pointer<T> {
                 next = nullptr;
+                return *this;
+            }
+            constexpr move_next& operator=(std::nullopt_t) requires concepts::optional<T> {
+                next.reset();
+                return *this;
             }
         };
 
@@ -183,7 +188,7 @@ namespace iter {
             template<class T>
             struct iter {
                 static constexpr bool value = concepts::iter<T>;
-                static_assert(concepts::iterable<T>, "iter constraint not satisfied");
+                static_assert(concepts::iter<T>, "iter constraint not satisfied");
             };
             template<class T>
             struct iterable {
@@ -402,7 +407,6 @@ namespace iter {
         requires (!concepts::random_access_iter<I>)
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = false;
-            [[no_unique_address]] I i;
 
         protected:
             using this_t = enable_random_access;
@@ -412,7 +416,6 @@ namespace iter {
         template<class Self, concepts::random_access_iter I>
         struct enable_random_access<Self, I> {
             static constexpr bool random_access = true;
-            [[no_unique_address]] I i;
             std::size_t index = 0;
 
         protected:
@@ -420,7 +423,7 @@ namespace iter {
             using base_t = enable_random_access;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
-                return iter::unsafe::size(base.i);
+                return iter::unsafe::size(static_cast<Self const&>(base).i);
             }
             constexpr auto ITER_IMPL_THIS(next) (this_t& base) {
                 auto index = base.index++;
@@ -465,28 +468,6 @@ namespace iter {
         template<class F, class T>
         concept inspector = requires (F func, T t) {
             { func(t) } -> std::same_as<void>;
-        };
-    }
-
-    namespace detail {
-        template<bool If, class IfTrue, class IfFalse = void>
-        struct include_if;
-
-        template<class IfTrue>
-        struct include_if<false, IfTrue, void> {
-            using include_t = include_if;
-            template<class... Ts>
-            constexpr include_if(Ts&&...) noexcept {}
-        };
-
-        template<class IfTrue, class IfFalse>
-        struct include_if<false, IfTrue, IfFalse> : IfFalse {
-            using include_t = include_if;
-        };
-
-        template<class IfTrue, class IfFalse>
-        struct include_if<true, IfTrue, IfFalse> : IfTrue {
-            using include_t = include_if;
         };
     }
 }
