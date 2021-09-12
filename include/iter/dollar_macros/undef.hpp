@@ -22,6 +22,7 @@
 #undef $map_while
 #undef $zip
 #undef $enumerate
+#undef $reverse
 #undef $chain
 #undef $chunks
 #undef $inspect
@@ -47,6 +48,7 @@
 #undef $all
 #undef $to_vector
 #undef $to_map
+#undef $to_string
 #undef $partition
 #undef $unzip
 #undef $sorted

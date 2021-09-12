@@ -6,9 +6,9 @@
 
 namespace iter::detail {
     template<class Underlying>
-    struct [[nodiscard]] container_iter {
+    struct [[nodiscard]] random_access_container_iter {
     protected:
-        using this_t = container_iter;
+        using this_t = random_access_container_iter;
         static constexpr bool owner = !std::is_lvalue_reference_v<Underlying>;
 
         using underyling_t = std::conditional_t<owner, Underlying, std::remove_reference_t<Underlying>*>;
@@ -31,35 +31,40 @@ namespace iter::detail {
     public:
         template<class... Ts>
         requires (owner)
-        container_iter(std::in_place_t, Ts&&... ins)
+        random_access_container_iter(std::in_place_t, Ts&&... ins)
             : underlying{FWD(ins)...}
             , pos{0}
         {}
 
         template<class... Ts>
         requires (!owner)
-        container_iter(std::in_place_t, Underlying& under)
+        random_access_container_iter(std::in_place_t, Underlying& under)
             : underlying{&under}
             , pos{0}
         {}
 
-        container_iter(container_iter&& other)
+        random_access_container_iter(random_access_container_iter&& other)
             : underlying{std::move(other.underlying)}
             , pos{other.pos}
         {}
 
-        container_iter(const container_iter& other)
+        // Copy is disabled if we own the collection (iter copy should be cheap)
+        random_access_container_iter(const random_access_container_iter& other) requires (!owner)
             : underlying{other.underlying}
             , pos{other.pos}
-        {}
+        {
+        }
 
-        container_iter& operator=(container_iter&& other) {
+        random_access_container_iter& operator=(random_access_container_iter&& other) {
             underlying = std::move(other.underlying);
             pos = other.pos;
             return *this;
         }
 
-        container_iter& operator=(const container_iter& other) {
+        // Copy is disabled if we own the collection (iter copy should be cheap)
+        random_access_container_iter& operator=(const random_access_container_iter& other)
+            requires (!owner)
+        {
             underlying = other.underlying;
             pos = other.pos;
             return *this;
@@ -79,6 +84,13 @@ namespace iter::detail {
                 : nullptr;
         }
 
+        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+            auto const size = std::size(self.get_underlying());
+            return self.pos != size
+                ? std::addressof(self.get_underlying()[(size - 1 - self.pos++)])
+                : nullptr;
+        }
+
         struct cycle;
 
         constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) requires (owner) {
@@ -87,7 +99,7 @@ namespace iter::detail {
     };
 
     template<class T>
-    struct container_iter<T>::cycle : container_iter<T> {
+    struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
         constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) -> auto& {
@@ -111,35 +123,30 @@ namespace iter::detail {
 
 namespace iter::concepts {
     template<class T>
-    static constexpr bool is_array = false;
+    static constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
-    constexpr bool is_array<std::array<T, N>> = true;
-
-    template<class T>
-    concept array = is_array<std::remove_cvref_t<T>>;
-
-    template<class T>
-    static constexpr bool is_vector = false;
-
+    constexpr bool is_random_access_container<std::array<T, N>> = true;
     template<class T, class A>
-    constexpr bool is_vector<std::vector<T, A>> = true;
+    constexpr bool is_random_access_container<std::vector<T, A>> = true;
+    template<class T, class U, class A>
+    constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
 
     template<class T>
-    concept vector = is_vector<std::remove_cvref_t<T>>;
+    concept random_access_container = is_random_access_container<std::remove_cvref_t<T>>;
 
     template<class T>
-    concept container = array<T> || vector<T>;
+    concept container = random_access_container<T>;
 }
 
-template<iter::concepts::container T>
+template<iter::concepts::random_access_container T>
 constexpr auto ITER_IMPL(to_iter) (T&& container) {
-    return iter::detail::container_iter<T>{std::in_place, FWD(container)};
+    return iter::detail::random_access_container_iter<T>{std::in_place, FWD(container)};
 }
 template<iter::iterable T>
-requires iter::concepts::container<T> && (std::remove_cvref_t<T>::owner)
+requires iter::concepts::random_access_container<T> && (!std::is_lvalue_reference_v<T>)
 constexpr auto ITER_IMPL(cycle) (T&& container) {
-    return typename iter::detail::container_iter<T>::cycle{{std::in_place, FWD(container)}};
+    return typename iter::detail::random_access_container_iter<T>::cycle{{std::in_place, FWD(container)}};
 }
 
 namespace iter::detail {

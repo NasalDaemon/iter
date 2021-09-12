@@ -30,6 +30,8 @@ ITER_X(map_while)
 ITER_X(zip)
 // Invoke iter::enumerate on this iter
 ITER_X(enumerate)
+// Invoke iter::reverse on this iter
+ITER_X(reverse)
 // Invoke iter::chain on this iter
 ITER_X(chain)
 // Invoke iter::chunks (aka iter::chunks_<>) on this iter
@@ -78,6 +80,8 @@ ITER_X(all)
 ITER_X(to_vector)
 // Invoke iter::to_map (aka iter::collect<std::map>) on this iter
 ITER_X(to_map)
+// Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
+ITER_X(to_string)
 // Invoke iter::partition (aka iter::partition_<>) on this iter
 ITER_X(partition)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter

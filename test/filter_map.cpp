@@ -3,7 +3,7 @@
 TEST(FilterMapTest, optional) {
     auto s = indices
         | filter_map | [](auto i) {
-            return i % 2 == 0 ? MAKE_OPTIONAL(ctor_count(-i)) : std::nullopt; }
+            return i % 2 == 0 ? MAKE_OPTIONAL(ctor_count<int>(-i)) : std::nullopt; }
         | filter | [](auto&) {
             return true; } // extra no-op filter step shouldn't add any moves/copies
         | inspect | [](auto& i) {

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20210906
+#  define ITER_LIBRARY_VERSION 20210912
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -567,6 +567,8 @@ namespace iter::detail {
 #ifndef INCLUDE_ITER_TUPLE_HPP
 #define INCLUDE_ITER_TUPLE_HPP
 
+#include <utility>
+
 /**
  * iter::tuple is a tuple that can only be initialized by aggregate,
  * making this class much more efficient for constructing tuple
@@ -616,26 +618,27 @@ namespace iter {
     template<std::size_t I, concepts::decays_to_tuple Tuple>
     auto&& get(Tuple&& tuple) {
         static_assert(I < std::remove_cvref_t<Tuple>::size(), "Tuple index out of bounds");
-        return detail::get<I>(std::forward<Tuple>(tuple));
+        return detail::get<I>(FWD(tuple));
     }
 
     // Make a tuple with element types exactly the same as those returned from lazy_values
     template<std::invocable<>... Fs>
     tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
+        static_assert((!std::same_as<void, std::invoke_result_t<Fs>> && ...));
         return {std::invoke(FWD(lazy_values))...};
     }
 
     template<class F, concepts::decays_to_tuple Tuple>
     decltype(auto) apply(F&& func, Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            return std::invoke(std::forward<F>(func), get<Is>(std::forward<Tuple>(tuple))...);
+            return std::invoke(FWD(func), get<Is>(FWD(tuple))...);
         }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 
     template<class T, concepts::decays_to_tuple Tuple>
     decltype(auto) make_from_tuple(Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            return T(get<Is>(std::forward<Tuple>(tuple))...);
+            return T(get<Is>(FWD(tuple))...);
         }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 }
@@ -661,6 +664,7 @@ namespace std {
 #  define ITER_IMPL(name) XTD_IMPL_(iter_ ## name, iter::name)
 #  define ITER_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::name)
 #  define ITER_UNSAFE_IMPL(name) XTD_IMPL_(iter_ ## name, iter::unsafe::name)
+#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::unsafe::name)
 #  define ITER_UNSAFE_SIZE XTD_IMPL_THIS_(iter_size, iter::unsafe::size)
 #  define ITER_UNSAFE_GET XTD_IMPL_THIS_(iter_get, iter::unsafe::get)
 #else
@@ -671,6 +675,7 @@ namespace std {
 #  define ITER_IMPL(name) XTD_IMPL(iter::name)
 #  define ITER_IMPL_THIS(name) XTD_IMPL_THIS(iter::name)
 #  define ITER_UNSAFE_IMPL(name) XTD_IMPL(iter::unsafe::name)
+#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS(iter::unsafe::name)
 #  define ITER_UNSAFE_SIZE XTD_IMPL_THIS(iter::unsafe::size)
 #  define ITER_UNSAFE_GET XTD_IMPL_THIS(iter::unsafe::get)
 #endif
@@ -705,12 +710,14 @@ ITER_DECLARE(next)
 ITER_DECLARE(cycle)
 ITER_INVOKER(get)
 ITER_INVOKER(size)
+ITER_INVOKER(next_back)
 
 namespace iter {
     namespace unsafe {
         // Random access functions
         ITER_FUNCTION(get);
         ITER_FUNCTION(size);
+        ITER_FUNCTION(next_back);
     }
 
     namespace concepts {
@@ -813,6 +820,11 @@ namespace iter {
         };
 
         template<class T>
+        concept double_ended_iter = iter<T> && requires (T it, std::size_t index) {
+            { iter::unsafe::next_back(it) } -> std::same_as<decltype(iter::next(it))>;
+        };
+
+        template<class T>
         concept pointer_iterable = pointer_iter<T> || requires (T&& it) {
             { iter::to_iter(FWD(it)) } -> pointer_iter;
         };
@@ -846,28 +858,6 @@ namespace iter {
     using concepts::iterable;
     using concepts::assert_iter;
     using concepts::assert_iterable;
-
-    namespace unsafe {
-        template<class I>
-        auto get_type() -> void;
-        template<concepts::random_access_iter I>
-        auto get_type() -> decltype(iter::unsafe::get(std::declval<std::remove_reference_t<I>&>(), 0));
-        template<class I>
-        using get_t = decltype(get_type<I>());
-
-        template<class I>
-        [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
-            std::size_t size = iter::unsafe::size(iter);
-            using get_t = decltype(iter::unsafe::get(iter, index));
-            if constexpr (std::is_lvalue_reference_v<get_t>)
-                return (index < size) ? std::addressof(iter::unsafe::get(iter, index)) : nullptr;
-            else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = iter::unsafe::get(iter, index);
-                return move_next{(index < size) ? std::addressof(item) : nullptr};
-            } else
-                return (index < size) ? MAKE_OPTIONAL(iter::unsafe::get(iter, index)) : std::nullopt;
-        }
-    }
 
     namespace detail {
         template<class T>
@@ -1038,6 +1028,28 @@ namespace iter {
             return next_t<I>{std::nullopt};
     }
 
+    namespace unsafe {
+        template<class I>
+        auto get_type() -> void;
+        template<concepts::random_access_iter I>
+        auto get_type() -> decltype(iter::unsafe::get(std::declval<I&>(), 0ul));
+        template<class I>
+        using get_t = decltype(get_type<I>());
+
+        template<class I>
+        [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
+            std::size_t size = iter::unsafe::size(iter);
+            using get_t = decltype(iter::unsafe::get(iter, index));
+            if constexpr (std::is_lvalue_reference_v<get_t>)
+                return (index < size) ? std::addressof(iter::unsafe::get(iter, index)) : nullptr;
+            else if constexpr (std::is_rvalue_reference_v<get_t>) {
+                auto&& item = iter::unsafe::get(iter, index);
+                return move_next{(index < size) ? std::addressof(item) : nullptr};
+            } else
+                return (index < size) ? MAKE_OPTIONAL(iter::unsafe::get(iter, index)) : std::nullopt;
+        }
+    }
+
     namespace detail {
         template<class Self, class... I>
         struct enable_random_access;
@@ -1049,7 +1061,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
         };
 
         template<class Self, concepts::random_access_iter I>
@@ -1059,7 +1071,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return iter::unsafe::size(static_cast<Self const&>(base).i);
@@ -1068,6 +1080,11 @@ namespace iter {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
+            }
+            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+                auto index = base.index++;
+                auto& self = static_cast<Self&>(base);
+                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
             }
         };
 
@@ -1078,7 +1095,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
         };
 
         template<class Self, concepts::random_access_iter... I>
@@ -1090,7 +1107,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return base.size;
@@ -1099,6 +1116,11 @@ namespace iter {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
+            }
+            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+                auto index = base.index++;
+                auto& self = static_cast<Self&>(base);
+                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
             }
         };
     }
@@ -1155,9 +1177,9 @@ namespace std {
 
 namespace iter::detail {
     template<class Underlying>
-    struct [[nodiscard]] container_iter {
+    struct [[nodiscard]] random_access_container_iter {
     protected:
-        using this_t = container_iter;
+        using this_t = random_access_container_iter;
         static constexpr bool owner = !std::is_lvalue_reference_v<Underlying>;
 
         using underyling_t = std::conditional_t<owner, Underlying, std::remove_reference_t<Underlying>*>;
@@ -1180,35 +1202,40 @@ namespace iter::detail {
     public:
         template<class... Ts>
         requires (owner)
-        container_iter(std::in_place_t, Ts&&... ins)
+        random_access_container_iter(std::in_place_t, Ts&&... ins)
             : underlying{FWD(ins)...}
             , pos{0}
         {}
 
         template<class... Ts>
         requires (!owner)
-        container_iter(std::in_place_t, Underlying& under)
+        random_access_container_iter(std::in_place_t, Underlying& under)
             : underlying{&under}
             , pos{0}
         {}
 
-        container_iter(container_iter&& other)
+        random_access_container_iter(random_access_container_iter&& other)
             : underlying{std::move(other.underlying)}
             , pos{other.pos}
         {}
 
-        container_iter(const container_iter& other)
+        // Copy is disabled if we own the collection (iter copy should be cheap)
+        random_access_container_iter(const random_access_container_iter& other) requires (!owner)
             : underlying{other.underlying}
             , pos{other.pos}
-        {}
+        {
+        }
 
-        container_iter& operator=(container_iter&& other) {
+        random_access_container_iter& operator=(random_access_container_iter&& other) {
             underlying = std::move(other.underlying);
             pos = other.pos;
             return *this;
         }
 
-        container_iter& operator=(const container_iter& other) {
+        // Copy is disabled if we own the collection (iter copy should be cheap)
+        random_access_container_iter& operator=(const random_access_container_iter& other)
+            requires (!owner)
+        {
             underlying = other.underlying;
             pos = other.pos;
             return *this;
@@ -1228,6 +1255,13 @@ namespace iter::detail {
                 : nullptr;
         }
 
+        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+            auto const size = std::size(self.get_underlying());
+            return self.pos != size
+                ? std::addressof(self.get_underlying()[(size - 1 - self.pos++)])
+                : nullptr;
+        }
+
         struct cycle;
 
         constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) requires (owner) {
@@ -1236,7 +1270,7 @@ namespace iter::detail {
     };
 
     template<class T>
-    struct container_iter<T>::cycle : container_iter<T> {
+    struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
         constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) -> auto& {
@@ -1260,35 +1294,30 @@ namespace iter::detail {
 
 namespace iter::concepts {
     template<class T>
-    static constexpr bool is_array = false;
+    static constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
-    constexpr bool is_array<std::array<T, N>> = true;
-
-    template<class T>
-    concept array = is_array<std::remove_cvref_t<T>>;
-
-    template<class T>
-    static constexpr bool is_vector = false;
-
+    constexpr bool is_random_access_container<std::array<T, N>> = true;
     template<class T, class A>
-    constexpr bool is_vector<std::vector<T, A>> = true;
+    constexpr bool is_random_access_container<std::vector<T, A>> = true;
+    template<class T, class U, class A>
+    constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
 
     template<class T>
-    concept vector = is_vector<std::remove_cvref_t<T>>;
+    concept random_access_container = is_random_access_container<std::remove_cvref_t<T>>;
 
     template<class T>
-    concept container = array<T> || vector<T>;
+    concept container = random_access_container<T>;
 }
 
-template<iter::concepts::container T>
+template<iter::concepts::random_access_container T>
 constexpr auto ITER_IMPL(to_iter) (T&& container) {
-    return iter::detail::container_iter<T>{std::in_place, FWD(container)};
+    return iter::detail::random_access_container_iter<T>{std::in_place, FWD(container)};
 }
 template<iter::iterable T>
-requires iter::concepts::container<T> && (std::remove_cvref_t<T>::owner)
+requires iter::concepts::random_access_container<T> && (!std::is_lvalue_reference_v<T>)
 constexpr auto ITER_IMPL(cycle) (T&& container) {
-    return typename iter::detail::container_iter<T>::cycle{{std::in_place, FWD(container)}};
+    return typename iter::detail::random_access_container_iter<T>::cycle{{std::in_place, FWD(container)}};
 }
 
 namespace iter::detail {
@@ -1428,19 +1457,31 @@ ITER_DECLARE(until)
 ITER_ALIAS(til, until)
 
 namespace iter {
-    template<std::integral T = int>
+    template<std::integral T = int, bool Inclusive = false>
     struct [[nodiscard]] range {
         using this_t = range;
         T begin_;
-        T end_ = std::numeric_limits<T>::max();
+        T end_ = std::numeric_limits<T>::max() - Inclusive;
         constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
-            return self.begin_ < self.end_ ? std::optional(self.begin_++) : std::nullopt;
+            if constexpr (Inclusive)
+                return self.begin_ <= self.end_ ? std::optional(self.begin_++) : std::nullopt;
+            else
+                return self.begin_ < self.end_ ? std::optional(self.begin_++) : std::nullopt;
         }
         constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) {
-            return self.end_ - self.begin_;
+            if constexpr (Inclusive)
+                return 1ul + self.end_ - self.begin_;
+            else
+                return self.end_ - self.begin_;
         }
         constexpr T ITER_UNSAFE_GET (this_t& self, std::size_t index) {
             return self.begin_ + index;
+        }
+        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+            if constexpr (Inclusive)
+                return self.begin_ <= self.end_ ? std::optional(self.end_--) : std::nullopt;
+            else
+                return self.begin_ < self.end_ ? std::optional(--self.end_) : std::nullopt;
         }
     };
 
@@ -1449,20 +1490,31 @@ namespace iter {
     template<class T>
     range(T, T) -> range<T>;
 
+    template<class T>
+    struct inclusive_range : range<T, true> {};
+
+    template<class T>
+    inclusive_range(T) -> inclusive_range<T>;
+    template<class T>
+    inclusive_range(T, T) -> inclusive_range<T>;
+
     namespace detail {
         struct [[nodiscard]] indices_iter {
             using this_t = indices_iter;
             indices_iter() = default;
         private:
-            int i = 0;
+            std::size_t i = 0;
             constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
                 return std::optional(self.i++);
             }
-            constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
-                return std::numeric_limits<int>::max();
+            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+                return std::optional(std::numeric_limits<std::size_t>::max() - self.i++);
             }
-            constexpr int ITER_UNSAFE_GET (this_t&, std::size_t index) {
-                return (int)index;
+            constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
+                return std::numeric_limits<std::size_t>::max();
+            }
+            constexpr std::size_t ITER_UNSAFE_GET (this_t&, std::size_t index) {
+                return index;
             }
         };
     }
@@ -1630,21 +1682,23 @@ namespace iter {
 
     template<class... Ts, std::invocable<Ts&...> F>
     requires concepts::generator<std::invoke_result_t<F, Ts&...>>
-    constexpr auto ITER_IMPL(cycle) (F&& invocable, Ts&&... args) {
-        return [make_iter = std::forward<F>(invocable), ...as = std::forward<Ts>(args)] () mutable
-            -> std::invoke_result_t<F, Ts&...>
-        {
+    constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
+        // "Capture" args by value with an inner coroutine taking them by value
+        // The outer function takes by universal reference to observe constness
+        return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
             while (true)
-                for (auto it = make_iter(static_cast<Ts&>(as)...); auto next = iter::next(it);)
+                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::next(it);)
                     co_yield *next;
-        }();
+        }(FWD(make_iter), FWD(args)...);
     }
     template<std::invocable<> F>
     requires concepts::generator<std::invoke_result_t<F>>
-    constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
-        for (auto make_iter = std::forward<F>(invocable); true; )
-            for (auto it = make_iter(); auto next = iter::next(it);)
-                co_yield *next;
+    constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
+        return [](auto make_iter) -> std::invoke_result_t<F> {
+            while (true)
+                for (auto it = std::invoke(make_iter); auto next = iter::next(it);)
+                    co_yield *next;
+        }(FWD(make_iter));
     }
 }
 
@@ -2157,20 +2211,20 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
-            return apply([](auto&&... is) {
-                return std::invoke([](auto&&... vals) {
+            return apply([](auto&... is) {
+                return [](auto&&... vals) {
                     return (... && vals)
                         ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
                         : std::nullopt;
-                }, iter::next(is)...);
+                }(iter::next(is)...);
             }, self.i);
         }
 
         constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return apply([=](auto&&... is) {
-                return make_tuple_lazy([&]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
+            return apply([=](auto&... is) {
+                return make_tuple_lazy([&, index]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
             }, self.i);
         }
     };
@@ -2266,6 +2320,48 @@ constexpr auto ITER_IMPL(cycle) (I&& iterable) {
 }
 
 #endif /* INCLUDE_ITER_CYCLE_HPP */
+
+#ifndef INCLUDE_ITER_REVERSE_HPP
+#define INCLUDE_ITER_REVERSE_HPP
+
+ITER_DECLARE(reverse)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct reverse_iter : enable_random_access<reverse_iter<I>, I> {
+        static_assert(concepts::double_ended_iter<I>);
+        [[no_unique_address]] I i;
+
+        using this_t = reverse_iter;
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return iter::unsafe::next_back(self.i);
+        }
+        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return iter::next(self.i);
+        }
+
+        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return iter::unsafe::get(self.i, iter::unsafe::size(self.i) - index - 1);
+        }
+
+        constexpr auto ITER_IMPL_THIS(reverse) (this_t&& self) { return std::move(self.i); }
+        constexpr auto ITER_IMPL_THIS(reverse) (this_t const& self) { return self.i; }
+    };
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(reverse) (I&& iterable) {
+    static_assert(iter::concepts::double_ended_iter<iter::iter_t<I>>);
+    return iter::detail::reverse_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+}
+
+#endif /* INCLUDE_ITER_REVERSE_HPP */
 
 #ifndef INCLUDE_ITER_CHAIN_HPP
 #define INCLUDE_ITER_CHAIN_HPP
@@ -3194,22 +3290,22 @@ XTD_INVOKER(iter_collect)
 
 namespace iter {
     namespace tag {
-        template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-        struct collect : xtd::tagged_bindable<collect<C, A>, xtd::invokers::iter_collect> {};
+        template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
+        struct collect : xtd::tagged_bindable<collect<C, A, Traits...>, xtd::invokers::iter_collect> {};
     }
 
-    template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::collect<C, A> collect;
+    template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
+    static constexpr tag::collect<C, A, Traits...> collect;
 }
 
 ITER_ALIAS(to_vector, collect<std::vector>)
 ITER_ALIAS(to_map, collect<std::map>)
+ITER_ALIAS(to_string, collect<std::basic_string, std::allocator, std::char_traits>)
 
-template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter) {
+template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter) {
     using T = iter::value_t<I>;
-    using A = AT<T>;
-    CT<T, A> container;
+    CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
         container.reserve(iter::unsafe::size(iter));
     }
@@ -3219,11 +3315,10 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     return container;
 }
 
-template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter, std::size_t reserve) {
+template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter, std::size_t reserve) {
     using T = iter::value_t<I>;
-    using A = AT<T>;
-    CT<T, A> container;
+    CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
         reserve = std::max(reserve, iter::unsafe::size(iter));
     }
@@ -3505,25 +3600,32 @@ namespace iter {
     };
     template<iter I>
     struct [[nodiscard]] wrap<I> {
-        [[no_unique_address]] I underlying;
+        [[no_unique_address]] I i;
 
         using this_t = wrap;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return iter::next(self.underlying); }
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t i)
+        constexpr auto next() & { return iter::next(i); }
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
+
+        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
-            return iter::unsafe::get(self.underlying, i);
+            return iter::unsafe::get(self.i, index);
         }
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t& self)
+
+        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
             requires concepts::random_access_iter<I>
         {
-            return iter::unsafe::size(self.underlying);
+            return iter::unsafe::size(self.i);
         }
 
 #define ITER_X(fun) \
         template<class... Ts>\
-        decltype(auto) fun(Ts&&... args) {\
-            return invoke(::iter::fun, std::forward<Ts>(args)...);\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return invoke(::iter::fun, i, FWD(args)...);\
+        }\
+        template<class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return invoke(::iter::fun, std::move(i), FWD(args)...);\
         }
 /* Do not modify, generated by scripts/update_x_macros.sh */
 
@@ -3557,6 +3659,8 @@ ITER_X(map_while)
 ITER_X(zip)
 // Invoke iter::enumerate on this iter
 ITER_X(enumerate)
+// Invoke iter::reverse on this iter
+ITER_X(reverse)
 // Invoke iter::chain on this iter
 ITER_X(chain)
 // Invoke iter::chunks (aka iter::chunks_<>) on this iter
@@ -3605,6 +3709,8 @@ ITER_X(all)
 ITER_X(to_vector)
 // Invoke iter::to_map (aka iter::collect<std::map>) on this iter
 ITER_X(to_map)
+// Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
+ITER_X(to_string)
 // Invoke iter::partition (aka iter::partition_<>) on this iter
 ITER_X(partition)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter
@@ -3617,8 +3723,12 @@ ITER_X(sorted)
 #define ITER_EXPAND(...) __VA_ARGS__
 #define ITER_X(fun, tmplParams, tmplArgs) \
         template<ITER_EXPAND tmplParams, class... Ts>\
-        decltype(auto) fun(Ts&&... args) {\
-            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::forward<Ts>(args)...);\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
+        }\
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
         }
 /* Do not modify, generated by scripts/update_x_macros.sh */
 
@@ -3626,8 +3736,8 @@ ITER_X(sorted)
 ITER_X(chunks_, (std::size_t N = 0), (N))
 // Invoke iter::N on this iter
 ITER_X(window, (std::size_t N = 2), (N))
-// Invoke iter::C, A on this iter
-ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::C, A, Traits... on this iter
+ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
 // Invoke iter::N on this iter
 ITER_X(partition_, (std::size_t N = 2), (N))
 // Invoke iter::C, A on this iter
@@ -3638,9 +3748,10 @@ ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class
 #undef ITER_EXPAND
 #undef ITER_X
 
-        template<xtd::concepts::Bindable Tag, class... Ts>
-        decltype(auto) invoke(Tag const& tag, Ts&&... args) {
-            auto call = [&]() -> decltype(auto) { return tag(underlying, std::forward<Ts>(args)...); };
+    private:
+        template<xtd::concepts::Bindable Tag, class Underlying, class... Ts>
+        static constexpr decltype(auto) invoke(Tag const& tag, Underlying&& underlying, Ts&&... args) {
+            auto call = [&]() -> decltype(auto) { return tag(FWD(underlying), FWD(args)...); };
             if constexpr (iter<decltype(call())>)
                 return ::iter::wrap{call()};
             else

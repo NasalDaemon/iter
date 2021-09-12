@@ -27,6 +27,7 @@
 #include "iter/zip.hpp"
 #include "iter/enumerate.hpp"
 #include "iter/cycle.hpp"
+#include "iter/reverse.hpp"
 
 #include "iter/chain.hpp"
 #include "iter/chunks.hpp"

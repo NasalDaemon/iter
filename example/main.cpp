@@ -71,7 +71,7 @@ constexpr int sum_triples() {
 }
 
 consteval auto get2(size_t max) {
-    return *(fib(max) | last(_));
+    return *iter::wrap{fib(max)}.last();
 }
 
 #include <algorithm>
@@ -134,8 +134,8 @@ int main() {
         std::cout << i << ": " << x << "\n";
     }
 
-    // auto once_arr = ;
-    auto once_flatten = std::array{std::array{_1}, std::array{_2}} | flatten(_);
+    auto once_arr = std::array{std::array{_1}, std::array{_2}};
+    auto once_flatten = once_arr | flatten(_);
     static_assert(iter::concepts::pointer_iter<decltype(once_flatten)>);
     auto copy = once_flatten;
     for (auto i : copy | cycle(_) | take(_, 6)) {

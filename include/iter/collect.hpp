@@ -8,22 +8,22 @@ XTD_INVOKER(iter_collect)
 
 namespace iter {
     namespace tag {
-        template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-        struct collect : xtd::tagged_bindable<collect<C, A>, xtd::invokers::iter_collect> {};
+        template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
+        struct collect : xtd::tagged_bindable<collect<C, A, Traits...>, xtd::invokers::iter_collect> {};
     }
 
-    template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::collect<C, A> collect;
+    template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
+    static constexpr tag::collect<C, A, Traits...> collect;
 }
 
 ITER_ALIAS(to_vector, collect<std::vector>)
 ITER_ALIAS(to_map, collect<std::map>)
+ITER_ALIAS(to_string, collect<std::basic_string, std::allocator, std::char_traits>)
 
-template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter) {
+template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter) {
     using T = iter::value_t<I>;
-    using A = AT<T>;
-    CT<T, A> container;
+    CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
         container.reserve(iter::unsafe::size(iter));
     }
@@ -33,11 +33,10 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter)
     return container;
 }
 
-template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT>)(I&& iter, std::size_t reserve) {
+template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter, std::size_t reserve) {
     using T = iter::value_t<I>;
-    using A = AT<T>;
-    CT<T, A> container;
+    CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
         reserve = std::max(reserve, iter::unsafe::size(iter));
     }

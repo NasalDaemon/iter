@@ -42,6 +42,7 @@ TEST(GeneratorTest, void_generator) {
 }
 
 generator<int> make_range_to(int limit) {
+    if (limit != 10) throw "";
     for (int i = 0; i < limit; ++i)
         co_yield i;
 }
@@ -53,6 +54,12 @@ TEST(GeneratorTest, cycle) {
     ASSERT_EQ(45, make_range_to(10) | sum());
     ASSERT_EQ(90, make_range_10 |cycle|  _ |take| 20 | sum());
     ASSERT_EQ(90, make_range_to |cycle| 10 |take| 20 | sum());
+
+    // Prove that args captured by value
+    int i = 10;
+    auto gen = make_range_to |cycle| i;
+    i = 100;
+    ASSERT_EQ(90, std::move(gen) |take| 20 | sum());
 }
 
 #endif // INCLUDE_ITER_GENERATOR_HPP

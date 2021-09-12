@@ -1,6 +1,8 @@
 #ifndef INCLUDE_ITER_TUPLE_HPP
 #define INCLUDE_ITER_TUPLE_HPP
 
+#include <utility>
+
 /**
  * iter::tuple is a tuple that can only be initialized by aggregate,
  * making this class much more efficient for constructing tuple
@@ -50,26 +52,27 @@ namespace iter {
     template<std::size_t I, concepts::decays_to_tuple Tuple>
     auto&& get(Tuple&& tuple) {
         static_assert(I < std::remove_cvref_t<Tuple>::size(), "Tuple index out of bounds");
-        return detail::get<I>(std::forward<Tuple>(tuple));
+        return detail::get<I>(FWD(tuple));
     }
 
     // Make a tuple with element types exactly the same as those returned from lazy_values
     template<std::invocable<>... Fs>
     tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
+        static_assert((!std::same_as<void, std::invoke_result_t<Fs>> && ...));
         return {std::invoke(FWD(lazy_values))...};
     }
 
     template<class F, concepts::decays_to_tuple Tuple>
     decltype(auto) apply(F&& func, Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            return std::invoke(std::forward<F>(func), get<Is>(std::forward<Tuple>(tuple))...);
+            return std::invoke(FWD(func), get<Is>(FWD(tuple))...);
         }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 
     template<class T, concepts::decays_to_tuple Tuple>
     decltype(auto) make_from_tuple(Tuple&& tuple) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            return T(get<Is>(std::forward<Tuple>(tuple))...);
+            return T(get<Is>(FWD(tuple))...);
         }(std::make_index_sequence<std::remove_cvref_t<Tuple>::size()>{});
     }
 }

@@ -96,6 +96,7 @@ add_executable(test_iter
   test/min.cpp
   test/move.cpp
   test/range.cpp
+  test/reverse.cpp
   test/sum.cpp
   test/window.cpp
   test/wrap.cpp

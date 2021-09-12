@@ -4,8 +4,8 @@
 ITER_X(chunks_, (std::size_t N = 0), (N))
 // Invoke iter::N on this iter
 ITER_X(window, (std::size_t N = 2), (N))
-// Invoke iter::C, A on this iter
-ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::C, A, Traits... on this iter
+ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
 // Invoke iter::N on this iter
 ITER_X(partition_, (std::size_t N = 2), (N))
 // Invoke iter::C, A on this iter

@@ -130,21 +130,23 @@ namespace iter {
 
     template<class... Ts, std::invocable<Ts&...> F>
     requires concepts::generator<std::invoke_result_t<F, Ts&...>>
-    constexpr auto ITER_IMPL(cycle) (F&& invocable, Ts&&... args) {
-        return [make_iter = std::forward<F>(invocable), ...as = std::forward<Ts>(args)] () mutable
-            -> std::invoke_result_t<F, Ts&...>
-        {
+    constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
+        // "Capture" args by value with an inner coroutine taking them by value
+        // The outer function takes by universal reference to observe constness
+        return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
             while (true)
-                for (auto it = make_iter(static_cast<Ts&>(as)...); auto next = iter::next(it);)
+                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::next(it);)
                     co_yield *next;
-        }();
+        }(FWD(make_iter), FWD(args)...);
     }
     template<std::invocable<> F>
     requires concepts::generator<std::invoke_result_t<F>>
-    constexpr std::invoke_result_t<F> ITER_IMPL(cycle) (F&& invocable) {
-        for (auto make_iter = std::forward<F>(invocable); true; )
-            for (auto it = make_iter(); auto next = iter::next(it);)
-                co_yield *next;
+    constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
+        return [](auto make_iter) -> std::invoke_result_t<F> {
+            while (true)
+                for (auto it = std::invoke(make_iter); auto next = iter::next(it);)
+                    co_yield *next;
+        }(FWD(make_iter));
     }
 }
 

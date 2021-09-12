@@ -22,6 +22,7 @@
 #  define ITER_IMPL(name) XTD_IMPL_(iter_ ## name, iter::name)
 #  define ITER_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::name)
 #  define ITER_UNSAFE_IMPL(name) XTD_IMPL_(iter_ ## name, iter::unsafe::name)
+#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::unsafe::name)
 #  define ITER_UNSAFE_SIZE XTD_IMPL_THIS_(iter_size, iter::unsafe::size)
 #  define ITER_UNSAFE_GET XTD_IMPL_THIS_(iter_get, iter::unsafe::get)
 #else
@@ -32,6 +33,7 @@
 #  define ITER_IMPL(name) XTD_IMPL(iter::name)
 #  define ITER_IMPL_THIS(name) XTD_IMPL_THIS(iter::name)
 #  define ITER_UNSAFE_IMPL(name) XTD_IMPL(iter::unsafe::name)
+#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS(iter::unsafe::name)
 #  define ITER_UNSAFE_SIZE XTD_IMPL_THIS(iter::unsafe::size)
 #  define ITER_UNSAFE_GET XTD_IMPL_THIS(iter::unsafe::get)
 #endif
@@ -66,12 +68,14 @@ ITER_DECLARE(next)
 ITER_DECLARE(cycle)
 ITER_INVOKER(get)
 ITER_INVOKER(size)
+ITER_INVOKER(next_back)
 
 namespace iter {
     namespace unsafe {
         // Random access functions
         ITER_FUNCTION(get);
         ITER_FUNCTION(size);
+        ITER_FUNCTION(next_back);
     }
 
     namespace concepts {
@@ -174,6 +178,11 @@ namespace iter {
         };
 
         template<class T>
+        concept double_ended_iter = iter<T> && requires (T it, std::size_t index) {
+            { iter::unsafe::next_back(it) } -> std::same_as<decltype(iter::next(it))>;
+        };
+
+        template<class T>
         concept pointer_iterable = pointer_iter<T> || requires (T&& it) {
             { iter::to_iter(FWD(it)) } -> pointer_iter;
         };
@@ -207,28 +216,6 @@ namespace iter {
     using concepts::iterable;
     using concepts::assert_iter;
     using concepts::assert_iterable;
-
-    namespace unsafe {
-        template<class I>
-        auto get_type() -> void;
-        template<concepts::random_access_iter I>
-        auto get_type() -> decltype(iter::unsafe::get(std::declval<std::remove_reference_t<I>&>(), 0));
-        template<class I>
-        using get_t = decltype(get_type<I>());
-
-        template<class I>
-        [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
-            std::size_t size = iter::unsafe::size(iter);
-            using get_t = decltype(iter::unsafe::get(iter, index));
-            if constexpr (std::is_lvalue_reference_v<get_t>)
-                return (index < size) ? std::addressof(iter::unsafe::get(iter, index)) : nullptr;
-            else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = iter::unsafe::get(iter, index);
-                return move_next{(index < size) ? std::addressof(item) : nullptr};
-            } else
-                return (index < size) ? MAKE_OPTIONAL(iter::unsafe::get(iter, index)) : std::nullopt;
-        }
-    }
 
     namespace detail {
         template<class T>
@@ -399,6 +386,28 @@ namespace iter {
             return next_t<I>{std::nullopt};
     }
 
+    namespace unsafe {
+        template<class I>
+        auto get_type() -> void;
+        template<concepts::random_access_iter I>
+        auto get_type() -> decltype(iter::unsafe::get(std::declval<I&>(), 0ul));
+        template<class I>
+        using get_t = decltype(get_type<I>());
+
+        template<class I>
+        [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
+            std::size_t size = iter::unsafe::size(iter);
+            using get_t = decltype(iter::unsafe::get(iter, index));
+            if constexpr (std::is_lvalue_reference_v<get_t>)
+                return (index < size) ? std::addressof(iter::unsafe::get(iter, index)) : nullptr;
+            else if constexpr (std::is_rvalue_reference_v<get_t>) {
+                auto&& item = iter::unsafe::get(iter, index);
+                return move_next{(index < size) ? std::addressof(item) : nullptr};
+            } else
+                return (index < size) ? MAKE_OPTIONAL(iter::unsafe::get(iter, index)) : std::nullopt;
+        }
+    }
+
     namespace detail {
         template<class Self, class... I>
         struct enable_random_access;
@@ -410,7 +419,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
         };
 
         template<class Self, concepts::random_access_iter I>
@@ -420,7 +429,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return iter::unsafe::size(static_cast<Self const&>(base).i);
@@ -429,6 +438,11 @@ namespace iter {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
+            }
+            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+                auto index = base.index++;
+                auto& self = static_cast<Self&>(base);
+                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
             }
         };
 
@@ -439,7 +453,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
         };
 
         template<class Self, concepts::random_access_iter... I>
@@ -451,7 +465,7 @@ namespace iter {
 
         protected:
             using this_t = enable_random_access;
-            using base_t = enable_random_access;
+            using base_t = this_t;
 
             constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
                 return base.size;
@@ -460,6 +474,11 @@ namespace iter {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
+            }
+            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+                auto index = base.index++;
+                auto& self = static_cast<Self&>(base);
+                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
             }
         };
     }

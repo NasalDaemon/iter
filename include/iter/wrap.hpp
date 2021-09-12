@@ -11,25 +11,32 @@ namespace iter {
     };
     template<iter I>
     struct [[nodiscard]] wrap<I> {
-        [[no_unique_address]] I underlying;
+        [[no_unique_address]] I i;
 
         using this_t = wrap;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return iter::next(self.underlying); }
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t i)
+        constexpr auto next() & { return iter::next(i); }
+        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
+
+        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
-            return iter::unsafe::get(self.underlying, i);
+            return iter::unsafe::get(self.i, index);
         }
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t& self)
+
+        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
             requires concepts::random_access_iter<I>
         {
-            return iter::unsafe::size(self.underlying);
+            return iter::unsafe::size(self.i);
         }
 
 #define ITER_X(fun) \
         template<class... Ts>\
-        decltype(auto) fun(Ts&&... args) {\
-            return invoke(::iter::fun, std::forward<Ts>(args)...);\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return invoke(::iter::fun, i, FWD(args)...);\
+        }\
+        template<class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return invoke(::iter::fun, std::move(i), FWD(args)...);\
         }
 #include "iter/x_macros/iter_functions_simple.ipp"
 #undef ITER_X
@@ -37,16 +44,21 @@ namespace iter {
 #define ITER_EXPAND(...) __VA_ARGS__
 #define ITER_X(fun, tmplParams, tmplArgs) \
         template<ITER_EXPAND tmplParams, class... Ts>\
-        decltype(auto) fun(Ts&&... args) {\
-            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::forward<Ts>(args)...);\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
+        }\
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
         }
 #include "iter/x_macros/iter_functions_tmpl.ipp"
 #undef ITER_EXPAND
 #undef ITER_X
 
-        template<xtd::concepts::Bindable Tag, class... Ts>
-        decltype(auto) invoke(Tag const& tag, Ts&&... args) {
-            auto call = [&]() -> decltype(auto) { return tag(underlying, std::forward<Ts>(args)...); };
+    private:
+        template<xtd::concepts::Bindable Tag, class Underlying, class... Ts>
+        static constexpr decltype(auto) invoke(Tag const& tag, Underlying&& underlying, Ts&&... args) {
+            auto call = [&]() -> decltype(auto) { return tag(FWD(underlying), FWD(args)...); };
             if constexpr (iter<decltype(call())>)
                 return ::iter::wrap{call()};
             else

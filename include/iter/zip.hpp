@@ -27,20 +27,20 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_THIS(next) (this_t& self)
             requires (!this_t::random_access)
         {
-            return apply([](auto&&... is) {
-                return std::invoke([](auto&&... vals) {
+            return apply([](auto&... is) {
+                return [](auto&&... vals) {
                     return (... && vals)
                         ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
                         : std::nullopt;
-                }, iter::next(is)...);
+                }(iter::next(is)...);
             }, self.i);
         }
 
         constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return apply([=](auto&&... is) {
-                return make_tuple_lazy([&]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
+            return apply([=](auto&... is) {
+                return make_tuple_lazy([&, index]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
             }, self.i);
         }
     };
