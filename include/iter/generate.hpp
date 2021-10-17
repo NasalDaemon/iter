@@ -9,7 +9,7 @@ namespace iter {
           || concepts::pointer_next<std::invoke_result_t<F>>
     struct generate : F {
         using this_t = generate;
-        constexpr decltype(auto) ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
             return self();
         }
     };

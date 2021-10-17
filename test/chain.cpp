@@ -6,18 +6,18 @@ TEST(TestChain, pointer_random_access) {
     using type = std::remove_cvref_t<decltype(c)>;
     static_assert(concepts::pointer_iter<type>);
     static_assert(concepts::random_access_iter<type>);
-    static_assert(unsafe::size(c) == 3);
+    static_assert(impl::size(c) == 3);
 
     auto c1 = c;
-    ASSERT_EQ(0, *next(c1));
-    ASSERT_EQ(1, *next(c1));
+    ASSERT_EQ(0, *impl::next(c1));
+    ASSERT_EQ(1, *impl::next(c1));
     auto c2 = c1;
-    ASSERT_EQ(2, *next(c1));
-    ASSERT_EQ(2, *next(c2));
-    ASSERT_EQ(nullptr, next(c1));
-    ASSERT_EQ(nullptr, next(c2));
-    ASSERT_EQ(nullptr, next(c1));
-    ASSERT_EQ(nullptr, next(c2));
+    ASSERT_EQ(2, *impl::next(c1));
+    ASSERT_EQ(2, *impl::next(c2));
+    ASSERT_EQ(nullptr, impl::next(c1));
+    ASSERT_EQ(nullptr, impl::next(c2));
+    ASSERT_EQ(nullptr, impl::next(c1));
+    ASSERT_EQ(nullptr, impl::next(c2));
 }
 
 TEST(TestChain, pointer_random_access_rvo) {
@@ -27,10 +27,10 @@ TEST(TestChain, pointer_random_access_rvo) {
     static_assert(concepts::pointer_iter<type>);
     static_assert(concepts::random_access_iter<type>);
 
-    ASSERT_EQ(unsafe::size(c1), 3);
+    ASSERT_EQ(impl::size(c1), 3);
 
     auto assert_next = [&](auto& it, int value, int copies = 0, int moves = 0) {
-        auto n = next(it);
+        auto n = impl::next(it);
         ASSERT_EQ(value, n->value);
         ASSERT_EQ(copies, n->copies);
         ASSERT_EQ(moves, n->moves);
@@ -41,10 +41,10 @@ TEST(TestChain, pointer_random_access_rvo) {
     auto c2 = c1;
     assert_next(c1, 2, 0, 0);
     assert_next(c2, 2, 0, 0);
-    ASSERT_EQ(nullptr, next(c1));
-    ASSERT_EQ(nullptr, next(c2));
-    ASSERT_EQ(nullptr, next(c1));
-    ASSERT_EQ(nullptr, next(c2));
+    ASSERT_EQ(nullptr, impl::next(c1));
+    ASSERT_EQ(nullptr, impl::next(c2));
+    ASSERT_EQ(nullptr, impl::next(c1));
+    ASSERT_EQ(nullptr, impl::next(c2));
 }
 
 TEST(TestChain, optional_random_access) {
@@ -52,18 +52,18 @@ TEST(TestChain, optional_random_access) {
     using type = std::remove_cvref_t<decltype(c)>;
     static_assert(concepts::optional_iter<type>);
     static_assert(concepts::random_access_iter<type>);
-    static_assert(unsafe::size(c) == 3);
+    static_assert(impl::size(c) == 3);
 
     auto c1 = c;
-    ASSERT_EQ(0, next(c1));
-    ASSERT_EQ(1, next(c1));
+    ASSERT_EQ(0, impl::next(c1));
+    ASSERT_EQ(1, impl::next(c1));
     auto c2 = c1;
-    ASSERT_EQ(2, next(c1));
-    ASSERT_EQ(2, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
+    ASSERT_EQ(2, impl::next(c1));
+    ASSERT_EQ(2, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
 }
 
 TEST(TestChain, optional_random_access_rvo) {
@@ -75,10 +75,10 @@ TEST(TestChain, optional_random_access_rvo) {
     static_assert(concepts::optional_iter<type>);
     static_assert(concepts::random_access_iter<type>);
 
-    ASSERT_EQ(unsafe::size(c1), 4);
+    ASSERT_EQ(impl::size(c1), 4);
 
     auto assert_next = [&](auto& it, int value, int copies = 0, int moves = 0) {
-        auto n = next(it);
+        auto n = impl::next(it);
         ASSERT_EQ(value, n->value);
         ASSERT_EQ(copies, n->copies);
         ASSERT_EQ(moves, n->moves);
@@ -92,10 +92,10 @@ TEST(TestChain, optional_random_access_rvo) {
     assert_next(c1, 3, 0, 0);
     assert_next(c2, 2, 0, 0);
     assert_next(c2, 3, 0, 0);
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
 }
 
 TEST(TestChain, not_random_access) {
@@ -110,15 +110,15 @@ TEST(TestChain, not_random_access) {
     static_assert(!concepts::random_access_iter<type>);
 
     auto c1 = c;
-    ASSERT_EQ(0, next(c1));
-    ASSERT_EQ(1, next(c1));
+    ASSERT_EQ(0, impl::next(c1));
+    ASSERT_EQ(1, impl::next(c1));
     auto c2 = c1;
-    ASSERT_EQ(2, next(c1));
-    ASSERT_EQ(2, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
+    ASSERT_EQ(2, impl::next(c1));
+    ASSERT_EQ(2, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
 }
 
 
@@ -132,7 +132,7 @@ TEST(TestChain, not_random_access_rvo) {
     static_assert(!concepts::random_access_iter<type>);
 
     auto assert_next = [&](auto& it, int value, int copies = 0, int moves = 0) {
-        auto n = next(it);
+        auto n = impl::next(it);
         ASSERT_EQ(value, n->value);
         ASSERT_EQ(copies, n->copies);
         ASSERT_EQ(moves, n->moves);
@@ -145,10 +145,10 @@ TEST(TestChain, not_random_access_rvo) {
     assert_next(c1, 3, 0, 0);
     assert_next(c2, 2, 0, 0);
     assert_next(c2, 3, 0, 0);
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
-    ASSERT_EQ(std::nullopt, next(c1));
-    ASSERT_EQ(std::nullopt, next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
+    ASSERT_EQ(std::nullopt, impl::next(c1));
+    ASSERT_EQ(std::nullopt, impl::next(c2));
 }
 
 TEST(TestChain, empty) {
@@ -157,7 +157,7 @@ TEST(TestChain, empty) {
     static_assert(concepts::pointer_iter<type>);
     static_assert(concepts::random_access_iter<type>);
     auto e1 = e;
-    ASSERT_EQ(*next(e1), 99);
-    ASSERT_EQ(*next(e1), 101);
-    ASSERT_EQ(next(e1), nullptr);
+    ASSERT_EQ(*impl::next(e1), 99);
+    ASSERT_EQ(*impl::next(e1), 101);
+    ASSERT_EQ(impl::next(e1), nullptr);
 }

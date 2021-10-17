@@ -5,7 +5,6 @@
 #include "extend/dollar_macros/undef.hpp"
 
 #undef $to_iter
-#undef $next
 #undef $cycle
 #undef $until
 #undef $til

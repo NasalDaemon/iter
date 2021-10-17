@@ -13,7 +13,7 @@ namespace iter::detail {
         [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
-        constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<I>();
             while (emplace_next(val, self.i)) [[unlikely]] {
                 if (self.pred(*val)) {

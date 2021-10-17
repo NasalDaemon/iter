@@ -12,16 +12,16 @@ namespace iter::detail {
 
         using this_t = move_iter;
 
-        constexpr move_next<next_t<I>> ITER_IMPL_THIS(next) (this_t& self)
+        constexpr move_next<next_t<I>> ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return move_next{iter::next(self.i)};
+            return move_next{impl::next(self.i)};
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            decltype(auto) item = iter::unsafe::get(self.i, index);
+            decltype(auto) item = impl::get(self.i, index);
             if constexpr (std::is_reference_v<decltype(item)>)
                 return std::move(item);
             else

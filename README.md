@@ -87,13 +87,13 @@ float weighted_sum(std::vector<float> const& a) {
 
 There are two fundamental concepts: `iter::iter` and `iter::iterable`.
 
-An `iter` is anything that can be passed as the only argument to `iter::next(...)`, which should return either `std::optional<T>` for an optional value or `T*` for an optional reference.
+An `iter` is anything that can be passed as the only argument to `iter::detail::impl::next(...)`, which should return either `std::optional<T>` for an optional value or `T*` for an optional reference.
 
 An `iterable` is anything that can be passed to `iter::to_iter(...)` and returns an `iter`. Anything that is an `iter` is also an `iterable` (since there is a default implementation of `iter::to_iter` for `iter` arguments which simply returns the argument back).
 
 All adaptors and consumers operate on `iterable` or `iter`.
 
-To make any type an `iter`, you simply define the relevant `iter::next` implementation for it.
+To make any type an `iter`, you simply define the relevant `iter::detail::impl::next` implementation for it.
 
 ```c++
 struct enumerate_until {
@@ -101,7 +101,7 @@ struct enumerate_until {
   int i = 0;
 
   using this_t = enumerate_until;
-  constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+  constexpr auto ITER_IMPL_NEXT (this_t& self) {
     return self.i < self.max ? std::optional(self.i++) : std::nullopt;
   }
 };
@@ -120,6 +120,6 @@ constexpr auto ITER_IMPL(to_iter) (int max) {
 
 Not quite, and it doesn't aim to be. iter aims to do one thing, and one thing well: provide a simple functional interface to consume iterable things without adding run-time or compile-time overhead. It does this by avoiding the standard C++ iterator concept in favour of a simpler `iter::iter` concept. On the other hand, std::ranges builds on standard iterators while attempting to hide away their complexities, offering useful concepts and algorithms for existing standard containers and iterators. In other words, std::ranges offers a wider scope of functionality than iter. That wider scope necesarily comes at the cost of complexity, bloat and often poorer performance in the subset of things that iter does specialise in.
 
-The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
+The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::detail::impl::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
 
 Anything that can use iter should use iter rather than std::ranges: iter has lower compile-time overhead and is also more likely to be better optimised by the compiler. However, anything that can't be represented with the simple `iter::iter` concept is out of scope for this library, and std::ranges deals with it perfectly well. `std::ranges::sort(container)` is simple enough!

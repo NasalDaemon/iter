@@ -70,21 +70,21 @@ namespace iter::detail {
             return *this;
         }
 
-        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) -> auto& {
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
             return self.get_underlying()[index];
         }
 
-        constexpr auto ITER_UNSAFE_SIZE (this_t const& self) {
+        constexpr auto ITER_IMPL_SIZE (this_t const& self) {
             return std::size(self.get_underlying());
         }
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.pos != std::size(self.get_underlying())
                 ? std::addressof(self.get_underlying()[self.pos++])
                 : nullptr;
         }
 
-        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(self.get_underlying());
             return self.pos != size
                 ? std::addressof(self.get_underlying()[(size - 1 - self.pos++)])
@@ -102,16 +102,16 @@ namespace iter::detail {
     struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
-        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) -> auto& {
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
             auto size = std::size(self.get_underlying());
             return self.get_underlying()[index % size];
         }
 
-        constexpr auto ITER_UNSAFE_SIZE (this_t const&) {
+        constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
         }
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             if (self.pos == std::size(self.get_underlying())) [[unlikely]]
                 self.pos = 0;
             auto result = std::addressof(self.get_underlying()[self.pos]);
@@ -154,13 +154,13 @@ namespace iter::detail {
     struct optional_to_iter {
         using this_t = optional_to_iter;
         std::optional<T> option;
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) {
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.option ? 1 : 0;
         }
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t) {
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
             return *self.option;
         }
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> std::optional<T> {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) -> std::optional<T> {
             auto r = std::move(self.option);
             self.option.reset();
             return r;
@@ -182,13 +182,13 @@ namespace iter {
         using this_t = pointer_to_iter;
         T* ptr;
 
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) {
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.ptr ? 1 : 0;
         }
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t) {
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
             return *self.ptr;
         }
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return std::exchange(self.ptr, nullptr);
         }
     };

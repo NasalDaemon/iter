@@ -12,7 +12,7 @@ namespace iter::detail {
         std::size_t n;
 
         using this_t = skip_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
             auto next = no_next<I>();
@@ -26,17 +26,17 @@ namespace iter::detail {
             return next;
         }
 
-        constexpr auto ITER_UNSAFE_SIZE (this_t const& self)
+        constexpr auto ITER_IMPL_SIZE (this_t const& self)
             requires this_t::random_access
         {
-            std::size_t size = iter::unsafe::size(self.i);
+            std::size_t size = impl::size(self.i);
             return size > self.n ? size - self.n : 0;
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return iter::unsafe::get(self.i, index + self.n);
+            return impl::get(self.i, index + self.n);
         }
     };
 

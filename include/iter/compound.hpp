@@ -11,7 +11,7 @@ namespace iter {
         [[no_unique_address]] F func;
 
         using this_t = compound;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto result = std::move(self.value);
             if (result) {
                 EMPLACE_NEW(self.value, self.func(iter::as_const(*result)));

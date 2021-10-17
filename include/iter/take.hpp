@@ -13,22 +13,22 @@ namespace iter::detail {
 
         using this_t = take_iter;
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return self.n-- > 0 ? iter::next(self.i) : no_next<I>();
+            return self.n-- > 0 ? impl::next(self.i) : no_next<I>();
         }
 
-        constexpr auto ITER_UNSAFE_SIZE (this_t const& self)
+        constexpr auto ITER_IMPL_SIZE (this_t const& self)
             requires this_t::random_access
         {
-            return std::min(self.n, iter::unsafe::size(self.i));
+            return std::min(self.n, impl::size(self.i));
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return iter::unsafe::get(self.i, index);
+            return impl::get(self.i, index);
         }
     };
 

@@ -30,7 +30,7 @@ TEST(TestReverse, array_filter) {
 }
 
 TEST(TestReverse, exclusive_range) {
-    auto result = range(2, 5)
+    auto result = range{2, 5}
         | reverse()
         | to_vector();
     auto expected = std::vector{4, 3, 2};

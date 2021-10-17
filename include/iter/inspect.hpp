@@ -13,18 +13,18 @@ namespace iter::detail {
 
     private:
         using this_t = inspect_iter;
-        constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self)
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            auto val = iter::next(self.i);
+            auto val = impl::next(self.i);
             if (val) self.func(*val);
             return val;
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            decltype(auto) val = iter::unsafe::get(self.i, index);
+            decltype(auto) val = impl::get(self.i, index);
             self.func(val);
             return val;
         }

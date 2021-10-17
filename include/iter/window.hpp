@@ -34,9 +34,9 @@ namespace iter::detail {
         [[no_unique_address]] I i;
 
         using this_t = window_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             while (self.size < N) [[likely]] {
-                if (auto next = iter::next(self.i)) [[likely]] {
+                if (auto next = impl::next(self.i)) [[likely]] {
                     self.buffer[self.end] = consume(next);
                     ++self.size;
                     self.end = (self.end + 1) % N;

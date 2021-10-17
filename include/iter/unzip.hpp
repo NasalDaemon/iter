@@ -45,11 +45,11 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     typename traits::type containers{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
-        apply([size = iter::unsafe::size(iter)](auto&... c) {
+        apply([size = iter::detail::impl::size(iter)](auto&... c) {
             (c.reserve(size), ...);
         }, containers);
     }
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (get<Is>(containers).emplace_back(std::move(get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -63,13 +63,13 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, st
     typename traits::type containers{};
 
     if constexpr (iter::concepts::random_access_iter<I>)
-        reserve = std::max(reserve, iter::unsafe::size(iter));
+        reserve = std::max(reserve, iter::detail::impl::size(iter));
 
     apply([=](auto&... c) {
         (c.reserve(reserve), ...);
     }, containers);
 
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (get<Is>(containers).emplace_back(std::move(get<Is>(*val))), ...);
         }(std::make_index_sequence<traits::size>{});

@@ -12,21 +12,21 @@ namespace iter::detail {
         [[no_unique_address]] I i;
 
         using this_t = reverse_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return iter::unsafe::next_back(self.i);
+            return impl::next_back(self.i);
         }
-        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self)
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
             requires (!this_t::random_access)
         {
-            return iter::next(self.i);
+            return impl::next(self.i);
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return iter::unsafe::get(self.i, iter::unsafe::size(self.i) - index - 1);
+            return impl::get(self.i, impl::size(self.i) - index - 1);
         }
 
         constexpr auto ITER_IMPL_THIS(reverse) (this_t&& self) { return std::move(self.i); }

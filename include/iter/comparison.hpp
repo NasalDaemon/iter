@@ -17,12 +17,12 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
 
 template<iter::concepts::random_access_iter I1, iter::concepts::random_access_iter I2>
 constexpr bool operator==(I1&& i1, I2&& i2) {
-    auto size = iter::unsafe::size(i1);
-    if (size != iter::unsafe::size(i2)) return false;
+    auto size = iter::detail::impl::size(i1);
+    if (size != iter::detail::impl::size(i2)) return false;
 
     for (std::size_t i = 0; i < size; ++i) {
-        decltype(auto) item1 = iter::unsafe::get(i1, i);
-        decltype(auto) item2 = iter::unsafe::get(i2, i);
+        decltype(auto) item1 = iter::detail::impl::get(i1, i);
+        decltype(auto) item2 = iter::detail::impl::get(i2, i);
         if (item1 != item2) return false;
     }
 

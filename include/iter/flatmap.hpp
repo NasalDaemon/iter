@@ -19,7 +19,7 @@ namespace iter::detail {
         [[no_unique_address]] F func;
 
         constexpr auto get_current() {
-            auto next = iter::next(i);
+            auto next = impl::next(i);
             if constexpr (iter<invoke_result>) {
                 return next
                     ? MAKE_OPTIONAL(func(consume(next)))
@@ -31,7 +31,7 @@ namespace iter::detail {
             }
         }
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<inner_iter_t>();
             do {
                 if (self.current)

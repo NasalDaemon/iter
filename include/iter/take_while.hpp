@@ -13,8 +13,8 @@ namespace iter::detail {
         [[no_unique_address]] I i;
         [[no_unique_address]] P pred;
 
-        constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self) {
-            auto val = iter::next(self.i);
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
+            auto val = impl::next(self.i);
             return val && self.pred(*val) ? val : no_next<I>(); // TODO test RVO
         }
     };

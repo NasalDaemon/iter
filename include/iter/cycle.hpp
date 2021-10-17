@@ -11,22 +11,22 @@ namespace iter::detail {
         [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;
 
     private:
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
             requires this_t::random_access
         {
             return std::numeric_limits<std::size_t>::max();
         }
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return iter::unsafe::get(self.i, index % iter::unsafe::size(self.i));
+            return impl::get(self.i, index % impl::size(self.i));
         }
 
-        constexpr next_t<I> ITER_IMPL_THIS(next) (this_t& self)
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            auto val = iter::next(self.i);
+            auto val = impl::next(self.i);
             if (val) [[likely]] {
                 return val;
             }

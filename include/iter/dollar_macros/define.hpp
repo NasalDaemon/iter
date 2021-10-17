@@ -5,7 +5,6 @@
 #include "extend/dollar_macros/define.hpp"
 
 #define $to_iter $(::iter::to_iter)
-#define $next $(::iter::next)
 #define $cycle $(::iter::cycle)
 #define $until $(::iter::until)
 #define $til $(::iter::til)

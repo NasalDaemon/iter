@@ -16,23 +16,23 @@ namespace iter::detail {
     private:
         using this_t = chain_iter;
 
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            std::size_t i1s = iter::unsafe::size(*self.i1);
-            return index < i1s ? iter::unsafe::get(*self.i1, index) : iter::unsafe::get(self.i2, index - i1s);
+            std::size_t i1s = impl::size(*self.i1);
+            return index < i1s ? impl::get(*self.i1, index) : impl::get(self.i2, index - i1s);
         }
 
         static constexpr bool optional_next = concepts::optional_iter<I1> || concepts::optional_iter<I2>;
         using next_t = std::conditional_t<optional_next, std::optional<value_t<I1>>, value_t<I1>*>;
 
-        constexpr next_t ITER_IMPL_THIS(next) (this_t& self)
+        constexpr next_t ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
             auto val = next_t{};
             if (self.i1) {
                 if constexpr (optional_next && !concepts::optional_iter<I1>) {
-                    if (auto pval = iter::next(*self.i1)) {
+                    if (auto pval = impl::next(*self.i1)) {
                         val.emplace(*pval);
                         return val;
                     }
@@ -44,7 +44,7 @@ namespace iter::detail {
                 self.i1.reset();
             }
             if constexpr (optional_next && !concepts::optional_iter<I2>) {
-                if (auto pval = iter::next(self.i2))
+                if (auto pval = impl::next(self.i2))
                     val.emplace(*pval);
             } else {
                 emplace_next(val, self.i2);
@@ -62,7 +62,7 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     using chain_t = iter::detail::chain_iter<iter::iter_t<I1>, iter::iter_t<I2>>;
     if constexpr (chain_t::random_access) {
         auto chain = chain_t{.i1 = MAKE_OPTIONAL(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
-        chain.size = iter::unsafe::size(*chain.i1) + iter::unsafe::size(chain.i2);
+        chain.size = iter::detail::impl::size(*chain.i1) + iter::detail::impl::size(chain.i2);
         return chain;
     } else {
         return chain_t{.i1 = MAKE_OPTIONAL(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};

@@ -13,7 +13,7 @@ namespace iter::detail {
         [[no_unique_address]] I i;
         std::optional<P> pred;
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto next = no_next<I>();
             while (emplace_next(next, self.i)) {
                 if (self.pred) [[unlikely]] {

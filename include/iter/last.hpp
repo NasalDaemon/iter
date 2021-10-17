@@ -8,19 +8,19 @@ ITER_DECLARE(last)
 template<iter::concepts::random_access_iterable I>
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::unsafe::size(iter);
-    using get_t = decltype(iter::unsafe::get(iter, size - 1));
+    std::size_t size = iter::detail::impl::size(iter);
+    using get_t = decltype(iter::detail::impl::get(iter, size - 1));
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
-        return size > 0 ? std::addressof(iter::unsafe::get(iter, size - 1)) : nullptr;
+        return size > 0 ? std::addressof(iter::detail::impl::get(iter, size - 1)) : nullptr;
     else
-        return size > 0 ? MAKE_OPTIONAL(iter::unsafe::get(iter, size - 1)) : std::nullopt;
+        return size > 0 ? MAKE_OPTIONAL(iter::detail::impl::get(iter, size - 1)) : std::nullopt;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::unsafe::size(iter);
-    return size > 0 ? iter::unsafe::get(iter, size - 1) : FWD(fallback);
+    std::size_t size = iter::detail::impl::size(iter);
+    return size > 0 ? iter::detail::impl::get(iter, size - 1) : FWD(fallback);
 }
 
 template<iter::concepts::optional_iterable I>
@@ -41,7 +41,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     std::optional<iter::value_t<I>> result = std::nullopt;
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;
@@ -67,7 +67,7 @@ requires (!iter::concepts::random_access_iterable<I>)
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     iter::value_t<I> result = FWD(fallback);
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;

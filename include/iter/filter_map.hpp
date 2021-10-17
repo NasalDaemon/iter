@@ -15,9 +15,9 @@ namespace iter::detail {
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
-        constexpr mapped_t ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
             auto mapped = mapped_t{};
-            while (auto val = iter::next(self.i)) {
+            while (auto val = impl::next(self.i)) {
                 if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
                     return mapped;
                 }

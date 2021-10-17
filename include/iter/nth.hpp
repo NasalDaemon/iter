@@ -8,19 +8,19 @@ ITER_DECLARE(nth)
 template<iter::concepts::random_access_iterable I>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::unsafe::size(iter);
-    using get_t = decltype(iter::unsafe::get(iter, n));
+    std::size_t size = iter::detail::impl::size(iter);
+    using get_t = decltype(iter::detail::impl::get(iter, n));
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
-        return size > n ? std::addressof(iter::unsafe::get(iter, n)) : nullptr;
+        return size > n ? std::addressof(iter::detail::impl::get(iter, n)) : nullptr;
     else
-        return size > n ? MAKE_OPTIONAL(iter::unsafe::get(iter, n)) : std::nullopt;
+        return size > n ? MAKE_OPTIONAL(iter::detail::impl::get(iter, n)) : std::nullopt;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::unsafe::size(iter);
-    return size > n ? iter::unsafe::get(iter, n) : FWD(fallback);
+    std::size_t size = iter::detail::impl::size(iter);
+    return size > n ? iter::detail::impl::get(iter, n) : FWD(fallback);
 }
 
 template<iter::assert_iterable I>

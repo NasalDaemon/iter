@@ -56,11 +56,11 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>)
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
-        std::size_t size = iter::unsafe::size(iter) / N;
+        std::size_t size = iter::detail::impl::size(iter) / N;
         apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         auto slot = std::invoke(FWD(func), iter::as_const(*val));
         std::size_t index;
         if constexpr (std::is_same_v<bool, decltype(slot)>) {

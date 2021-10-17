@@ -24,7 +24,7 @@ namespace iter::detail {
 
         [[no_unique_address]] tuple<I...> i;
 
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
             return apply([](auto&... is) {
@@ -32,15 +32,15 @@ namespace iter::detail {
                     return (... && vals)
                         ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
                         : std::nullopt;
-                }(iter::next(is)...);
+                }(impl::next(is)...);
             }, self.i);
         }
 
-        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return apply([=](auto&... is) {
-                return make_tuple_lazy([&, index]() -> decltype(auto) { return iter::unsafe::get(is, index); }...);
+                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(is, index); }...);
             }, self.i);
         }
     };
@@ -56,7 +56,7 @@ constexpr auto ITER_IMPL(zip) (I&&... iterables) {
     auto zip = iter::detail::zip_iter<iter::iter_t<I>...>{.i = {iter::to_iter(FWD(iterables))...}};
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
-            return std::min({iter::unsafe::size(iters)...});
+            return std::min({iter::detail::impl::size(iters)...});
         }, zip.i);
     }
     return zip;

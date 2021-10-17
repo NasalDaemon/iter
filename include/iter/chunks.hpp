@@ -79,9 +79,9 @@ namespace iter::detail {
         [[no_unique_address]] I i;
 
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             std::size_t n = 0;
-            while (auto next = iter::next(self.i)) {
+            while (auto next = impl::next(self.i)) {
                 self.assign(n++, consume(next));
                 if (n == N) [[unlikely]] break;
             }
@@ -96,7 +96,7 @@ namespace iter::detail {
         [[no_unique_address]] I i;
 
         using this_t = lazy_chunk_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto next = iter::no_next<I>();
             if (self.remaining--) [[likely]] {
                 if (!emplace_next(next, self.i)) [[unlikely]] {
@@ -110,7 +110,7 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) -> lazy_chunk_iter<I>* {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) -> lazy_chunk_iter<I>* {
             if (self.size) [[likely]] {
                 self.remaining = self.size;
                 return std::addressof(self);

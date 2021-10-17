@@ -25,9 +25,9 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
-        container.reserve(iter::unsafe::size(iter));
+        container.reserve(iter::detail::impl::size(iter));
     }
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -38,10 +38,10 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
-        reserve = std::max(reserve, iter::unsafe::size(iter));
+        reserve = std::max(reserve, iter::detail::impl::size(iter));
     }
     container.reserve(reserve);
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         container.emplace_back(iter::detail::consume(val));
     }
     return container;
@@ -54,7 +54,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     using V = std::tuple_element_t<1, KV>;
     using A = AT<std::pair<K const, V>>;
     std::map<K, V, std::remove_cvref_t<Comp>, A> container(FWD(compare));
-    while (auto val = iter::next(iter)) {
+    while (auto val = iter::detail::impl::next(iter)) {
         container.emplace(iter::detail::consume(val));
     }
     return container;

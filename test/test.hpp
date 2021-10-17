@@ -16,6 +16,7 @@
 
 using namespace iter;
 using namespace xtd::literals;
+namespace impl = iter::detail::impl;
 
 template<class T>
 struct ctor_count {

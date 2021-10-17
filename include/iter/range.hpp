@@ -12,22 +12,22 @@ namespace iter {
         using this_t = range;
         T begin_;
         T end_ = std::numeric_limits<T>::max() - Inclusive;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             if constexpr (Inclusive)
                 return self.begin_ <= self.end_ ? std::optional(self.begin_++) : std::nullopt;
             else
                 return self.begin_ < self.end_ ? std::optional(self.begin_++) : std::nullopt;
         }
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) {
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             if constexpr (Inclusive)
                 return 1ul + self.end_ - self.begin_;
             else
                 return self.end_ - self.begin_;
         }
-        constexpr T ITER_UNSAFE_GET (this_t& self, std::size_t index) {
+        constexpr T ITER_IMPL_GET (this_t& self, std::size_t index) {
             return self.begin_ + index;
         }
-        constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             if constexpr (Inclusive)
                 return self.begin_ <= self.end_ ? std::optional(self.end_--) : std::nullopt;
             else
@@ -54,16 +54,16 @@ namespace iter {
             indices_iter() = default;
         private:
             std::size_t i = 0;
-            constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+            constexpr auto ITER_IMPL_NEXT (this_t& self) {
                 return std::optional(self.i++);
             }
-            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& self) {
+            constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
                 return std::optional(std::numeric_limits<std::size_t>::max() - self.i++);
             }
-            constexpr std::size_t ITER_UNSAFE_SIZE (this_t const&) {
+            constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return std::numeric_limits<std::size_t>::max();
             }
-            constexpr std::size_t ITER_UNSAFE_GET (this_t&, std::size_t index) {
+            constexpr std::size_t ITER_IMPL_GET (this_t&, std::size_t index) {
                 return index;
             }
         };

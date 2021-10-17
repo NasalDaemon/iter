@@ -8,13 +8,13 @@ namespace iter {
     struct repeat {
         using this_t = repeat;
         T value;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return std::addressof(std::as_const(self.value));
         }
-        constexpr auto ITER_UNSAFE_SIZE (this_t const&) {
+        constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
         }
-        constexpr auto ITER_UNSAFE_GET (this_t& self, size_t) -> auto& {
+        constexpr auto ITER_IMPL_GET (this_t& self, size_t) -> auto& {
             return std::as_const(self.value);
         }
     };

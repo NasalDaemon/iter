@@ -14,19 +14,23 @@ namespace iter {
         [[no_unique_address]] I i;
 
         using this_t = wrap;
-        constexpr auto next() & { return iter::next(i); }
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
-
-        constexpr decltype(auto) ITER_UNSAFE_GET (this_t& self, std::size_t index)
-            requires concepts::random_access_iter<I>
-        {
-            return iter::unsafe::get(self.i, index);
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            return iter::detail::impl::next(self.i);
         }
-
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self)
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
+            requires concepts::double_ended_iter<I>
+        {
+            return iter::detail::impl::next_back(self.i);
+        }
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
-            return iter::unsafe::size(self.i);
+            return iter::detail::impl::get(self.i, index);
+        }
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
+            requires concepts::random_access_iter<I>
+        {
+            return iter::detail::impl::size(self.i);
         }
 
 #define ITER_X(fun) \

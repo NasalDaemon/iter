@@ -25,7 +25,7 @@ namespace iter::detail::minmax {
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
-        auto emplace_next = [&] { return val = iter::next(iter); };
+        auto emplace_next = [&] { return val = impl::next(iter); };
         std::optional<iter::value_t<I>> result;
         if (emplace_next()) {
             result = *val;
@@ -62,7 +62,7 @@ namespace iter::detail::minmax {
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
-        auto emplace_next = [&] { return val = iter::next(iter); };
+        auto emplace_next = [&] { return val = impl::next(iter); };
         std::optional<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));

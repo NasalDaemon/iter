@@ -6,7 +6,7 @@ TEST(TestCycle, indices_take) {
     constexpr auto c = indices |take| 5 | cycle();
     using type = std::remove_cvref_t<decltype(c)>;
     static_assert(concepts::random_access_iter<type>);
-    static_assert(unsafe::size(c) == std::numeric_limits<std::size_t>::max());
+    static_assert(impl::size(c) == std::numeric_limits<std::size_t>::max());
     auto c1 = c;
     ASSERT_EQ(c1 |nth| 0, 0);
     ASSERT_EQ(c1 |nth| 1, 1);
@@ -20,7 +20,7 @@ TEST(TestCycle, indices_take) {
     ASSERT_EQ(c1 |nth| 9, 4);
     ASSERT_EQ(c1 |nth| 10, 0);
     for (int i = 0; i < 10; ++i) {
-        ASSERT_EQ(next(c1), i % 5);
+        ASSERT_EQ(impl::next(c1), i % 5);
     }
 }
 
@@ -28,13 +28,13 @@ TEST(TestCycle, once) {
     constexpr auto o = once{9} | cycle();
     using type = std::remove_cvref_t<decltype(o)>;
     static_assert(concepts::random_access_iter<type>);
-    static_assert(unsafe::size(o) == std::numeric_limits<std::size_t>::max());
+    static_assert(impl::size(o) == std::numeric_limits<std::size_t>::max());
     auto o1 = o;
     ASSERT_EQ(*nth(o1, 0), 9);
     ASSERT_EQ(*nth(o1, 1), 9);
     ASSERT_EQ(*nth(o1, 999), 9);
     for (int i = 0; i < 10; ++i)
-        ASSERT_EQ(*next(o1), 9);
+        ASSERT_EQ(*impl::next(o1), 9);
 }
 
 TEST(TestCycle, once_ref) {
@@ -42,27 +42,27 @@ TEST(TestCycle, once_ref) {
     auto o = once_ref(expected) | cycle();
     using type = std::remove_cvref_t<decltype(o)>;
     static_assert(concepts::random_access_iter<type>);
-    static_assert(unsafe::size(o) == std::numeric_limits<std::size_t>::max());
+    static_assert(impl::size(o) == std::numeric_limits<std::size_t>::max());
     auto o1 = o;
     ASSERT_EQ(*nth(o1, 0), expected);
     ASSERT_EQ(*nth(o1, 1), expected);
     ASSERT_EQ(*nth(o1, 999), expected);
     for (int i = 0; i < 10; ++i)
-        ASSERT_EQ(*next(o1), expected);
+        ASSERT_EQ(*impl::next(o1), expected);
 }
 
 template<class T>
 void test_container(T&& v) {
     using type = std::remove_cvref_t<T>;
     static_assert(concepts::random_access_iter<type>);
-    ASSERT_EQ(unsafe::size(v), std::numeric_limits<std::size_t>::max());
+    ASSERT_EQ(impl::size(v), std::numeric_limits<std::size_t>::max());
 
     ASSERT_EQ(*nth(v, 0), 0);
     ASSERT_EQ(*nth(v, 1), 3);
     ASSERT_EQ(*nth(v, 2), 2);
     ASSERT_EQ(*nth(v, 3), 6);
     for (int i = 0; i < 16; ++i) {
-        auto n = *next(v);
+        auto n = *impl::next(v);
         switch (i % 4) {
         case 0: ASSERT_EQ(n, 0); break;
         case 1: ASSERT_EQ(n, 3); break;

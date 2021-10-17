@@ -12,8 +12,8 @@ namespace iter {
         virtual GetType get(std::size_t index) = 0;
     private:
         using this_t = virtual_iter;
-        constexpr auto ITER_UNSAFE_GET (this_t& self, std::size_t index) { return self.get(index); }
-        constexpr auto ITER_UNSAFE_SIZE (this_t const& self) { return self.size(); }
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) { return self.get(index); }
+        constexpr auto ITER_IMPL_SIZE (this_t const& self) { return self.size(); }
     };
     template<concepts::next Next>
     struct virtual_iter<Next, void> {
@@ -21,7 +21,7 @@ namespace iter {
         virtual ~virtual_iter() = default;
     private:
         using this_t = virtual_iter;
-        constexpr auto ITER_IMPL_THIS(next) (this_t& self) { return self.next(); }
+        constexpr auto ITER_IMPL_NEXT (this_t& self) { return self.next(); }
     };
 
     namespace detail {
@@ -29,18 +29,18 @@ namespace iter {
         struct virtual_iter_impl final : virtual_iter<next_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
+            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
         struct virtual_iter_impl<I> final : virtual_iter<next_t<I>, unsafe::get_t<I>>, I {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return iter::next(static_cast<I&>(*this)); }
+            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
             std::size_t size() const final {
-                return iter::unsafe::size(static_cast<I const&>(*this));
+                return impl::size(static_cast<I const&>(*this));
             }
             unsafe::get_t<I> get(std::size_t index) final {
-                return iter::unsafe::get(static_cast<I&>(*this), index);
+                return impl::get(static_cast<I&>(*this), index);
             }
         };
 
@@ -87,11 +87,11 @@ namespace iter {
 
     private:
         template<concepts::next, class> friend struct boxed;
-        constexpr Next ITER_IMPL_THIS(next) (this_t& self) { return self.it->next(); }
-        constexpr std::size_t ITER_UNSAFE_SIZE (this_t const& self) requires random_access {
+        constexpr Next ITER_IMPL_NEXT (this_t& self) { return self.it->next(); }
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) requires random_access {
             return self.it->size();
         }
-        constexpr Get ITER_UNSAFE_GET (this_t& self, std::size_t index) requires random_access {
+        constexpr Get ITER_IMPL_GET (this_t& self, std::size_t index) requires random_access {
             return self.it->get(index);
         }
 

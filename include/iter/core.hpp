@@ -17,26 +17,27 @@
 #include "iter/tuple.hpp"
 
 #ifndef ITER_GLOBAL_INVOKER
-#  define ITER_INVOKER(name) XTD_INVOKER(iter_ ## name)
-#  define ITER_FUNCTION(fun, ...) XTD_FUNCTION_(iter_ ## fun) fun
-#  define ITER_IMPL(name) XTD_IMPL_(iter_ ## name, iter::name)
-#  define ITER_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::name)
-#  define ITER_UNSAFE_IMPL(name) XTD_IMPL_(iter_ ## name, iter::unsafe::name)
-#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::unsafe::name)
-#  define ITER_UNSAFE_SIZE XTD_IMPL_THIS_(iter_size, iter::unsafe::size)
-#  define ITER_UNSAFE_GET XTD_IMPL_THIS_(iter_get, iter::unsafe::get)
+#  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
+#  define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
+#  define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
+#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
+#  define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
+#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
 #else
 #  warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
            Any failing invocations may return an endless list of candidates.
 #  define ITER_INVOKER(name)
-#  define ITER_FUNCTION(fun) XTD_FUNCTION fun
-#  define ITER_IMPL(name) XTD_IMPL(iter::name)
-#  define ITER_IMPL_THIS(name) XTD_IMPL_THIS(iter::name)
-#  define ITER_UNSAFE_IMPL(name) XTD_IMPL(iter::unsafe::name)
-#  define ITER_UNSAFE_IMPL_THIS(name) XTD_IMPL_THIS(iter::unsafe::name)
-#  define ITER_UNSAFE_SIZE XTD_IMPL_THIS(iter::unsafe::size)
-#  define ITER_UNSAFE_GET XTD_IMPL_THIS(iter::unsafe::get)
+#  define ITER_FUNCTION(fun)          XTD_FUNCTION fun
+#  define ITER_IMPL(name)             XTD_IMPL(iter::name)
+#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
+#  define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
+#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
 #endif
+
+#define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
+#define ITER_IMPL_NEXT_BACK ITER_DETAIL_IMPL_THIS(next_back)
+#define ITER_IMPL_GET       ITER_DETAIL_IMPL_THIS(get)
+#define ITER_IMPL_SIZE      ITER_DETAIL_IMPL_THIS(size)
 
 #define ITER_DECLARE(fun) \
     ITER_INVOKER(fun)\
@@ -64,18 +65,20 @@
 #endif
 
 ITER_DECLARE(to_iter)
-ITER_DECLARE(next)
 ITER_DECLARE(cycle)
+
+ITER_INVOKER(next)
+ITER_INVOKER(next_back)
 ITER_INVOKER(get)
 ITER_INVOKER(size)
-ITER_INVOKER(next_back)
 
 namespace iter {
-    namespace unsafe {
-        // Random access functions
+    namespace detail::impl {
+        // basic iter customisation points
+        ITER_FUNCTION(next);
+        ITER_FUNCTION(next_back);
         ITER_FUNCTION(get);
         ITER_FUNCTION(size);
-        ITER_FUNCTION(next_back);
     }
 
     namespace concepts {
@@ -162,24 +165,24 @@ namespace iter {
 
         template<class T>
         concept pointer_iter = requires(T it) {
-            { iter::next(it) } -> pointer_next;
+            { iter::detail::impl::next(it) } -> pointer_next;
         };
         template<class T>
         concept optional_iter = requires(T it) {
-            { iter::next(it) } -> optional_next;
+            { iter::detail::impl::next(it) } -> optional_next;
         };
         template<class T>
         concept iter = pointer_iter<T> || optional_iter<T>;
 
         template<class T>
         concept random_access_iter = iter<T> && requires (T it, std::size_t index) {
-            iter::unsafe::get(it, index);
-            { iter::unsafe::size(it) } -> std::same_as<std::size_t>;
+            iter::detail::impl::get(it, index);
+            { iter::detail::impl::size(it) } -> std::same_as<std::size_t>;
         };
 
         template<class T>
         concept double_ended_iter = iter<T> && requires (T it, std::size_t index) {
-            { iter::unsafe::next_back(it) } -> std::same_as<decltype(iter::next(it))>;
+            { iter::detail::impl::next_back(it) } -> std::same_as<decltype(iter::detail::impl::next(it))>;
         };
 
         template<class T>
@@ -241,7 +244,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(iter::next(std::declval<iter_t<std::remove_reference_t<I>>&>()));
+    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<std::remove_reference_t<I>>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -256,7 +259,7 @@ namespace iter {
     namespace detail {
         template<class T, iter I>
         constexpr T& emplace_next(T& current, I& it) {
-            return EMPLACE_NEW(current, iter::next(it));
+            return EMPLACE_NEW(current, impl::next(it));
         }
 
         static constexpr struct sentinel_t {} sentinel;
@@ -390,21 +393,21 @@ namespace iter {
         template<class I>
         auto get_type() -> void;
         template<concepts::random_access_iter I>
-        auto get_type() -> decltype(iter::unsafe::get(std::declval<I&>(), 0ul));
+        auto get_type() -> decltype(iter::detail::impl::get(std::declval<I&>(), 0ul));
         template<class I>
         using get_t = decltype(get_type<I>());
 
         template<class I>
         [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
-            std::size_t size = iter::unsafe::size(iter);
-            using get_t = decltype(iter::unsafe::get(iter, index));
+            std::size_t size = iter::detail::impl::size(iter);
+            using get_t = decltype(iter::detail::impl::get(iter, index));
             if constexpr (std::is_lvalue_reference_v<get_t>)
-                return (index < size) ? std::addressof(iter::unsafe::get(iter, index)) : nullptr;
+                return (index < size) ? std::addressof(iter::detail::impl::get(iter, index)) : nullptr;
             else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = iter::unsafe::get(iter, index);
+                auto&& item = iter::detail::impl::get(iter, index);
                 return move_next{(index < size) ? std::addressof(item) : nullptr};
             } else
-                return (index < size) ? MAKE_OPTIONAL(iter::unsafe::get(iter, index)) : std::nullopt;
+                return (index < size) ? MAKE_OPTIONAL(iter::detail::impl::get(iter, index)) : std::nullopt;
         }
     }
 
@@ -431,18 +434,18 @@ namespace iter {
             using this_t = enable_random_access;
             using base_t = this_t;
 
-            constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
-                return iter::unsafe::size(static_cast<Self const&>(base).i);
+            constexpr auto ITER_IMPL_SIZE (this_t const& base) {
+                return impl::size(static_cast<Self const&>(base).i);
             }
-            constexpr auto ITER_IMPL_THIS(next) (this_t& base) {
+            constexpr auto ITER_IMPL_NEXT (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
             }
-            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+            constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
+                return iter::unsafe::get_option(self, impl::size(self) - 1 - index);
             }
         };
 
@@ -467,18 +470,18 @@ namespace iter {
             using this_t = enable_random_access;
             using base_t = this_t;
 
-            constexpr auto ITER_UNSAFE_SIZE (this_t const& base) {
+            constexpr auto ITER_IMPL_SIZE (this_t const& base) {
                 return base.size;
             }
-            constexpr auto ITER_IMPL_THIS(next) (this_t& base) {
+            constexpr auto ITER_IMPL_NEXT (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
                 return iter::unsafe::get_option(self, index);
             }
-            constexpr auto ITER_UNSAFE_IMPL_THIS(next_back) (this_t& base) {
+            constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, iter::unsafe::size(self) - 1 - index);
+                return iter::unsafe::get_option(self, impl::size(self) - 1 - index);
             }
         };
     }
@@ -507,8 +510,8 @@ constexpr auto ITER_IMPL(to_iter) (I&& iter) -> I&& {
 
 // Define unsafe random access functions as deleted by default
 template<class... Ts>
-void ITER_UNSAFE_IMPL(get) (Ts&&...) = delete;
+void ITER_DETAIL_IMPL(get) (Ts&&...) = delete;
 template<class... Ts>
-void ITER_UNSAFE_IMPL(size) (Ts&&...) = delete;
+void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
 #endif /* INCLUDE_ITER_CORE_HPP */
