@@ -9,10 +9,6 @@
 #include <memory>
 #include <limits>
 
-#ifndef FWD
-#  define FWD(arg) static_cast<decltype(arg)&&>(arg)
-#endif
-
 #include "iter/emplace_new.hpp"
 #include "iter/tuple.hpp"
 
