@@ -152,7 +152,7 @@ TEST(TestChain, not_random_access_rvo) {
 }
 
 TEST(TestChain, empty) {
-    auto e = empty<int> |chain| empty<int> |chain| once{99} |chain| empty<int> |chain| std::optional{101};
+    auto e = empty<int> |chain| empty<int> |chain| once{99} |chain| empty<int> |chain| iter::optional{101};
     using type = std::remove_cvref_t<decltype(e)>;
     static_assert(concepts::pointer_iter<type>);
     static_assert(concepts::random_access_iter<type>);

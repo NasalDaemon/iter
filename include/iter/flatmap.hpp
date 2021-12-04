@@ -2,6 +2,7 @@
 #define INCLUDE_ITER_FLATMAP_HPP
 
 #include "iter/core.hpp"
+#include "iter/iter_wrapper.hpp"
 
 ITER_DECLARE(flatmap)
 ITER_ALIAS(flat_map, flatmap)
@@ -11,31 +12,27 @@ namespace iter::detail {
     struct [[nodiscard]] flatmap_iter {
         using this_t = flatmap_iter;
         using invoke_result = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(iterable<invoke_result>);
-        using inner_iter_t = iter_t<invoke_result>;
+        static_assert(!concepts::iter_of_optional<invoke_result>,
+            "Do not return iter::optional in iter::flatmap, instead return std::optional in iter::filter_map.");
+        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
+        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
 
-        std::optional<inner_iter_t> current = std::nullopt;
+        std::optional<wrapped_inner_iter_t> current = std::nullopt;
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr auto get_current() {
             auto next = impl::next(i);
-            if constexpr (iter<invoke_result>) {
-                return next
-                    ? MAKE_OPTIONAL(func(consume(next)))
-                    : std::nullopt;
-            } else {
-                return next
-                    ? MAKE_OPTIONAL(iter::to_iter(func(consume(next))))
-                    : std::nullopt;
-            }
+            return next
+                ? MAKE_OPTIONAL(iter_wrapper{func(consume(next))})
+                : std::nullopt;
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<inner_iter_t>();
             do {
                 if (self.current)
-                    if (emplace_next(val, *self.current))
+                    if (emplace_next(val, self.current->iter))
                         return val;
             } while (EMPLACE_NEW(self.current, self.get_current()));
             return val;

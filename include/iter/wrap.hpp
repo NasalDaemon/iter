@@ -4,7 +4,7 @@
 #include "iter.hpp"
 
 namespace iter {
-    template<assert_iterable I>
+    template<iterable I>
     struct [[nodiscard]] wrap : wrap<iter_t<I>> {
         template<class II>
         wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}

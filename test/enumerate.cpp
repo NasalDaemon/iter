@@ -3,7 +3,8 @@
 #include <vector>
 
 TEST(TestEnumerate, random_access) {
-    auto it = std::vector{1, 2, 3} | enumerate();
+    auto v = std::vector{1, 2, 3};
+    auto it = v | enumerate();
     static_assert(concepts::random_access_iter<decltype(it)>);
 
     it | foreach | xtd::apply([expected = 0](int, int i) mutable {

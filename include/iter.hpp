@@ -6,6 +6,7 @@
 // Iterables
 #include "iter/to_iter.hpp"
 #include "iter/once.hpp"
+#include "iter/optional.hpp"
 #include "iter/range.hpp"
 #include "iter/generate.hpp"
 #include "iter/generator.hpp"

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20211017
+#  define ITER_LIBRARY_VERSION 20211204
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -47,6 +47,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <concepts>
 #include <functional>
 #include <string_view>
+
+#ifndef FWD
+#  define FWD(arg) static_cast<decltype(arg)&&>(arg)
+#endif
 
 inline namespace xtd_adl {
 
@@ -77,10 +81,10 @@ namespace invokers {
     struct main {
         template<class... Ts>
         static constexpr auto invoke(Ts&&... in)
-            noexcept(noexcept(xtd_invoke_main((Ts&&) in...)))
-            -> decltype(xtd_invoke_main((Ts&&) in...))
+            noexcept(noexcept(xtd_invoke_main(FWD(in)...)))
+            -> decltype(xtd_invoke_main(FWD(in)...))
         {
-            return xtd_invoke_main((Ts&&) in...);
+            return xtd_invoke_main(FWD(in)...);
         }
     };
 }
@@ -108,7 +112,7 @@ struct [[nodiscard]] bound<F, 0, O> : F {
 
 template<size_t A = 0, bool O = false, class F>
 static constexpr bound<std::decay_t<F>, A, O> make_bound(F&& f) {
-    return { (F&&) f };
+    return { FWD(f) };
 }
 
 namespace concepts {
@@ -146,11 +150,11 @@ namespace concepts {
 
     template<class CP, class... Ts>
     concept CustomisedFree = requires (const CP& bindable, Ts&&... in) {
-        CP::invoker_t::invoke(xtd_free_t{}, bindable.self(), (Ts&&) in...);
+        CP::invoker_t::invoke(xtd_free_t{}, bindable.self(), FWD(in)...);
     };
     template<class CP, class... Ts>
     concept CustomisedMethod = requires (const CP& bindable, Ts&&... in) {
-        CP::invoker_t::invoke(xtd_method_t<>{}, bindable.self(), (Ts&&) in...);
+        CP::invoker_t::invoke(xtd_method_t<>{}, bindable.self(), FWD(in)...);
     };
     template<class CP, class... Ts>
     concept Customised = CustomisedMethod<CP, Ts...> || CustomisedFree<CP, Ts...>;
@@ -160,14 +164,14 @@ namespace concepts {
 
     template<class CP, class... Ts>
     concept AllowedFree = requires (const CP& bindable, Ts&&... in) {
-        { CP::invoker_t::invoke(xtd_free_t{}, bindable.self(), (Ts&&) in...) } ->
-            CompatInterface<decltype(typename CP::interface_t{}.apply((Ts&&) in...))>;
+        { CP::invoker_t::invoke(xtd_free_t{}, bindable.self(), FWD(in)...) } ->
+            CompatInterface<decltype(typename CP::interface_t{}.apply(FWD(in)...))>;
     };
 
     template<class CP, class... Ts>
     concept AllowedMethod = requires (const CP& bindable, Ts&&... in) {
-        { CP::invoker_t::invoke(xtd_method_t<>{}, bindable.self(), (Ts&&) in...) } ->
-            CompatInterface<decltype(typename CP::interface_t{}.apply((Ts&&) in...))>;
+        { CP::invoker_t::invoke(xtd_method_t<>{}, bindable.self(), FWD(in)...) } ->
+            CompatInterface<decltype(typename CP::interface_t{}.apply(FWD(in)...))>;
     };
 
     template<class T>
@@ -186,14 +190,14 @@ using tag_of = const std::remove_cvref_t<decltype(obj)>&;
 template<class L, concepts::Bound R>
 requires (!concepts::Bound<L>)
 constexpr decltype(auto) operator ->* (L&& l, const R& r) {
-    return r((L&&) l);
+    return r(FWD(l));
 }
 
 template<class L, concepts::Bindable R>
 requires (!concepts::Bound<L>)
 constexpr decltype(auto) operator ->* (L&& l, const R& r) {
-    return make_bound([&]<class... T>(T&&... in) {
-        return r((L&&) l, (T&&) in...);
+    return make_bound([&](auto&&... in) {
+        return r(FWD(l), FWD(in)...);
     });
 }
 
@@ -203,14 +207,14 @@ constexpr auto operator ->* (L&& l, R&& r) {
         "When building a chain of bindables that is not immediately invoked, "
         "please call bindable.capture(...) instead of bindable(...)");
     return make_bound<0, true>(
-        [l = (L&&) l, r = (R&&) r]<class T>(T&& in) {
-            return l((T&&) in) ->* r; });
+        [l = FWD(l), r = FWD(r)](auto&& in) {
+            return l(FWD(in)) ->* r; });
 }
 
 template<concepts::Bound L, class R>
 requires (!concepts::Bound<R>)
 constexpr decltype(auto) operator ->* (const L& l, R&& r) {
-    return l((R&&) r);
+    return l(FWD(r));
 }
 
 template<concepts::Bound L>
@@ -218,9 +222,8 @@ constexpr decltype(auto) operator ->* (const L& l, bind_placeholder<>) {
     return l();
 }
 
-template<class L, class R>
-constexpr decltype(auto) operator | (L&& l, R&& r) {
-    return (L&&) l ->* (R&&) r;
+constexpr decltype(auto) operator | (auto&& l, auto&& r) {
+    return FWD(l) ->* FWD(r);
 }
 
 namespace detail {
@@ -230,6 +233,41 @@ namespace detail {
     };
     template<class... Fs>
     overload(Fs...) -> overload<Fs...>;
+
+    template<class R>
+    constexpr decltype(auto) select(auto&& l, R&& r) {
+        if constexpr (concepts::BindPlaceholder<R>)
+            return FWD(l);
+        else
+            return FWD(r);
+    }
+
+    template<std::size_t>
+    struct sink {
+        constexpr sink(auto&&...) {}
+    };
+
+    template<std::size_t... Is>
+    constexpr decltype(auto) get_value(sink<Is>..., auto&& value, auto&&...) {
+        return FWD(value);
+    }
+
+    template<std::size_t I, class... Ts>
+    constexpr decltype(auto) get_i(Ts&&... args) {
+        return [&]<std::size_t... Is>(std::index_sequence<Is...>) -> decltype(auto) {
+            return get_value<(0*Is)...>(FWD(args)...);
+        }(std::make_index_sequence<sizeof...(Ts)-1>{});
+    }
+
+    template<size_t BI, std::size_t I>
+    constexpr decltype(auto) select_i(auto&& l, auto&&... r) {
+        if constexpr (I == BI)
+            return FWD(l);
+        else if constexpr (I > BI)
+            return get_i<I - 1>(FWD(r)...);
+        else
+            return get_i<I>(FWD(r)...);
+    }
 }
 
 template<class U, class Invoker, class Interface, class... Fs>
@@ -249,7 +287,7 @@ struct bindable : detail::overload<Fs...> {
         // Prioritise the method overload
         using dispatcher = std::conditional_t<concepts::CustomisedMethod<bindable, Ts...>, xtd_method_t<>, xtd_free_t>;
         if constexpr (std::is_same_v<void, Interface>)
-            return invoker_t::invoke(dispatcher{}, self(), (Ts&&) ins...);
+            return invoker_t::invoke(dispatcher{}, self(), FWD(ins)...);
         else {
             if constexpr (concepts::CustomisedMethod<bindable, Ts...>)
                 static_assert(concepts::AllowedMethod<bindable, Ts...>,
@@ -257,11 +295,11 @@ struct bindable : detail::overload<Fs...> {
             else
                 static_assert(concepts::AllowedFree<bindable, Ts...>,
                     "No implementation for this parameter set follows the interface");
-            using return_t = decltype(Interface{}.apply((Ts&&) ins...));
+            using return_t = decltype(Interface{}.apply(FWD(ins)...));
             if constexpr (std::is_same_v<void, return_t>)
-                return invoker_t::invoke(dispatcher{}, self(), (Ts&&) ins...);
+                return invoker_t::invoke(dispatcher{}, self(), FWD(ins)...);
             else
-                return return_t(invoker_t::invoke(dispatcher{}, self(), (Ts&&) ins...));
+                return return_t(invoker_t::invoke(dispatcher{}, self(), FWD(ins)...));
         }
     }
 
@@ -271,7 +309,7 @@ struct bindable : detail::overload<Fs...> {
           && (!concepts::BindPlaceholder<Ts> && ...)
           && (std::invocable<Fs const, Ts...> || ...)
     constexpr decltype(auto) operator()(Ts&&... ins) const {
-        return detail::overload<Fs...>::operator()((Ts&&) ins...);
+        return detail::overload<Fs...>::operator()(FWD(ins)...);
     }
 
     [[nodiscard]] constexpr auto operator()() const {
@@ -281,21 +319,38 @@ struct bindable : detail::overload<Fs...> {
     template<class... Ts>
     requires (sizeof...(Ts) > 0) && (concepts::BindPlaceholderAt<Ts, 0> || ...)
     [[nodiscard]] constexpr auto operator()(Ts&&... in) const {
-        return capture<sizeof...(Ts) == 1>((Ts&&) in...);
+        // Being an owner is free if there is nothing to bind
+        return capture<sizeof...(Ts) == 1>(FWD(in)...);
     }
 
+    // Placeholder as first argument is common case
+    template<bool Store = true, class... Ts>
+    requires (!concepts::BindPlaceholder<Ts> && ...)
+    [[nodiscard]] constexpr auto capture(const bind_placeholder<0>&, Ts&&... in) const {
+        if constexpr (Store) {
+            return make_bound<0, Store>([this, ...in = FWD(in)](auto&& l) {
+                return (*this)(FWD(l), in...);
+            });
+        } else {
+            return make_bound([&, this](auto&& l) {
+                return (*this)(FWD(l), FWD(in)...);
+            });
+        }
+    }
+
+    // Placeholder in any position general case
     template<bool Store = true, class... Ts>
     requires (sizeof...(Ts) > 0) && (concepts::BindPlaceholderAt<Ts, 0> || ...)
     [[nodiscard]] constexpr auto capture(Ts&&... in) const {
         constexpr std::size_t count = ((concepts::BindPlaceholder<Ts> ? 1 : 0) + ...);
         static_assert(count == 1, "May specify only one placeholder");
         if constexpr (Store) {
-            return make_bound<0, Store>([=, this]<class L>(L&& l) {
-                return (*this)(select((L&&) l, in)...);
+            return make_bound<0, Store>([this, ...in = FWD(in)](auto&& l) {
+                return (*this)(detail::select(FWD(l), in)...);
             });
         } else {
-            return make_bound([&, this]<class L>(L&& l) {
-                return (*this)(select((L&&) l, (Ts&&) in)...);
+            return make_bound([&, this](auto&& l) {
+                return (*this)(detail::select(FWD(l), FWD(in))...);
             });
         }
     }
@@ -303,13 +358,16 @@ struct bindable : detail::overload<Fs...> {
     template<size_t I, class... Ts>
     requires (I > 0) && (!concepts::BindPlaceholder<Ts> && ...)
     [[nodiscard]] constexpr auto operator()(const bind_placeholder<I>&, Ts&&... ins) const {
-        return bind_n<I, sizeof...(Ts) == 0>(std::make_index_sequence<1 + sizeof...(Ts)>{}, (Ts&&) ins...);
+        static_assert(I <= sizeof...(Ts), "Placeholder index is out of bounds");
+        // Being an owner is free if there is nothing to bind
+        return bind_n<I, sizeof...(Ts) == 0>(std::make_index_sequence<1 + sizeof...(Ts)>{}, FWD(ins)...);
     }
 
     template<size_t I, class... Ts>
     requires (I > 0) && (!concepts::BindPlaceholder<Ts> && ...)
     [[nodiscard]] constexpr auto capture(const bind_placeholder<I>&, Ts&&... ins) const {
-        return bind_n<I, true>(std::make_index_sequence<1 + sizeof...(Ts)>{}, (Ts&&) ins...);
+        static_assert(I <= sizeof...(Ts), "Placeholder index is out of bounds");
+        return bind_n<I, true>(std::make_index_sequence<1 + sizeof...(Ts)>{}, FWD(ins)...);
     }
 
     constexpr auto& self() const {
@@ -320,43 +378,17 @@ struct bindable : detail::overload<Fs...> {
     }
 
 private:
-
-    template<class L, class R>
-    static constexpr decltype(auto) select(L&& l, R&& r) {
-        if constexpr (concepts::BindPlaceholder<R>)
-            return (L&&) l;
-        else
-            return (R&&) r;
-    }
-
-    template<size_t BI, bool Store, std::size_t... Is, class... Ts>
-    constexpr decltype(auto) bind_n(std::index_sequence<Is...>, Ts&&... ins) const {
+    template<size_t BI, bool Store, std::size_t... Is>
+    constexpr decltype(auto) bind_n(std::index_sequence<Is...>, auto&&... ins) const {
         if constexpr (Store) {
-            return make_bound<0, Store>([=, this]<class L>(L&& l) {
-                return (*this)(select_i<BI, Is>((L&&) l, ins...)...);
+            return make_bound<0, Store>([this, ...ins = FWD(ins)](auto&& l) {
+                return (*this)(detail::select_i<BI, Is>(FWD(l), ins...)...);
             });
         } else {
-            return make_bound([&, this]<class L>(L&& l) {
-                return (*this)(select_i<BI, Is>((L&&) l, (Ts&&) ins...)...);
+            return make_bound([&, this](auto&& l) {
+                return (*this)(detail::select_i<BI, Is>(FWD(l), FWD(ins)...)...);
             });
         }
-    }
-
-    template<size_t I, class T, class... Ts>
-    static constexpr decltype(auto) get(T&& in, Ts&&... ins) {
-        if constexpr (I == 0)
-            return (T&&) in;
-        else
-            return get<I-1>((Ts&&) ins...);
-    }
-
-    template<size_t BI, std::size_t I, class L, class... Rs>
-    static constexpr decltype(auto) select_i(L&& l, Rs&&... rs) {
-        constexpr std::size_t index = I > BI ? I - 1 : I;
-        if constexpr (index == BI)
-            return (L&&) l;
-        else
-            return get<index>((Rs&&) rs...);
     }
 };
 
@@ -366,10 +398,9 @@ bindable(F...) -> bindable<void, invokers::main, void, F...>;
 template<class Tag, class Invoker = xtd::invokers::main, class Interface = void>
 using tagged_bindable = bindable<Tag, Invoker, Interface>;
 
-template<class F>
-constexpr auto apply(F&& func) {
-    return [func = (F&&)func]<class T>(T&& tuple) mutable {
-        return apply(func, (T&&)tuple);
+constexpr auto apply(auto&& func) {
+    return [func = FWD(func)](auto&& tuple) mutable {
+        return apply(func, FWD(tuple));
     };
 }
 
@@ -396,10 +427,10 @@ namespace literals {
         struct name {\
             template<class... Ts>\
             static constexpr auto invoke(Ts&&... in)\
-                noexcept(noexcept(xtd_invoke_ ## name((Ts&&) in...)))\
-                -> decltype(xtd_invoke_ ## name((Ts&&) in...))\
+                noexcept(noexcept(xtd_invoke_ ## name(FWD(in)...)))\
+                -> decltype(xtd_invoke_ ## name(FWD(in)...))\
             {\
-                return xtd_invoke_ ## name((Ts&&) in...);\
+                return xtd_invoke_ ## name(FWD(in)...);\
             }\
         };\
     }
@@ -468,21 +499,20 @@ namespace xtd::detail {
 #define XTD_USING_IMPL_3(type, namspace, nam) XTD_IMPORT_SPECIALIZED(type, namspace::nam, nam)
 
 #define XTD_IMPL_TRY_METHOD(tag, func) \
-    template<class T, class... Ts>\
-    constexpr auto impl(tag) (T&& obj, Ts&&... in)\
-        noexcept(noexcept((T&&) obj.func((Ts&&) in...)))\
-        -> decltype((T&&) obj.func((Ts&&) in...))\
+    constexpr auto impl(tag) (auto&& obj, auto&&... in)\
+        noexcept(noexcept(FWD(obj).func(FWD(in)...)))\
+        -> decltype(FWD(obj).func(FWD(in)...))\
     {\
-        return ((T&&) obj).func((Ts&&) in...);\
+        return FWD(obj).func(FWD(in)...);\
     }
 
 #define XTD_IMPL_TRY_FORWARD(tag, func) \
     template<class... Ts>\
     constexpr auto impl(tag) (Ts&&... in)\
-        noexcept(noexcept(func((Ts&&) in...)))\
-        -> decltype(func((Ts&&) in...))\
+        noexcept(noexcept(func(FWD(in)...)))\
+        -> decltype(func(FWD(in)...))\
     {\
-        return func((Ts&&) in...);\
+        return func(FWD(in)...);\
     }
 
 #endif /* EXTEND_INCLUDE_EXTEND_HPP */
@@ -490,10 +520,6 @@ namespace xtd::detail {
 #include <optional>
 #include <memory>
 #include <limits>
-
-#ifndef FWD
-#  define FWD(arg) static_cast<decltype(arg)&&>(arg)
-#endif
 
 #ifndef INCLUDE_ITER_EMPLACE_NEW_HPP
 #define INCLUDE_ITER_EMPLACE_NEW_HPP
@@ -886,7 +912,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<std::remove_reference_t<I>>&>()));
+    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<I>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -1015,13 +1041,13 @@ namespace iter {
     }
 
     template<class T>
-    using value_t = typename detail::iter_traits<std::remove_cvref_t<T>>::value_t;
+    using value_t = typename detail::iter_traits<T>::value_t;
     template<class T>
-    using ref_t = typename detail::iter_traits<std::remove_cvref_t<T>>::ref_t;
+    using ref_t = typename detail::iter_traits<T>::ref_t;
     template<class T>
-    using cref_t = typename detail::iter_traits<std::remove_cvref_t<T>>::cref_t;
+    using cref_t = typename detail::iter_traits<T>::cref_t;
     template<class T>
-    using consume_t = typename detail::iter_traits<std::remove_cvref_t<T>>::consume_t;
+    using consume_t = typename detail::iter_traits<T>::consume_t;
 
     template<iterable I>
     static constexpr next_t<I> no_next() {
@@ -1150,7 +1176,7 @@ constexpr auto ITER_IMPL(to_iter) (I&& iter) -> I&& {
     return FWD(iter);
 }
 
-// Define unsafe random access functions as deleted by default
+// Define random access functions as deleted by default
 template<class... Ts>
 void ITER_DETAIL_IMPL(get) (Ts&&...) = delete;
 template<class... Ts>
@@ -1179,106 +1205,60 @@ namespace std {
 #endif /* INCLUDE_ITER_STD_FWD_HPP */
 
 namespace iter::detail {
-    template<class Underlying>
+    template<class Container>
     struct [[nodiscard]] random_access_container_iter {
     protected:
         using this_t = random_access_container_iter;
-        static constexpr bool owner = !std::is_lvalue_reference_v<Underlying>;
-
-        using underyling_t = std::conditional_t<owner, Underlying, std::remove_reference_t<Underlying>*>;
-        underyling_t underlying;
+        Container* container;
         std::size_t pos;
 
-        auto& get_underlying() {
-            if constexpr (owner)
-                return underlying;
-            else
-                return *underlying;
-        }
-        auto& get_underlying() const {
-            if constexpr (owner)
-                return underlying;
-            else
-                return *underlying;
-        }
-
     public:
-        template<class... Ts>
-        requires (owner)
-        random_access_container_iter(std::in_place_t, Ts&&... ins)
-            : underlying{FWD(ins)...}
+        constexpr explicit random_access_container_iter(Container& under)
+            : container{std::addressof(under)}
             , pos{0}
         {}
 
-        template<class... Ts>
-        requires (!owner)
-        random_access_container_iter(std::in_place_t, Underlying& under)
-            : underlying{&under}
-            , pos{0}
-        {}
-
-        random_access_container_iter(random_access_container_iter&& other)
-            : underlying{std::move(other.underlying)}
-            , pos{other.pos}
-        {}
-
-        // Copy is disabled if we own the collection (iter copy should be cheap)
-        random_access_container_iter(const random_access_container_iter& other) requires (!owner)
-            : underlying{other.underlying}
-            , pos{other.pos}
-        {
-        }
-
-        random_access_container_iter& operator=(random_access_container_iter&& other) {
-            underlying = std::move(other.underlying);
-            pos = other.pos;
-            return *this;
-        }
-
-        // Copy is disabled if we own the collection (iter copy should be cheap)
-        random_access_container_iter& operator=(const random_access_container_iter& other)
-            requires (!owner)
-        {
-            underlying = other.underlying;
-            pos = other.pos;
-            return *this;
-        }
+        random_access_container_iter(const random_access_container_iter& other) = default;
+        random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            return self.get_underlying()[index];
+            return (*self.container)[index];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self) {
-            return std::size(self.get_underlying());
+            return std::size(*self.container);
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.pos != std::size(self.get_underlying())
-                ? std::addressof(self.get_underlying()[self.pos++])
+            return self.pos != std::size(*self.container)
+                ? std::addressof((*self.container)[self.pos++])
                 : nullptr;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            auto const size = std::size(self.get_underlying());
+            auto const size = std::size(*self.container);
             return self.pos != size
-                ? std::addressof(self.get_underlying()[(size - 1 - self.pos++)])
+                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
                 : nullptr;
         }
 
         struct cycle;
 
-        constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) requires (owner) {
+        constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) {
             return cycle{FWD(self)};
         }
     };
+
+    template<class T>
+    random_access_container_iter(T&) -> random_access_container_iter<T>;
 
     template<class T>
     struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            auto size = std::size(self.get_underlying());
-            return self.get_underlying()[index % size];
+            const auto size = std::size(*self.container);
+            return (*self.container)[index % size];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
@@ -1286,11 +1266,14 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            if (self.pos == std::size(self.get_underlying())) [[unlikely]]
-                self.pos = 0;
-            auto result = std::addressof(self.get_underlying()[self.pos]);
-            ++self.pos;
-            return result;
+            self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
+            return std::addressof((*self.container)[self.pos++]);
+        }
+
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
+            const auto size = std::size(*self.container);
+            self.pos = self.pos == size ? 0 : self.pos;
+            return std::addressof((*self.container)[(size - 1 - self.pos++)]);
         }
      };
 }
@@ -1314,40 +1297,8 @@ namespace iter::concepts {
 }
 
 template<iter::concepts::random_access_container T>
-constexpr auto ITER_IMPL(to_iter) (T&& container) {
-    return iter::detail::random_access_container_iter<T>{std::in_place, FWD(container)};
-}
-template<iter::iterable T>
-requires iter::concepts::random_access_container<T> && (!std::is_lvalue_reference_v<T>)
-constexpr auto ITER_IMPL(cycle) (T&& container) {
-    return typename iter::detail::random_access_container_iter<T>::cycle{{std::in_place, FWD(container)}};
-}
-
-namespace iter::detail {
-    template<class T>
-    struct optional_to_iter {
-        using this_t = optional_to_iter;
-        std::optional<T> option;
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.option ? 1 : 0;
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self.option;
-        }
-        constexpr auto ITER_IMPL_NEXT (this_t& self) -> std::optional<T> {
-            auto r = std::move(self.option);
-            self.option.reset();
-            return r;
-        }
-    };
-
-    template<class T>
-    optional_to_iter(std::optional<T>) -> optional_to_iter<T>;
-}
-
-template<iter::concepts::optional T>
-constexpr auto ITER_IMPL(to_iter) (T&& optional) {
-    return iter::detail::optional_to_iter{FWD(optional)};
+constexpr auto ITER_IMPL(to_iter) (T& container) {
+    return iter::detail::random_access_container_iter{container};
 }
 
 namespace iter {
@@ -1452,6 +1403,47 @@ namespace iter {
 }
 
 #endif /* INCLUDE_ITER_ONCE_HPP */
+
+#ifndef INCLUDE_ITER_OPTIONAL_HPP
+#define INCLUDE_ITER_OPTIONAL_HPP
+
+namespace iter {
+    template<class T>
+    struct optional : std::optional<T> {
+        using this_t = optional;
+
+        constexpr optional(auto&&... args) : std::optional<T>(FWD(args)...) {}
+
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
+            return self ? 1 : 0;
+        }
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
+            return *self;
+        }
+        constexpr auto ITER_IMPL_NEXT (this_t& self) -> std::optional<T> {
+            std::optional<T> result(std::move(self));
+            self.reset();
+            return result;
+        }
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
+            return detail::impl::next_back(self);
+        }
+    };
+
+    template<class T>
+    optional(T) -> optional<T>;
+
+    namespace concepts {
+        template<class T>
+        static constexpr bool is_iter_of_optional = false;
+        template<class T>
+        constexpr bool is_iter_of_optional<iter::optional<T>> = true;
+        template<class T>
+        concept iter_of_optional = is_iter_of_optional<T>;
+    }
+}
+
+#endif /* INCLUDE_ITER_OPTIONAL_HPP */
 
 #ifndef INCLUDE_ITER_RANGE_HPP
 #define INCLUDE_ITER_RANGE_HPP
@@ -1966,34 +1958,66 @@ constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
 #ifndef INCLUDE_ITER_FLATTEN_HPP
 #define INCLUDE_ITER_FLATTEN_HPP
 
+#ifndef INCLUDE_ITER_ITER_WRAPPER_HPP
+#define INCLUDE_ITER_ITER_WRAPPER_HPP
+
+namespace iter::detail {
+    template<class I>
+    struct iter_wrapper {
+        static_assert(iterable<I&>);
+        I iterable;
+        using iter_t = iter::iter_t<I&>;
+        iter_t iter = to_iter(iterable);
+    };
+    template<iter I>
+    struct iter_wrapper<I> {
+        using iter_t = I;
+        I iter;
+    };
+    template<class I>
+    iter_wrapper(I) -> iter_wrapper<I>;
+
+    template<class T>
+    struct optional_iter_wrapper {
+        static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
+        T optional_iterable;
+        using iter_t = iter::iter_t<decltype(*optional_iterable)>;
+        std::optional<iter_t> optional_iter = optional_iterable ? MAKE_OPTIONAL(to_iter(*optional_iterable)) : std::nullopt;
+    };
+    template<class T>
+    requires iter<decltype(get_value_t(std::declval<T>()))>
+    struct optional_iter_wrapper<T> {
+        using iter_t = decltype(get_value_t(std::declval<T>()));
+        T optional_iter;
+    };
+    template<class T>
+    optional_iter_wrapper(T) -> optional_iter_wrapper<T>;
+}
+
+#endif /* INCLUDE_ITER_ITER_WRAPPER_HPP */
+
 ITER_DECLARE(flatten)
 
 namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] flatten_iter {
         using this_t = flatten_iter;
-        using inner_t = value_t<I>;
-        static_assert(iterable<consume_t<I>>);
 
         constexpr static auto get_current(I& i) {
-            if constexpr (iter<inner_t>)
-                return impl::next(i);
-            else {
-                auto val = impl::next(i);
-                return val ? MAKE_OPTIONAL(iter::to_iter(consume(val))) : std::nullopt;
-            }
+            return optional_iter_wrapper{impl::next(i)};
         }
 
         [[no_unique_address]] I i;
         decltype(this_t::get_current(std::declval<I&>())) current{};
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            auto val = no_next<iter_t<inner_t>>();
+            using inner_iter_t = typename decltype(current)::iter_t;
+            auto val = no_next<inner_iter_t>();
             do {
-                if (self.current)
-                    if (emplace_next(val, *self.current))
+                if (self.current.optional_iter)
+                    if (emplace_next(val, *self.current.optional_iter))
                         return val;
-            } while (EMPLACE_NEW(self.current, get_current(self.i)));
+            } while (EMPLACE_NEW(self.current, get_current(self.i)).optional_iter);
             return val;
         }
     };
@@ -2020,31 +2044,27 @@ namespace iter::detail {
     struct [[nodiscard]] flatmap_iter {
         using this_t = flatmap_iter;
         using invoke_result = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(iterable<invoke_result>);
-        using inner_iter_t = iter_t<invoke_result>;
+        static_assert(!concepts::iter_of_optional<invoke_result>,
+            "Do not return iter::optional in iter::flatmap, instead return std::optional in iter::filter_map.");
+        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
+        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
 
-        std::optional<inner_iter_t> current = std::nullopt;
+        std::optional<wrapped_inner_iter_t> current = std::nullopt;
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr auto get_current() {
             auto next = impl::next(i);
-            if constexpr (iter<invoke_result>) {
-                return next
-                    ? MAKE_OPTIONAL(func(consume(next)))
-                    : std::nullopt;
-            } else {
-                return next
-                    ? MAKE_OPTIONAL(iter::to_iter(func(consume(next))))
-                    : std::nullopt;
-            }
+            return next
+                ? MAKE_OPTIONAL(iter_wrapper{func(consume(next))})
+                : std::nullopt;
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<inner_iter_t>();
             do {
                 if (self.current)
-                    if (emplace_next(val, *self.current))
+                    if (emplace_next(val, self.current->iter))
                         return val;
             } while (EMPLACE_NEW(self.current, self.get_current()));
             return val;
@@ -3551,7 +3571,7 @@ constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter) 
 #define INCLUDE_ITER_COMPARISON_HPP
 
 template<iter::iter I1, iter::iter I2>
-constexpr bool operator==(I1&& i1, I2&& i2) {
+constexpr bool operator==(I1 i1, I2 i2) {
     auto item1 = iter::no_next<I1>();
     auto item2 = iter::no_next<I2>();
 
@@ -3563,7 +3583,7 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
 }
 
 template<iter::concepts::random_access_iter I1, iter::concepts::random_access_iter I2>
-constexpr bool operator==(I1&& i1, I2&& i2) {
+constexpr bool operator==(I1 i1, I2 i2) {
     auto size = iter::detail::impl::size(i1);
     if (size != iter::detail::impl::size(i2)) return false;
 
@@ -3577,7 +3597,7 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
 }
 
 template<iter::iter I1, iter::iter I2>
-constexpr auto operator<=>(I1&& i1, I2&& i2) {
+constexpr auto operator<=>(I1 i1, I2 i2) {
     auto item1 = iter::no_next<I1>();
     auto item2 = iter::no_next<I2>();
 
@@ -3596,7 +3616,7 @@ constexpr auto operator<=>(I1&& i1, I2&& i2) {
 #define INCLUDE_ITER_WRAP_HPP
 
 namespace iter {
-    template<assert_iterable I>
+    template<iterable I>
     struct [[nodiscard]] wrap : wrap<iter_t<I>> {
         template<class II>
         wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}

@@ -240,7 +240,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<std::remove_reference_t<I>>&>()));
+    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<I>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -369,13 +369,13 @@ namespace iter {
     }
 
     template<class T>
-    using value_t = typename detail::iter_traits<std::remove_cvref_t<T>>::value_t;
+    using value_t = typename detail::iter_traits<T>::value_t;
     template<class T>
-    using ref_t = typename detail::iter_traits<std::remove_cvref_t<T>>::ref_t;
+    using ref_t = typename detail::iter_traits<T>::ref_t;
     template<class T>
-    using cref_t = typename detail::iter_traits<std::remove_cvref_t<T>>::cref_t;
+    using cref_t = typename detail::iter_traits<T>::cref_t;
     template<class T>
-    using consume_t = typename detail::iter_traits<std::remove_cvref_t<T>>::consume_t;
+    using consume_t = typename detail::iter_traits<T>::consume_t;
 
     template<iterable I>
     static constexpr next_t<I> no_next() {
@@ -504,7 +504,7 @@ constexpr auto ITER_IMPL(to_iter) (I&& iter) -> I&& {
     return FWD(iter);
 }
 
-// Define unsafe random access functions as deleted by default
+// Define random access functions as deleted by default
 template<class... Ts>
 void ITER_DETAIL_IMPL(get) (Ts&&...) = delete;
 template<class... Ts>

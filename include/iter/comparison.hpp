@@ -4,7 +4,7 @@
 #include "iter/core.hpp"
 
 template<iter::iter I1, iter::iter I2>
-constexpr bool operator==(I1&& i1, I2&& i2) {
+constexpr bool operator==(I1 i1, I2 i2) {
     auto item1 = iter::no_next<I1>();
     auto item2 = iter::no_next<I2>();
 
@@ -16,7 +16,7 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
 }
 
 template<iter::concepts::random_access_iter I1, iter::concepts::random_access_iter I2>
-constexpr bool operator==(I1&& i1, I2&& i2) {
+constexpr bool operator==(I1 i1, I2 i2) {
     auto size = iter::detail::impl::size(i1);
     if (size != iter::detail::impl::size(i2)) return false;
 
@@ -30,7 +30,7 @@ constexpr bool operator==(I1&& i1, I2&& i2) {
 }
 
 template<iter::iter I1, iter::iter I2>
-constexpr auto operator<=>(I1&& i1, I2&& i2) {
+constexpr auto operator<=>(I1 i1, I2 i2) {
     auto item1 = iter::no_next<I1>();
     auto item2 = iter::no_next<I2>();
 

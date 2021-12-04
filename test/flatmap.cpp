@@ -5,7 +5,8 @@
 #include <vector>
 
 TEST(TestFlatmap, 1) {
-    auto s = wrap(std::vector{1, 2, 3})
+    auto v = std::vector{1, 2, 3};
+    auto s = wrap(v)
         .flatmap([](int i) {
             return std::vector{i, 2*i}; }) // (1 2) (2 4) (3 6)
         .map([](int i) {

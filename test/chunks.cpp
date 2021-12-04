@@ -20,7 +20,8 @@ TEST(TestChunks, static) {
 }
 
 TEST(TestChunks, static_nontrivial) {
-    auto s = std::array<std::string, 5>{"0", "12", "324", "", "02"}
+    auto a = std::array<std::string, 5>{"0", "12", "324", "", "02"};
+    auto s = a
         | to_iter()
         | chunks_<2>()
         | flatten()

@@ -142,7 +142,8 @@ int main() {
         std::cout << "once: " << i << "\n";
     }
 
-    for (auto i : std::array{1, 2, 3} | cycle(_) | take(_, 10)) {
+    auto a123 = std::array{1, 2, 3};
+    for (auto i : a123 | cycle(_) | take(_, 10)) {
         std::cout << "cycle: " << i << "\n";
     }
 

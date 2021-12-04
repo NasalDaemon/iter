@@ -73,9 +73,6 @@ void test_container(T&& v) {
 }
 
 TEST(TestCycle, container) {
-    test_container(std::vector{0, 3, 2, 6} | cycle());
-    test_container(std::vector{0, 3, 2, 6} | to_iter() | cycle());
-
     std::vector v{0, 3, 2, 6};
     test_container(v | cycle());
     test_container(v | to_iter() | cycle());

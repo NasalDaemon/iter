@@ -5,106 +5,60 @@
 #include "iter/std_fwd.hpp"
 
 namespace iter::detail {
-    template<class Underlying>
+    template<class Container>
     struct [[nodiscard]] random_access_container_iter {
     protected:
         using this_t = random_access_container_iter;
-        static constexpr bool owner = !std::is_lvalue_reference_v<Underlying>;
-
-        using underyling_t = std::conditional_t<owner, Underlying, std::remove_reference_t<Underlying>*>;
-        underyling_t underlying;
+        Container* container;
         std::size_t pos;
 
-        auto& get_underlying() {
-            if constexpr (owner)
-                return underlying;
-            else
-                return *underlying;
-        }
-        auto& get_underlying() const {
-            if constexpr (owner)
-                return underlying;
-            else
-                return *underlying;
-        }
-
     public:
-        template<class... Ts>
-        requires (owner)
-        random_access_container_iter(std::in_place_t, Ts&&... ins)
-            : underlying{FWD(ins)...}
+        constexpr explicit random_access_container_iter(Container& under)
+            : container{std::addressof(under)}
             , pos{0}
         {}
 
-        template<class... Ts>
-        requires (!owner)
-        random_access_container_iter(std::in_place_t, Underlying& under)
-            : underlying{&under}
-            , pos{0}
-        {}
-
-        random_access_container_iter(random_access_container_iter&& other)
-            : underlying{std::move(other.underlying)}
-            , pos{other.pos}
-        {}
-
-        // Copy is disabled if we own the collection (iter copy should be cheap)
-        random_access_container_iter(const random_access_container_iter& other) requires (!owner)
-            : underlying{other.underlying}
-            , pos{other.pos}
-        {
-        }
-
-        random_access_container_iter& operator=(random_access_container_iter&& other) {
-            underlying = std::move(other.underlying);
-            pos = other.pos;
-            return *this;
-        }
-
-        // Copy is disabled if we own the collection (iter copy should be cheap)
-        random_access_container_iter& operator=(const random_access_container_iter& other)
-            requires (!owner)
-        {
-            underlying = other.underlying;
-            pos = other.pos;
-            return *this;
-        }
+        random_access_container_iter(const random_access_container_iter& other) = default;
+        random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            return self.get_underlying()[index];
+            return (*self.container)[index];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self) {
-            return std::size(self.get_underlying());
+            return std::size(*self.container);
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.pos != std::size(self.get_underlying())
-                ? std::addressof(self.get_underlying()[self.pos++])
+            return self.pos != std::size(*self.container)
+                ? std::addressof((*self.container)[self.pos++])
                 : nullptr;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            auto const size = std::size(self.get_underlying());
+            auto const size = std::size(*self.container);
             return self.pos != size
-                ? std::addressof(self.get_underlying()[(size - 1 - self.pos++)])
+                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
                 : nullptr;
         }
 
         struct cycle;
 
-        constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) requires (owner) {
+        constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) {
             return cycle{FWD(self)};
         }
     };
+
+    template<class T>
+    random_access_container_iter(T&) -> random_access_container_iter<T>;
 
     template<class T>
     struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            auto size = std::size(self.get_underlying());
-            return self.get_underlying()[index % size];
+            const auto size = std::size(*self.container);
+            return (*self.container)[index % size];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
@@ -112,11 +66,14 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            if (self.pos == std::size(self.get_underlying())) [[unlikely]]
-                self.pos = 0;
-            auto result = std::addressof(self.get_underlying()[self.pos]);
-            ++self.pos;
-            return result;
+            self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
+            return std::addressof((*self.container)[self.pos++]);
+        }
+
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
+            const auto size = std::size(*self.container);
+            self.pos = self.pos == size ? 0 : self.pos;
+            return std::addressof((*self.container)[(size - 1 - self.pos++)]);
         }
      };
 }
@@ -140,40 +97,8 @@ namespace iter::concepts {
 }
 
 template<iter::concepts::random_access_container T>
-constexpr auto ITER_IMPL(to_iter) (T&& container) {
-    return iter::detail::random_access_container_iter<T>{std::in_place, FWD(container)};
-}
-template<iter::iterable T>
-requires iter::concepts::random_access_container<T> && (!std::is_lvalue_reference_v<T>)
-constexpr auto ITER_IMPL(cycle) (T&& container) {
-    return typename iter::detail::random_access_container_iter<T>::cycle{{std::in_place, FWD(container)}};
-}
-
-namespace iter::detail {
-    template<class T>
-    struct optional_to_iter {
-        using this_t = optional_to_iter;
-        std::optional<T> option;
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.option ? 1 : 0;
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self.option;
-        }
-        constexpr auto ITER_IMPL_NEXT (this_t& self) -> std::optional<T> {
-            auto r = std::move(self.option);
-            self.option.reset();
-            return r;
-        }
-    };
-
-    template<class T>
-    optional_to_iter(std::optional<T>) -> optional_to_iter<T>;
-}
-
-template<iter::concepts::optional T>
-constexpr auto ITER_IMPL(to_iter) (T&& optional) {
-    return iter::detail::optional_to_iter{FWD(optional)};
+constexpr auto ITER_IMPL(to_iter) (T& container) {
+    return iter::detail::random_access_container_iter{container};
 }
 
 namespace iter {
