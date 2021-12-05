@@ -1516,6 +1516,10 @@ namespace iter {
 
         template<std::integral T = std::size_t>
         struct indices_tag {};
+        template<class T>
+        constexpr auto ITER_IMPL(to_iter) (detail::indices_tag<T>) {
+            return detail::indices_iter<T>{};
+        }
     }
 
     template<class T = std::size_t>
