@@ -95,7 +95,7 @@ All adaptors and consumers operate on `iterable` or `iter`.
 
 Informally, an `iter` should be cheap to copy -- at least before any iteration has started. This is not enforced at compile-time due to the unstarted iteration caveat. For example:
 1. The `iter` for `std::vector` contains only a pointer to the source vector and the current position. This is always cheap to copy.
-1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `std::optional<std::vector<int>>` of the latest vector returned by the callable. The optional is only populated once iteration has started, making copying cheap until then.
+1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `std::optional<std::vector<std::string>>` of the latest vector returned by the callable. The optional is only populated once iteration has started, making copying cheap until then.
 1. All `iter` adaptors with callables are to be as cheap to copy as their respective callables are. It is up to the user code to ensure that the callables are cheap to copy if the iter is expected to be copied around.
 
 To make any type an `iter`, you simply define the relevant `iter::detail::impl::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
