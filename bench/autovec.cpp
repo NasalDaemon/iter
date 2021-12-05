@@ -128,7 +128,7 @@ void bench_iter_enumerate(benchmark::State& state)
 
     for (auto s : state) {
         auto sum = a
-            | iter::enumerate()
+            | iter::enumerate_<int>()
             | iter::map | [](auto ai) {
                 auto& [a, i] = ai;
                 return a + i; }

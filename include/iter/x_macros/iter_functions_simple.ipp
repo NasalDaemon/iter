@@ -26,7 +26,7 @@ ITER_X(map)
 ITER_X(map_while)
 // Invoke iter::zip on this iter
 ITER_X(zip)
-// Invoke iter::enumerate on this iter
+// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
 ITER_X(enumerate)
 // Invoke iter::reverse on this iter
 ITER_X(reverse)

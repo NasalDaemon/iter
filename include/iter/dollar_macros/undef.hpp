@@ -51,6 +51,7 @@
 #undef $partition
 #undef $unzip
 #undef $sorted
+#undef $enumerate_
 #undef $chunks_
 #undef $window
 #undef $collect

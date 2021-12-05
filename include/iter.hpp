@@ -34,7 +34,7 @@
 #include "iter/chunks.hpp"
 #include "iter/window.hpp"
 #include "iter/inspect.hpp"
-#include "iter/to_pointer.hpp"
+#include "iter/to_pointer_iter.hpp"
 #include "iter/move.hpp"
 #include "iter/box.hpp"
 

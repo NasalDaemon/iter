@@ -49,29 +49,37 @@ namespace iter {
     inclusive_range(T, T) -> inclusive_range<T>;
 
     namespace detail {
+        template<std::integral T = std::size_t>
         struct [[nodiscard]] indices_iter {
             using this_t = indices_iter;
             indices_iter() = default;
         private:
-            std::size_t i = 0;
+            T i = 0;
             constexpr auto ITER_IMPL_NEXT (this_t& self) {
                 return std::optional(self.i++);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-                return std::optional(std::numeric_limits<std::size_t>::max() - self.i++);
+                return std::optional(std::numeric_limits<T>::max() - self.i++);
             }
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
-                return std::numeric_limits<std::size_t>::max();
+                return std::numeric_limits<T>::max();
             }
-            constexpr std::size_t ITER_IMPL_GET (this_t&, std::size_t index) {
+            constexpr T ITER_IMPL_GET (this_t&, std::size_t index) {
                 return index;
             }
         };
+
+        template<std::integral T = std::size_t>
+        struct indices_tag {};
     }
 
-    static constexpr struct {} indices;
-    constexpr auto ITER_IMPL(to_iter) (decltype(indices)) {
-        return detail::indices_iter{};
+    template<class T = std::size_t>
+    static constexpr detail::indices_tag<T> indices_ = {};
+    static constexpr auto indices = indices_<>;
+
+    template<class T>
+    constexpr auto ITER_IMPL(to_iter) (detail::indices_tag<T>) {
+        return detail::indices_iter<T>{};
     }
 }
 

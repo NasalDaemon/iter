@@ -51,6 +51,7 @@
 #define $partition $(::iter::partition)
 #define $unzip $(::iter::unzip)
 #define $sorted $(::iter::sorted)
+#define $enumerate_(...) $(::iter::enumerate_<__VA_ARGS__>)
 #define $chunks_(...) $(::iter::chunks_<__VA_ARGS__>)
 #define $window(...) $(::iter::window<__VA_ARGS__>)
 #define $collect(...) $(::iter::collect<__VA_ARGS__>)
