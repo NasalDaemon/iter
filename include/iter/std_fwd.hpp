@@ -12,4 +12,6 @@ namespace std {
     class map;
 }
 
+#include <span>
+
 #endif /* INCLUDE_ITER_STD_FWD_HPP */

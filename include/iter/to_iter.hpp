@@ -5,40 +5,41 @@
 #include "iter/std_fwd.hpp"
 
 namespace iter::detail {
-    template<class Container>
+    template<class T>
     struct [[nodiscard]] random_access_container_iter {
     protected:
         using this_t = random_access_container_iter;
-        Container* container;
+        std::span<T> span;
         std::size_t pos;
 
     public:
-        constexpr explicit random_access_container_iter(Container& under)
-            : container{std::addressof(under)}
+        template<class Container>
+        constexpr explicit random_access_container_iter(Container& container)
+            : span{container}
             , pos{0}
         {}
 
         random_access_container_iter(const random_access_container_iter& other) = default;
         random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            return (*self.container)[index];
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index) {
+            return self.span[index];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self) {
-            return std::size(*self.container);
+            return self.span.size();
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.pos != std::size(*self.container)
-                ? std::addressof((*self.container)[self.pos++])
+            return self.pos != self.span.size()
+                ? std::addressof(self.span[self.pos++])
                 : nullptr;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            auto const size = std::size(*self.container);
+            auto const size = self.span.size();
             return self.pos != size
-                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
+                ? std::addressof(self.span[(size - 1 - self.pos++)])
                 : nullptr;
         }
 
@@ -50,15 +51,15 @@ namespace iter::detail {
     };
 
     template<class T>
-    random_access_container_iter(T&) -> random_access_container_iter<T>;
+    random_access_container_iter(T&) -> random_access_container_iter<std::remove_reference_t<decltype(std::declval<T&>()[0])>>;
 
     template<class T>
     struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
-            const auto size = std::size(*self.container);
-            return (*self.container)[index % size];
+            const auto size = self.span.size();
+            return self.span[index % size];
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
@@ -66,14 +67,14 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
-            return std::addressof((*self.container)[self.pos++]);
+            self.pos = self.pos == self.span.size() ? 0 : self.pos;
+            return std::addressof(self.span[self.pos++]);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            const auto size = std::size(*self.container);
+            const auto size = self.span.size();
             self.pos = self.pos == size ? 0 : self.pos;
-            return std::addressof((*self.container)[(size - 1 - self.pos++)]);
+            return std::addressof(self.span[(size - 1 - self.pos++)]);
         }
      };
 }
