@@ -22,7 +22,7 @@ namespace iter {
             return result;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return detail::impl::next_back(self);
+            return detail::impl::next(self);
         }
     };
 
