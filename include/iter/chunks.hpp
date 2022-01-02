@@ -85,7 +85,7 @@ namespace iter::detail {
                 self.assign(n++, consume(next));
                 if (n == N) [[unlikely]] break;
             }
-            return n > 0 ? MAKE_OPTIONAL(self.to_iter(n)) : std::nullopt;
+            return n > 0 ? MAKE_ITEM(self.to_iter(n)) : noitem;
         }
     };
 
@@ -110,12 +110,12 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) -> lazy_chunk_iter<I>* {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) -> item<lazy_chunk_iter<I>&> {
             if (self.size) [[likely]] {
                 self.remaining = self.size;
-                return std::addressof(self);
+                return item<lazy_chunk_iter<I>&>(self);
             }
-            return nullptr;
+            return noitem;
         }
     };
 }

@@ -10,13 +10,13 @@ namespace iter::detail {
     struct [[nodiscard]] filter_map_iter {
         using this_t = filter_map_iter;
         using mapped_t = std::invoke_result_t<F, ref_t<I>>;
-        static_assert(concepts::optional_next<mapped_t> || concepts::pointer_next<mapped_t>);
+        static_assert(concepts::item<mapped_t>);
 
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
-            auto mapped = mapped_t{};
+            mapped_t mapped;
             while (auto val = impl::next(self.i)) {
                 if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
                     return mapped;

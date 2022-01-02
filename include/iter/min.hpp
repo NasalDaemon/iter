@@ -7,7 +7,8 @@ ITER_DECLARE(min)
 ITER_DECLARE(min_by)
 
 namespace iter::detail::minmax {
-    template<class C, iter::concepts::optional_iterable I, class F>
+    template<class C, iter::iterable I, class F>
+    requires iter::concepts::owned_item<iter::next_t<I>>
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
@@ -21,12 +22,13 @@ namespace iter::detail::minmax {
         return current;
     }
 
-    template<class C, iter::concepts::pointer_iterable I, class F>
+    template<class C, iter::iterable I, class F>
+    requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
         auto emplace_next = [&] { return val = impl::next(iter); };
-        std::optional<iter::value_t<I>> result;
+        iter::item<iter::value_t<I>> result;
         if (emplace_next()) {
             result = *val;
             while (emplace_next())
@@ -39,7 +41,8 @@ namespace iter::detail::minmax {
     static constexpr auto min = [](auto&& l) { return l > 0; };
     static constexpr auto max = [](auto&& l) { return l < 0; };
 
-    template<class C, iter::concepts::optional_iterable I, class F>
+    template<class C, iter::iterable I, class F>
+    requires iter::concepts::owned_item<iter::next_t<I>>
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
@@ -58,12 +61,13 @@ namespace iter::detail::minmax {
         return current;
     }
 
-    template<class C, iter::concepts::pointer_iterable I, class F>
+    template<class C, iter::concepts::iterable I, class F>
+    requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         iter::next_t<I> val{};
         auto emplace_next = [&] { return val = impl::next(iter); };
-        std::optional<iter::value_t<I>> result;
+        item<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));
             result = *val;

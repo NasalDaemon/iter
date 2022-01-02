@@ -10,6 +10,7 @@
 #include <limits>
 
 #include "iter/emplace_new.hpp"
+#include "iter/item.hpp"
 #include "iter/tuple.hpp"
 
 #ifndef ITER_GLOBAL_INVOKER
@@ -89,86 +90,17 @@ namespace iter {
     }
 
     namespace detail {
-        template<concepts::optional T>
+        template<concepts::item T>
         auto get_value_t(T) -> typename T::value_type;
         template<concepts::pointer T>
         auto get_value_t(T) -> typename std::iterator_traits<T>::value_type;
-
-        template<class T>
-        requires concepts::pointer<T> || concepts::optional<T>
-        struct move_next {
-            T next = {};
-            using value_type = decltype(get_value_t(next));
-            constexpr auto&& operator*() {
-                return std::move(*next);
-            }
-            constexpr auto&& operator*() const {
-                return std::move(*next);
-            }
-            constexpr operator bool() const {
-                return !!next;
-            }
-            void reset() requires concepts::optional<T> {
-                next.reset();
-            }
-            constexpr move_next& operator=(std::nullptr_t) requires concepts::pointer<T> {
-                next = nullptr;
-                return *this;
-            }
-            constexpr move_next& operator=(std::nullopt_t) requires concepts::optional<T> {
-                next.reset();
-                return *this;
-            }
-        };
-
-        template<class T>
-        move_next(T) -> move_next<T>;
-
-        template<class T>
-        auto get_value_t(move_next<T>) -> typename move_next<T>::value_type;
     }
-
-    using detail::move_next;
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_pointer_next = false;
-        template<pointer T>
-        constexpr bool is_pointer_next<T> = true;
-        template<pointer T>
-        constexpr bool is_pointer_next<move_next<T>> = true;
-        template<class T>
-        concept pointer_next = is_pointer_next<std::remove_cvref_t<T>>;
-
-        template<class T>
-        static constexpr bool is_optional_next = false;
-        template<optional T>
-        constexpr bool is_optional_next<T> = true;
-        template<optional T>
-        constexpr bool is_optional_next<move_next<T>> = true;
-        template<class T>
-        concept optional_next = is_optional_next<std::remove_cvref_t<T>>;
-
-        template<class T>
-        concept next = pointer_next<T> || optional_next<T>;
-
-        template<class T>
-        static constexpr bool is_move_next = false;
-        template<class T>
-        constexpr bool is_move_next<iter::detail::move_next<T>> = true;
-        template<class T>
-        concept move_next = is_move_next<std::remove_cvref_t<T>>;
-
-        template<class T>
-        concept pointer_iter = requires(T it) {
-            { iter::detail::impl::next(it) } -> pointer_next;
+        concept iter = requires(T it) {
+            { iter::detail::impl::next(it) } -> item;
         };
-        template<class T>
-        concept optional_iter = requires(T it) {
-            { iter::detail::impl::next(it) } -> optional_next;
-        };
-        template<class T>
-        concept iter = pointer_iter<T> || optional_iter<T>;
 
         template<class T>
         concept random_access_iter = iter<T> && requires (T it, std::size_t index) {
@@ -182,15 +114,9 @@ namespace iter {
         };
 
         template<class T>
-        concept pointer_iterable = pointer_iter<T> || requires (T&& it) {
-            { iter::to_iter(FWD(it)) } -> pointer_iter;
+        concept iterable = iter<T> || requires (T&& it) {
+            { iter::to_iter(FWD(it)) } -> iter;
         };
-        template<class T>
-        concept optional_iterable = optional_iter<T> || requires (T&& it) {
-            { iter::to_iter(FWD(it)) } -> optional_iter;
-        };
-        template<class T>
-        concept iterable = iter<T> || pointer_iterable<T> || optional_iterable<T>;
 
         namespace assert {
             template<class T>
@@ -217,22 +143,15 @@ namespace iter {
     using concepts::assert_iterable;
 
     namespace detail {
-        template<class T>
-        struct force_iter;
-
         template<iterable I>
-        struct force_iter<I> {
-            using type = std::remove_cvref_t<decltype(iter::to_iter(std::declval<I>()))>;
-        };
+        auto force_iter() -> std::remove_cvref_t<decltype(iter::to_iter(std::declval<I>()))>;
 
         template<iter I>
-        struct force_iter<I> {
-            using type = std::remove_cvref_t<I>;
-        };
+        auto force_iter() -> std::remove_cvref_t<I>;
     }
 
     template<class I>
-    using iter_t = typename detail::force_iter<I>::type;
+    using iter_t = decltype(detail::force_iter<I>());
 
     namespace concepts {
         template<class T>
@@ -244,12 +163,13 @@ namespace iter {
 
     template<iter I>
     struct iterator_traits {
-        using value_type = decltype(detail::get_value_t(std::declval<next_t<I>>()));
-        using reference = decltype(*std::declval<next_t<I>&>());
-        using pointer = std::remove_reference_t<reference>*;
+        using next_t = iter::next_t<I>;
+        using iter_t = I;
+        using value_type = typename next_t::value_type;
+        using reference = typename next_t::reference;
+        using pointer = typename next_t::pointer;
         using difference_type = std::ptrdiff_t; // only to fulfill ranges concept
         using iterator_category = std::input_iterator_tag;
-        using iter_t = I;
     };
 
     namespace detail {
@@ -325,25 +245,22 @@ namespace iter {
         if constexpr (std::is_lvalue_reference_v<T>)
             return std::as_const(in);
         else
-            return (T const&&) in;
+            return static_cast<T const&&>(in);
     }
 
     namespace concepts {
         template<class T>
         static constexpr bool is_iterator_v = false;
         template<class I>
-        constexpr bool is_iterator_v<detail::iterator_wrapper<I>> = true;
+        constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
 
         template<class T>
         concept iterator = is_iterator_v<std::decay_t<T>>;
     }
 
     namespace detail {
-        constexpr auto consume = []<concepts::next N>(N& next) -> auto&& {
-            if constexpr (concepts::optional_next<N>)
-                return std::move(*next);
-            else
-                return *next;
+        constexpr auto consume = [](concepts::item auto& next) -> decltype(auto) {
+            return next.consume();
         };
 
         template<class T>
@@ -378,14 +295,9 @@ namespace iter {
     using consume_t = typename detail::iter_traits<T>::consume_t;
 
     template<iterable I>
-    static constexpr next_t<I> no_next() {
-        if constexpr(concepts::pointer_iterable<I>)
-            return next_t<I>{nullptr};
-        else
-            return next_t<I>{std::nullopt};
-    }
+    static constexpr next_t<I> no_next() { return {}; }
 
-    namespace unsafe {
+    namespace detail {
         template<class I>
         auto get_type() -> void;
         template<concepts::random_access_iter I>
@@ -394,20 +306,18 @@ namespace iter {
         using get_t = decltype(get_type<I>());
 
         template<class I>
-        [[nodiscard]] constexpr auto get_option(I&& iter, std::size_t index) {
-            std::size_t size = iter::detail::impl::size(iter);
-            using get_t = decltype(iter::detail::impl::get(iter, index));
+        [[nodiscard]] constexpr auto get_item(I&& iter, std::size_t index) {
+            std::size_t size = impl::size(iter);
+            using get_t = decltype(impl::get(iter, index));
             if constexpr (std::is_lvalue_reference_v<get_t>)
-                return (index < size) ? std::addressof(iter::detail::impl::get(iter, index)) : nullptr;
+                return item_from_pointer((index < size) ? std::addressof(impl::get(iter, index)) : nullptr);
             else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = iter::detail::impl::get(iter, index);
-                return move_next{(index < size) ? std::addressof(item) : nullptr};
+                auto&& item = impl::get(iter, index);
+                return move_item{item_from_pointer((index < size) ? std::addressof(item) : nullptr)};
             } else
-                return (index < size) ? MAKE_OPTIONAL(iter::detail::impl::get(iter, index)) : std::nullopt;
+                return (index < size) ? MAKE_ITEM(impl::get(iter, index)) : noitem;
         }
-    }
 
-    namespace detail {
         template<class Self, class... I>
         struct enable_random_access;
 
@@ -436,12 +346,12 @@ namespace iter {
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, index);
+                return get_item(self, index);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, impl::size(self) - 1 - index);
+                return get_item(self, impl::size(self) - 1 - index);
             }
         };
 
@@ -472,12 +382,12 @@ namespace iter {
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, index);
+                return get_item(self, index);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
                 auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return iter::unsafe::get_option(self, impl::size(self) - 1 - index);
+                return get_item(self, impl::size(self) - 1 - index);
             }
         };
     }

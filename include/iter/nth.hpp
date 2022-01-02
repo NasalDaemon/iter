@@ -11,9 +11,9 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     std::size_t size = iter::detail::impl::size(iter);
     using get_t = decltype(iter::detail::impl::get(iter, n));
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
-        return size > n ? std::addressof(iter::detail::impl::get(iter, n)) : nullptr;
+        return size > n ? MAKE_ITEM_AUTO(iter::detail::impl::get(iter, n)) : iter::noitem;
     else
-        return size > n ? MAKE_OPTIONAL(iter::detail::impl::get(iter, n)) : std::nullopt;
+        return size > n ? MAKE_ITEM(iter::detail::impl::get(iter, n)) : iter::noitem;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
@@ -28,10 +28,10 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto result = iter::no_next<decltype(iter)>();
     while (iter::detail::emplace_next(result, iter) && n-- > 0);
-    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<decltype(iter)>)
+    if constexpr (iter::concepts::owned_item<decltype(result)> || std::is_lvalue_reference_v<decltype(iter)>)
         return result;
     else
-        return result ? std::make_optional(*result) : std::nullopt;
+        return result ? iter::item(*result) : iter::noitem;
 }
 
 template<iter::assert_iterable I, class T>
@@ -39,9 +39,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto result = iter::no_next<decltype(iter)>();
     while (iter::detail::emplace_next(result, iter) && n-- > 0);
-    if constexpr (iter::concepts::optional_iterable<I>)
-        return result ? std::move(*result) : FWD(fallback);
-    else
-        return result ? *result : FWD(fallback);
+    return result ? result.consume() : FWD(fallback);
 }
+
 #endif /* INCLUDE_ITER_NTH_HPP */

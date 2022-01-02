@@ -28,11 +28,13 @@ namespace iter::detail {
     template<class T, class F>
     requires (!std::is_const_v<T>)
     static constexpr T& emplace_new_impl(T& current, F&& ctor) {
-        if constexpr (std::assignable_from<T&, T>)
-            if (std::is_constant_evaluated())
-                // placement new not strictly speaking constexpr although GCC allows it
-                return current = (FWD(ctor)).template operator()<T>();
         current.~T();
+        // if constexpr (std::constructible_from<T, T>) {
+        //     if (std::is_constant_evaluated()) {
+        //         // placement new not strictly speaking constexpr although GCC allows it
+        //         return std::construct_at(std::addressof(current), FWD(ctor).template operator()<T>());
+        //     }
+        // }
         new (std::addressof(current), constexpr_new_tag{}) T(FWD(ctor).template operator()<T>());
         return current;
     }

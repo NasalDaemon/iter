@@ -5,7 +5,7 @@ TEST(TestFindLinear, not_found_optional) {
         | take | 100
         | map | [](auto i) { return 2*i; }
         | find_linear | [](auto i) { return i % 2 == 1; };
-    ASSERT_EQ(std::nullopt, r);
+    ASSERT_EQ(noitem, r);
 }
 
 TEST(TestFindLinear, not_found_pointer_optional) {
@@ -14,7 +14,7 @@ TEST(TestFindLinear, not_found_pointer_optional) {
         | map | [](auto i) { return 2*i; }
         | to_pointer_iter()
         | find_linear | [](auto i) { return i % 2 == 1; };
-    ASSERT_EQ(std::nullopt, r);
+    ASSERT_EQ(noitem, r);
 }
 
 TEST(TestFindLinear, not_found_pointer_pointer) {
@@ -24,7 +24,7 @@ TEST(TestFindLinear, not_found_pointer_pointer) {
         | to_pointer_iter();
     auto r = it
         | find_linear | [](auto i) { return i % 2 == 1; };
-    ASSERT_EQ(nullptr, r);
+    ASSERT_EQ(noitem, r);
 }
 
 TEST(TestFindLinear, find_first_optional) {

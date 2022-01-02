@@ -9,7 +9,7 @@ namespace iter {
         using this_t = repeat;
         T value;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return std::addressof(std::as_const(self.value));
+            return item<T const&>(std::as_const(self.value));
         }
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();

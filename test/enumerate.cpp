@@ -14,7 +14,7 @@ TEST(TestEnumerate, random_access) {
 TEST(TestEnumerate, not_random_access) {
     auto gen = generate {
         [expected = 0]() mutable {
-            return std::optional(expected++);
+            return item(expected++);
         }
     };
     auto it = gen | enumerate();

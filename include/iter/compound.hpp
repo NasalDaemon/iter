@@ -5,9 +5,9 @@
 
 namespace iter {
     template<class A, class F>
-    requires std::constructible_from<std::optional<A>, std::invoke_result_t<F, A const&>>
+    requires std::constructible_from<item<A>, std::invoke_result_t<F, A const&>>
     struct compound {
-        std::optional<A> value;
+        item<A> value;
         [[no_unique_address]] F func;
 
         using this_t = compound;

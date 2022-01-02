@@ -10,14 +10,14 @@ namespace iter::detail {
     struct [[nodiscard]] map_while_iter {
         using this_t = map_while_iter;
         using mapped_t = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(concepts::optional_next<mapped_t> || concepts::pointer_next<mapped_t>);
+        static_assert(concepts::item<mapped_t>);
 
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
             auto val = impl::next(self.i);
-            return val ? self.func(consume(val)) : mapped_t{};
+            return val ? self.func(consume(val)) : noitem;
         }
     };
 

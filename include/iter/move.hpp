@@ -12,10 +12,10 @@ namespace iter::detail {
 
         using this_t = move_iter;
 
-        constexpr move_next<next_t<I>> ITER_IMPL_NEXT (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return move_next{impl::next(self.i)};
+            return move_item{impl::next(self.i)};
         }
 
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
@@ -35,7 +35,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I>
 constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
-    if constexpr (iter::concepts::move_next<iter::next_t<I>>)
+    if constexpr (iter::concepts::move_item<iter::next_t<I>>)
         return FWD(iterable);
     else
         return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};

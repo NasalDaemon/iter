@@ -12,7 +12,7 @@ void bench_iter_chain(benchmark::State& state)
     for (auto s : state) {
         auto it = a |iter::chain| b |iter::chain| c;
         static_assert(iter::concepts::random_access_iter<decltype(it)>);
-        static_assert(iter::concepts::pointer_iter<decltype(it)>);
+        static_assert(!iter::concepts::owned_item<iter::next_t<decltype(it)>>);
         auto sum = it |iter::sum| _;
         benchmark::DoNotOptimize(sum > 10);
     }

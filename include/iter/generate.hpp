@@ -5,8 +5,7 @@
 
 namespace iter {
     template<std::invocable<> F>
-    requires concepts::optional_next<std::invoke_result_t<F>>
-          || concepts::pointer_next<std::invoke_result_t<F>>
+    requires concepts::item<std::invoke_result_t<F>>
     struct generate : F {
         using this_t = generate;
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {

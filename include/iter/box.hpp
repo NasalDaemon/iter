@@ -6,7 +6,7 @@
 ITER_DECLARE(box)
 
 namespace iter {
-    template<concepts::next Next, class GetType = void>
+    template<concepts::item Next, class GetType = void>
     struct virtual_iter : virtual_iter<Next, void> {
         virtual std::size_t size() const = 0;
         virtual GetType get(std::size_t index) = 0;
@@ -15,7 +15,7 @@ namespace iter {
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) { return self.get(index); }
         constexpr auto ITER_IMPL_SIZE (this_t const& self) { return self.size(); }
     };
-    template<concepts::next Next>
+    template<concepts::item Next>
     struct virtual_iter<Next, void> {
         virtual Next next() = 0;
         virtual ~virtual_iter() = default;
@@ -26,20 +26,20 @@ namespace iter {
 
     namespace detail {
         template<iter I>
-        struct virtual_iter_impl final : virtual_iter<next_t<I>>, I {
+        struct virtual_iter_impl final : I, virtual_iter<next_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
-        struct virtual_iter_impl<I> final : virtual_iter<next_t<I>, unsafe::get_t<I>>, I {
+        struct virtual_iter_impl<I> final : I, virtual_iter<next_t<I>, get_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
             std::size_t size() const final {
                 return impl::size(static_cast<I const&>(*this));
             }
-            unsafe::get_t<I> get(std::size_t index) final {
+            get_t<I> get(std::size_t index) final {
                 return impl::get(static_cast<I&>(*this), index);
             }
         };
@@ -63,21 +63,21 @@ namespace iter {
         std::aligned_storage_t<Size, Align> storage;
     };
 
-    template<concepts::next Next, class Get = void>
+    template<concepts::item Next, class Get = void>
     struct boxed {
         using this_t = boxed;
         static constexpr bool random_access = !std::same_as<Get, void>;
 
         template<iter I>
         requires std::same_as<Next, next_t<I>>
-             && (!random_access || std::same_as<Get, unsafe::get_t<I>>)
+             && (!random_access || std::same_as<Get, detail::get_t<I>>)
         constexpr boxed(I&& to_box)
             : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
         {}
 
         template<iter I, std::size_t Size, std::size_t Align>
         requires std::same_as<Next, next_t<I>>
-             && (!random_access || std::same_as<Get, unsafe::get_t<I>>)
+             && (!random_access || std::same_as<Get, detail::get_t<I>>)
         constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
             : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
         {}
@@ -86,7 +86,7 @@ namespace iter {
         constexpr boxed(boxed<Next, OU>&& other) : it{std::move(other.it)} {}
 
     private:
-        template<concepts::next, class> friend struct boxed;
+        template<concepts::item, class> friend struct boxed;
         constexpr Next ITER_IMPL_NEXT (this_t& self) { return self.it->next(); }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) requires random_access {
             return self.it->size();
@@ -99,14 +99,14 @@ namespace iter {
     };
 
     template<iter::iter I>
-    boxed(I) -> boxed<next_t<I>, unsafe::get_t<I>>;
+    boxed(I) -> boxed<next_t<I>, detail::get_t<I>>;
     template<iter::iter I, std::size_t Size, std::size_t Align>
-    boxed(I, scratch<Size, Align>&) -> boxed<next_t<I>, unsafe::get_t<I>>;
+    boxed(I, scratch<Size, Align>&) -> boxed<next_t<I>, detail::get_t<I>>;
 
     template<iter I>
-    using virtual_t = iter::virtual_iter<iter::next_t<I>, iter::unsafe::get_t<I>>;
+    using virtual_t = iter::virtual_iter<iter::next_t<I>, detail::get_t<I>>;
     template<iter I>
-    using boxed_t = boxed<next_t<I>, unsafe::get_t<I>>;
+    using boxed_t = boxed<next_t<I>, detail::get_t<I>>;
 }
 
 template<iter::assert_iter I>

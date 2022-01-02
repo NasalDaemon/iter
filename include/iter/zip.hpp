@@ -6,17 +6,6 @@
 ITER_DECLARE(zip)
 
 namespace iter::detail {
-    // Simply dereference pointers to avoid copy/move construction
-    // but unwrap optionals into new instances
-    template<class T>
-    static constexpr auto lazy_unwrap_next(T&& in) {
-        using t = std::decay_t<T>;
-        if constexpr (concepts::optional_next<t>)
-            return [&] { return std::move(*in); };
-        else
-            return [&]() -> auto&& { return *in; };
-    }
-
     template<assert_iter... I>
     requires (sizeof...(I) > 1)
     struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
@@ -30,8 +19,8 @@ namespace iter::detail {
             return apply([](auto&... is) {
                 return [](auto&&... vals) {
                     return (... && vals)
-                        ? MAKE_OPTIONAL(make_tuple_lazy(lazy_unwrap_next(FWD(vals))...))
-                        : std::nullopt;
+                        ? MAKE_ITEM(make_tuple_lazy([&] { return vals.consume(); }...))
+                        : noitem;
                 }(impl::next(is)...);
             }, self.i);
         }

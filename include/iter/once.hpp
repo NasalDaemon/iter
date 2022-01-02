@@ -17,7 +17,7 @@ namespace iter {
             return (self.value);
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.on ? (self.on = false, std::addressof(self.value)) : nullptr;
+            return item_from_pointer(self.on ? (self.on = false, std::addressof(self.value)) : nullptr);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};
@@ -43,7 +43,7 @@ namespace iter {
             return *self.value;
         }
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
-            return std::exchange(self.value, nullptr);
+            return item_from_pointer(std::exchange(self.value, nullptr));
         }
         constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {
             return repeat<T const&>{*self.value};

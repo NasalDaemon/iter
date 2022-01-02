@@ -31,15 +31,15 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.pos != std::size(*self.container)
-                ? std::addressof((*self.container)[self.pos++])
-                : nullptr;
+                ? forward_as_item((*self.container)[self.pos++])
+                : noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
             return self.pos != size
-                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
-                : nullptr;
+                ? forward_as_item((*self.container)[(size - 1 - self.pos++)])
+                : noitem;
         }
 
         struct cycle;
@@ -67,13 +67,13 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
-            return std::addressof((*self.container)[self.pos++]);
+            return forward_as_item((*self.container)[self.pos++]);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             const auto size = std::size(*self.container);
             self.pos = self.pos == size ? 0 : self.pos;
-            return std::addressof((*self.container)[(size - 1 - self.pos++)]);
+            return forward_as_item((*self.container)[(size - 1 - self.pos++)]);
         }
      };
 }
@@ -114,7 +114,7 @@ namespace iter {
             return *self.ptr;
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return std::exchange(self.ptr, nullptr);
+            return item_from_pointer(std::exchange(self.ptr, nullptr));
         }
     };
 

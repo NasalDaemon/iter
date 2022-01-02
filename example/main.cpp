@@ -29,7 +29,7 @@ float getsum2(const std::array<float, 64>& a, const std::array<float, 64>& b) {
             auto& [ab, i] = abi;
             auto& [a, b] = ab;
             auto r = i*b - a > 0;
-            return r > 0 ? std::optional(r) : std::nullopt; })
+            return r > 0 ? iter::item(r) : iter::noitem; })
         $(sum) ();
 }
 
@@ -37,7 +37,7 @@ constexpr auto fib(size_t max) {
     return generate {
         [=, a = 0ul, b = 1ul]() mutable {
             a = std::exchange(b, b + a);
-            return a <= max ? std::optional(a) : std::nullopt;
+            return a <= max ? iter::item(a) : iter::noitem;
         }
     };
 }
@@ -55,8 +55,8 @@ constexpr auto triples() {
         return range{1, z+1} |flatmap| [=](int x) {
             return range{x, z+1} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? std::optional(std::tuple(x, y, z))
-                    : std::nullopt;
+                    ? iter::item(std::tuple(x, y, z))
+                    : iter::noitem;
             };
         };
     };
@@ -126,9 +126,9 @@ int main() {
     std::cout << "\nlast: " << *last << "\n";
 
     auto [_1, _2, _3] = std::tuple(1, 2, 3);
-    auto two = once{_1} |chain| once{_2} |chain| generate{[i = 3]()mutable{ return std::optional(i++); }};
+    auto two = once{_1} |chain| once{_2} |chain| generate{[i = 3]()mutable{ return iter::item(i++); }};
     // static_assert(concepts::random_access_iter<decltype(two)>);
-    static_assert(concepts::optional_iter<decltype(two)>);
+    static_assert(concepts::owned_item<next_t<decltype(two)>>);
 
     for (auto [x, i] : two | enumerate(_) | take(_, 10) ) {
         std::cout << i << ": " << x << "\n";
@@ -136,7 +136,7 @@ int main() {
 
     auto once_arr = std::array{std::array{_1}, std::array{_2}};
     auto once_flatten = once_arr | flatten(_);
-    static_assert(iter::concepts::pointer_iter<decltype(once_flatten)>);
+    static_assert(!iter::concepts::owned_item<next_t<decltype(once_flatten)>>);
     auto copy = once_flatten;
     for (auto i : copy | cycle(_) | take(_, 6)) {
         std::cout << "once: " << i << "\n";
@@ -164,7 +164,7 @@ int main() {
     range{0, 10}
         | inspect | [](int i) {
             std::cout << "entering flatmap: " << i << "\n"; }
-        | flatmap | [&s](int i) -> boxed<int*> {
+        | flatmap | [&s](int i) -> boxed<item<int&>> {
             if (i % 2 == 0)
                 return empty<int> | box | s;
             else

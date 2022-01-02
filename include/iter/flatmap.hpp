@@ -17,18 +17,18 @@ namespace iter::detail {
         using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
         using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
 
-        std::optional<wrapped_inner_iter_t> current = std::nullopt;
+        item<wrapped_inner_iter_t> current{};
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr auto get_current() {
             auto next = impl::next(i);
             return next
-                ? MAKE_OPTIONAL(iter_wrapper{func(consume(next))})
-                : std::nullopt;
+                ? MAKE_ITEM(iter_wrapper{func(consume(next))})
+                : noitem;
         }
 
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+        constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<inner_iter_t>();
             do {
                 if (self.current)
@@ -50,10 +50,9 @@ constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
 
 #include "iter/filter_map.hpp"
 
-// flatmap on std::optional is equivalent to the specially optimised filter_map
+// flatmap on iter::item is equivalent to the specially optimised filter_map
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-requires iter::concepts::optional_next<std::invoke_result_t<F, iter::consume_t<I>>>
-      || iter::concepts::pointer_next<std::invoke_result_t<F, iter::consume_t<I>>>
+requires iter::concepts::item<std::invoke_result_t<F, iter::consume_t<I>>>
 constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
     return iter::filter_map(FWD(iterable), FWD(func));
 }

@@ -14,9 +14,9 @@ namespace iter {
         T end_ = std::numeric_limits<T>::max() - Inclusive;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             if constexpr (Inclusive)
-                return self.begin_ <= self.end_ ? std::optional(self.begin_++) : std::nullopt;
+                return self.begin_ <= self.end_ ? item(self.begin_++) : noitem;
             else
-                return self.begin_ < self.end_ ? std::optional(self.begin_++) : std::nullopt;
+                return self.begin_ < self.end_ ? item(self.begin_++) : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             if constexpr (Inclusive)
@@ -29,9 +29,9 @@ namespace iter {
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             if constexpr (Inclusive)
-                return self.begin_ <= self.end_ ? std::optional(self.end_--) : std::nullopt;
+                return self.begin_ <= self.end_ ? item(self.end_--) : noitem;
             else
-                return self.begin_ < self.end_ ? std::optional(--self.end_) : std::nullopt;
+                return self.begin_ < self.end_ ? item(--self.end_) : noitem;
         }
     };
 
@@ -56,10 +56,10 @@ namespace iter {
         private:
             T i = 0;
             constexpr auto ITER_IMPL_NEXT (this_t& self) {
-                return std::optional(self.i++);
+                return item{self.i++};
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-                return std::optional(std::numeric_limits<T>::max() - self.i++);
+                return item{std::numeric_limits<T>::max() - self.i++};
             }
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return std::numeric_limits<T>::max();

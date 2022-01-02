@@ -100,17 +100,17 @@ namespace iter {
         using this_t = generator;
         constexpr auto ITER_IMPL_NEXT (this_t& self) { return self.next(); }
 
-        constexpr T* next() {
+        constexpr item<T&> next() {
             if (!m_coroutine) [[unlikely]]
-                return nullptr;
+                return noitem;
 
             m_coroutine.resume();
             if (m_coroutine.done()) [[unlikely]] {
                 m_coroutine.promise().rethrow_if_exception();
-                return nullptr;
+                return noitem;
             }
 
-            return m_coroutine.promise().value();
+            return item_from_pointer(m_coroutine.promise().value());
         }
 
         friend class detail::generator_promise<T>;

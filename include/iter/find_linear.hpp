@@ -14,10 +14,10 @@ constexpr auto ITER_IMPL(find_linear) (I&& iterable, P&& predicate) {
             break;
         }
     }
-    if constexpr (iter::concepts::optional_iterable<I> || std::is_lvalue_reference_v<I>)
+    if constexpr (iter::concepts::owned_item<decltype(val)> || std::is_lvalue_reference_v<decltype(iter)>)
         return val;
     else
-        return val ? std::make_optional(*val) : std::nullopt;
+        return val ? iter::item(val.consume()) : iter::noitem;
 }
 
 #endif /* INCLUDE_ITER_FIND_LINEAR_HPP */

@@ -27,7 +27,8 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(
     ${GNU_COMPILE_OPTIONS}
     "-fcoroutines"
-    "-fconcepts-diagnostics-depth=3"
+    "-ftemplate-backtrace-limit=0"
+    "-fconcepts-diagnostics-depth=4"
     )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++

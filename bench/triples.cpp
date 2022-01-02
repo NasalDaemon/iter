@@ -33,8 +33,8 @@ auto triples_flatmap() {
         return range{1, z} |flatmap| [=](int x) {
             return range{x, z} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? MAKE_OPTIONAL(tuple{x, y, z})
-                    : std::nullopt;
+                    ? MAKE_ITEM(tuple{x, y, z})
+                    : noitem;
             };
         };
     };

@@ -15,16 +15,15 @@ namespace iter::detail {
     private:
         using this_t = map_iter;
         using result_t = std::invoke_result_t<F, consume_t<I>>;
-        using mapped_t = std::conditional_t<std::is_reference_v<result_t>, std::remove_reference_t<result_t>*, std::optional<result_t>>;
 
-        constexpr mapped_t ITER_IMPL_NEXT (this_t& self)
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
             auto val = impl::next(self.i);
-            if constexpr (concepts::optional<mapped_t>)
-                return val ? MAKE_OPTIONAL(self.func(consume(val))) : std::nullopt;
+            if constexpr (std::is_reference_v<result_t>)
+                return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
             else
-                return val ? std::addressof(self.func(consume(val))) : nullptr;
+                return val ? MAKE_ITEM(self.func(consume(val))) : noitem;
         }
 
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)

@@ -8,8 +8,8 @@ namespace iter {
         template<class T>
         struct empty_iter {
             using this_t = empty_iter;
-            constexpr auto ITER_IMPL_NEXT (this_t&) -> T* {
-                return nullptr;
+            constexpr item<T&> ITER_IMPL_NEXT (this_t&) {
+                return noitem;
             }
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return 0;
