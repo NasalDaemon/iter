@@ -12,99 +12,99 @@ struct item {
     using pointer = T*;
     static constexpr bool owner = true;
 
-    constexpr explicit item(std::invocable auto&& f) : inner{.payload{.value{std::invoke(FWD(f))}}, .engaged{true}} {}
-    constexpr item(auto&&... args) : inner{.payload{.value{FWD(args)...}}, .engaged{true}} {}
+    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{.value{std::invoke(FWD(f))}} {}
+    constexpr item(auto&&... args) : engaged{true}, payload{.value{FWD(args)...}} {}
 
-    constexpr item() : inner{.payload{.dummy{0}}, .engaged{false}} {}
+    constexpr item() : engaged{false}, payload{} {}
     constexpr item(noitem_t) : item() {}
 
-    constexpr item(item const& other) : inner{
-        .payload = [&] {
-            if (other.inner.engaged)
-                return payload_t{.value{other.inner.payload.value}};
-            else
-                return payload_t{};
-        }(),
-        .engaged = other.inner.engaged
-    } {}
-    constexpr item(item&& other) : inner{
-        .payload = [&] {
-            if (other.inner.engaged)
-                return payload_t{.value{std::move(other.inner.payload.value)}};
-            else
-                return payload_t{};
-        }(),
-        .engaged = other.inner.engaged
-    } {}
+    constexpr item(item const& other)
+    : engaged{other.engaged}
+    , payload{[&] {
+        if (other.engaged)
+            return payload_t{.value{other.payload.value}};
+        else
+            return payload_t{};
+    }()}
+    {}
+    constexpr item(item&& other)
+    : engaged{other.engaged}
+    , payload{[&] {
+        if (other.engaged)
+            return payload_t{.value{std::move(other.payload.value)}};
+        else
+            return payload_t{};
+    }()}
+    {}
 
     constexpr item& operator=(item const& other) {
-        if (std::exchange(inner.engaged, other.inner.engaged)) {
-            if (other.inner.engaged)
-                inner.payload.value = other.inner.payload.value;
+        if (std::exchange(engaged, other.engaged)) {
+            if (other.engaged)
+                payload.value = other.payload.value;
             else
-                inner.payload.value.~T();
-        } else if (other.inner.engaged) {
-            std::construct_at(std::addressof(inner.payload.value), other.inner.payload.value);
+                payload.value.~T();
+        } else if (other.engaged) {
+            std::construct_at(std::addressof(payload.value), other.payload.value);
         }
         return *this;
     }
     constexpr item& operator=(item&& other) {
-        if (std::exchange(inner.engaged, other.inner.engaged)) {
-            if (other.inner.engaged)
-                inner.payload.value = std::move(other.inner.payload.value);
+        if (std::exchange(engaged, other.engaged)) {
+            if (other.engaged)
+                payload.value = std::move(other.payload.value);
             else
-                inner.payload.value.~T();
-        } else if (other.inner.engaged) {
-            std::construct_at(std::addressof(inner.payload.value), std::move(other.inner.payload.value));
+                payload.value.~T();
+        } else if (other.engaged) {
+            std::construct_at(std::addressof(payload.value), std::move(other.payload.value));
         }
         return *this;
     }
 
-    constexpr bool has_value() const { return inner.engaged; }
+    constexpr bool has_value() const { return engaged; }
     constexpr operator bool() const { return has_value(); }
 
     constexpr auto operator<=>(item const& other) const {
-        if (auto comp = inner.engaged <=> other.inner.engaged; comp != 0)
+        if (auto comp = engaged <=> other.engaged; comp != 0)
             return comp;
-        if (inner.engaged)
-            return inner.payload.value <=> other.inner.payload.value;
+        if (engaged)
+            return payload.value <=> other.payload.value;
         return std::strong_ordering::equal;
     }
     constexpr bool operator==(item const& other) const {
-        if (inner.engaged != other.inner.engaged)
+        if (engaged != other.engaged)
             return false;
-        if (inner.engaged)
-            return inner.payload.value == other.inner.payload.value;
+        if (engaged)
+            return payload.value == other.payload.value;
         return true;
     }
 
-    constexpr auto& value() & { return inner.payload.value; }
-    constexpr auto& value() const & { return inner.payload.value; }
-    constexpr auto&& value() && { return std::move(inner.payload.value); }
-    constexpr auto&& value() const && { return std::move(inner.payload.value); }
+    constexpr auto& value() & { return payload.value; }
+    constexpr auto& value() const & { return payload.value; }
+    constexpr auto&& value() && { return std::move(payload.value); }
+    constexpr auto&& value() const && { return std::move(payload.value); }
 
     constexpr auto* operator->() { return std::addressof(value()); }
     constexpr auto* operator->() const { return std::addressof(value()); }
     constexpr auto& operator*() { return value(); }
     constexpr auto& operator*() const { return value(); }
 
-    constexpr auto&& consume() { return std::move(inner.payload.value); }
+    constexpr auto&& consume() { return std::move(payload.value); }
 
     template<class V>
     constexpr item& operator=(V&& value) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value = FWD(value);
+        if (std::exchange(engaged, true))
+            payload.value = FWD(value);
         else
-            std::construct_at(std::addressof(inner.payload.value), FWD(value));
+            std::construct_at(std::addressof(payload.value), FWD(value));
         return *this;
     }
 
     template<class... As>
     requires std::constructible_from<T, As...>
     constexpr void emplace(As&&... args) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value.~T();
-        std::construct_at(std::addressof(inner.payload.value), FWD(args)...);
+        if (std::exchange(engaged, true))
+            payload.value.~T();
+        std::construct_at(std::addressof(payload.value), FWD(args)...);
     }
 
     template<std::invocable F>
@@ -117,33 +117,29 @@ struct item {
     template<std::invocable F>
     requires std::convertible_to<std::invoke_result_t<F>, T>
     constexpr void emplace(F&& f) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value.~T();
-        new (std::addressof(inner.payload.value), detail::constexpr_new_tag{}) T(std::invoke(FWD(f)));
+        if (std::exchange(engaged, true))
+            payload.value.~T();
+        new (std::addressof(payload.value), detail::constexpr_new_tag{}) T(std::invoke(FWD(f)));
     }
 
     constexpr void reset() {
-        if (std::exchange(inner.engaged, false))
-            inner.payload.value.~T();
+        if (std::exchange(engaged, false))
+            payload.value.~T();
     }
 
     constexpr ~item() { destroy(); }
 
 private:
-    struct inner_t {
-        union Payload {
-            T value;
-            char dummy;
-            constexpr ~Payload() {}
-        } payload;
-        bool engaged;
-    } inner;
-
-    using payload_t = typename inner_t::Payload;
+    bool engaged;
+    union payload_t {
+        void_t dummy;
+        T value;
+        constexpr ~payload_t() {}
+    } payload;
 
     constexpr void destroy() {
-        if (inner.engaged)
-            inner.payload.value.~T();
+        if (engaged)
+            payload.value.~T();
     }
 };
 

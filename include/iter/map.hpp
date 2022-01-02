@@ -20,10 +20,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = impl::next(self.i);
-            if constexpr (std::is_reference_v<result_t>)
-                return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
-            else
-                return val ? MAKE_ITEM(self.func(consume(val))) : noitem;
+            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
         }
 
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
