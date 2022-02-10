@@ -30,16 +30,16 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.pos != std::size(*self.container)
-                ? forward_as_item((*self.container)[self.pos++])
-                : noitem;
+            return item_from_pointer(self.pos != std::size(*self.container)
+                ? std::addressof((*self.container)[self.pos++])
+                : nullptr);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
-            return self.pos != size
-                ? forward_as_item((*self.container)[(size - 1 - self.pos++)])
-                : noitem;
+            return item_from_pointer(self.pos != size
+                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
+                : nullptr);
         }
 
         struct cycle;

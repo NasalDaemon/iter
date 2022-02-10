@@ -6,7 +6,7 @@
 namespace iter::detail {
     template<class I>
     struct iter_wrapper {
-        // static_assert(iterable<I&>);
+        static_assert(iterable<I&>);
         I iterable;
         using iter_t = iter::iter_t<I&>;
         iter_t iter = to_iter(iterable);
@@ -21,7 +21,7 @@ namespace iter::detail {
 
     template<class T>
     struct optional_iter_wrapper {
-        // static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
+        static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
         T optional_iterable;
         using iter_t = iter::iter_t<decltype(*optional_iterable)>;
         item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;

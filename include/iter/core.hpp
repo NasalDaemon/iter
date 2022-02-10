@@ -182,7 +182,7 @@ namespace iter {
 
         // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
-        requires (!std::is_const_v<I>)
+        requires (!std::is_const_v<I>) && (!std::is_reference_v<I>)
         struct iterator_wrapper : iterator_traits<I> {
             using traits = iterator_traits<I>;
             using typename traits::value_type;
@@ -191,19 +191,14 @@ namespace iter {
             {}
             constexpr iterator_wrapper() = default;
 
-            I* it;
-            next_t<I> current;
-
             auto operator<=>(const iterator_wrapper&) const = delete;
 
-            // This would need to be const to follow std::ranges::range concept,
-            // but do we actually need ranges interop?
-            // Use the const_cast if desperate for ranges iterop. Atchooo.
-            constexpr bool operator!=(sentinel_t) /*const*/ {
-                return !!detail::emplace_next(/*const_cast<next_t<I>&>*/current, *it);
+            // const to follow std::ranges::range concept,
+            constexpr bool operator!=(sentinel_t) const {
+                return detail::emplace_next(current, *it).has_value();
             }
-            constexpr bool operator==(sentinel_t) /*const*/ {
-                return !operator==(sentinel);
+            constexpr bool operator==(sentinel_t) const {
+                return !operator!=(sentinel);
             }
             constexpr auto& operator*() {
                 return *current;
@@ -211,16 +206,20 @@ namespace iter {
             constexpr auto& operator*() const {
                 return *current;
             }
-            constexpr auto operator->() {
+            constexpr auto* operator->() {
                 return std::addressof(*current);
             }
-            constexpr auto operator->() const {
+            constexpr auto* operator->() const {
                 return std::addressof(*current);
             }
             constexpr auto& operator++() {
                 return *this;
             }
             constexpr void operator++(int) {}
+
+        private:
+            I* it;
+            mutable next_t<I> current;
         };
 
         template<class T>
@@ -308,14 +307,7 @@ namespace iter {
         template<class I>
         [[nodiscard]] constexpr auto get_item(I&& iter, std::size_t index) {
             std::size_t size = impl::size(iter);
-            using get_t = decltype(impl::get(iter, index));
-            if constexpr (std::is_lvalue_reference_v<get_t>)
-                return item_from_pointer((index < size) ? std::addressof(impl::get(iter, index)) : nullptr);
-            else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = impl::get(iter, index);
-                return move_item{item_from_pointer((index < size) ? std::addressof(item) : nullptr)};
-            } else
-                return (index < size) ? MAKE_ITEM(impl::get(iter, index)) : noitem;
+            return (index < size) ? MAKE_ITEM_AUTO(impl::get(iter, index)) : noitem;
         }
 
         template<class Self, class... I>

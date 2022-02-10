@@ -12,12 +12,12 @@ namespace iter::detail::minmax {
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
             current = std::move(next);
             while (emplace_next())
                 if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*current), iter::as_const(*next))))
-                    current = std::move(next);
+                    *current = std::move(*next);
         }
         return current;
     }
@@ -26,8 +26,8 @@ namespace iter::detail::minmax {
     requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        iter::next_t<I> val{};
-        auto emplace_next = [&]() -> auto& { return val = impl::next(iter); };
+        auto val = iter::no_next<I>();
+        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
         iter::item<iter::value_t<I>> result;
         if (emplace_next()) {
             result = *val;
@@ -46,14 +46,14 @@ namespace iter::detail::minmax {
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*next));
             current = std::move(next);
             while (emplace_next()) {
                 auto next_proj = std::invoke(FWD(func), iter::as_const(*next));
                 if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
-                    current = std::move(next);
+                    *current = std::move(*next);
                     current_proj = std::move(next_proj);
                 }
             }
@@ -65,8 +65,8 @@ namespace iter::detail::minmax {
     requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        iter::next_t<I> val{};
-        auto emplace_next = [&]() -> auto& { return val = impl::next(iter); };
+        auto val = iter::no_next<I>();
+        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
         item<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));

@@ -68,8 +68,7 @@ void bench_iter_min_int_optional1(benchmark::State& state) {
 void bench_iter_min_int_optional2(benchmark::State& state) {
     for (auto s : state) {
         auto m = iter::range{-state.range(0), state.range(0)}
-            | iter::map | [](auto i) {
-                return i*i; }
+            | iter::map | [](auto i) { return i*i; }
             | iter::min();
         benchmark::DoNotOptimize(m);
     }

@@ -15,7 +15,7 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             emplace_next(self.store, self.i);
-            return self.store ? forward_as_item(self.store.value()) : noitem;
+            return item_from_pointer(self.store ? std::addressof(*self.store) : nullptr);
         }
     };
 

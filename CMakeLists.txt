@@ -10,6 +10,7 @@ set(GNU_COMPILE_OPTIONS
   "-Wall" "-Wpedantic" "-Wextra"
   "-Werror"
   "-march=native"
+  # "-fsanitize=address,undefined"
   "$<$<CONFIG:Release>:-Ofast>"
   "$<$<CONFIG:Debug>:-O0>"
   "$<$<CONFIG:Debug>:-g>"
@@ -30,6 +31,9 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     "-ftemplate-backtrace-limit=0"
     "-fconcepts-diagnostics-depth=4"
     )
+  add_link_options(
+    # "-fsanitize=address,undefined"
+  )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -49,13 +53,13 @@ add_library(iter STATIC
   example/empty.cpp
   )
 
-add_executable(example_iter
+add_executable(iter_example
   example/main.cpp
   )
 
 find_package(benchmark REQUIRED)
 
-add_executable(bench_iter
+add_executable(iter_bench
   bench/autovec.cpp
   bench/chain.cpp
   bench/fibonacci.cpp
@@ -65,14 +69,14 @@ add_executable(bench_iter
   bench/main.cpp
   )
 
-target_link_libraries(bench_iter
+target_link_libraries(iter_bench
   benchmark::benchmark
   )
 
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(test_iter
+add_executable(iter_test
   test/all.cpp
   test/any.cpp
   test/chain.cpp
@@ -103,7 +107,7 @@ add_executable(test_iter
   test/wrap.cpp
   )
 
-target_link_libraries(test_iter
+target_link_libraries(iter_test
   ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} pthread
   )
 
@@ -114,15 +118,15 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.16.0")
     include/iter.hpp
     )
 
-  target_precompile_headers(example_iter REUSE_FROM iter)
+  target_precompile_headers(iter_example REUSE_FROM iter)
 
-  target_precompile_headers(bench_iter REUSE_FROM iter)
+  target_precompile_headers(iter_bench REUSE_FROM iter)
 
-  target_precompile_headers(test_iter PRIVATE
+  target_precompile_headers(iter_test PRIVATE
     test/test.hpp
     )
 endif()
 
 enable_testing()
 
-add_test(main test_iter)
+add_test(main iter_test)

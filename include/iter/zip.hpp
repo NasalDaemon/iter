@@ -6,6 +6,14 @@
 ITER_DECLARE(zip)
 
 namespace iter::detail {
+    template<class T>
+    static constexpr auto lazy_unwrap_item(T&& in) {
+        if constexpr (concepts::owned_item<T>)
+            return [&] { return in.consume(); };
+        else
+            return [&]() -> auto&& { return in.consume(); };
+    }
+
     template<assert_iter... I>
     requires (sizeof...(I) > 1)
     struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
@@ -17,9 +25,9 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             return apply([](auto&... is) {
-                return [](auto&&... vals) {
-                    return (... && vals)
-                        ? MAKE_ITEM(make_tuple_lazy([&] { return vals.consume(); }...))
+                return [](auto... items) {
+                    return (... && items)
+                        ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
                         : noitem;
                 }(impl::next(is)...);
             }, self.i);

@@ -15,7 +15,7 @@ struct item {
     constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{.value{std::invoke(FWD(f))}} {}
     constexpr item(auto&&... args) : engaged{true}, payload{.value{FWD(args)...}} {}
 
-    constexpr item() : engaged{false}, payload{} {}
+    constexpr item() = default;
     constexpr item(noitem_t) : item() {}
 
     constexpr item(item const& other)
@@ -37,6 +37,10 @@ struct item {
     }()}
     {}
 
+    constexpr item& operator=(noitem_t) {
+        reset();
+        return *this;
+    }
     constexpr item& operator=(item const& other) {
         if (std::exchange(engaged, other.engaged)) {
             if (other.engaged)
@@ -101,25 +105,26 @@ struct item {
 
     template<class... As>
     requires std::constructible_from<T, As...>
-    constexpr void emplace(As&&... args) {
+    constexpr item& emplace(As&&... args) {
         if (std::exchange(engaged, true))
             payload.value.~T();
         std::construct_at(std::addressof(payload.value), FWD(args)...);
-    }
-
-    template<std::invocable F>
-    requires std::convertible_to<std::invoke_result_t<F>, T>
-    constexpr item& operator=(F&& f) {
-        emplace(FWD(f));
         return *this;
     }
 
     template<std::invocable F>
     requires std::convertible_to<std::invoke_result_t<F>, T>
-    constexpr void emplace(F&& f) {
+    constexpr item& operator=(F&& f) {
+        return emplace(FWD(f));
+    }
+
+    template<std::invocable F>
+    requires std::convertible_to<std::invoke_result_t<F>, T>
+    constexpr item& emplace(F&& f) {
         if (std::exchange(engaged, true))
             payload.value.~T();
         new (std::addressof(payload.value), detail::constexpr_new_tag{}) T(std::invoke(FWD(f)));
+        return *this;
     }
 
     constexpr void reset() {
@@ -130,12 +135,13 @@ struct item {
     constexpr ~item() { destroy(); }
 
 private:
-    bool engaged;
+    bool engaged = false;
+    [[no_unique_address]]
     union payload_t {
-        void_t dummy;
-        T value;
+        [[no_unique_address]] void_t dummy{};
+        [[no_unique_address]] T value;
         constexpr ~payload_t() {}
-    } payload;
+    } payload{};
 
     constexpr void destroy() {
         if (engaged)
@@ -171,14 +177,14 @@ struct item<T> {
     auto operator<=>(item const&) const = delete;
 
     item& operator=(T&& ref) { emplace(ref); return *this; }
-    void emplace(T&& ref) { ptr = std::addressof(ref); }
+    item& emplace(T&& ref) { ptr = std::addressof(ref); return *this; }
 
     template<std::invocable F>
     requires std::same_as<std::invoke_result_t<F>, T>
-    item& operator=(F&& f) { emplace(FWD(f)); return *this; }
+    item& operator=(F&& f) { return emplace(FWD(f)); }
     template<std::invocable F>
     requires std::same_as<std::invoke_result_t<F>, T>
-    void emplace(F&& f) { ptr = detail::addressof(std::invoke(FWD(f))); }
+    item& emplace(F&& f) { ptr = detail::addressof(std::invoke(FWD(f))); return *this; }
 
     constexpr T&& value() const { return static_cast<T&&>(*ptr); }
 
@@ -218,14 +224,14 @@ struct move_item<item<T>> : item<T> {
     bool operator==(move_item const&) const = default;
     auto operator<=>(move_item const&) const = default;
 
-    constexpr decltype(auto) value() { return std::move(this->item<T>::value()); }
-    constexpr decltype(auto) value() const { return std::move(this->item<T>::value()); }
+    constexpr auto&& value() { return std::move(this->item<T>::value()); }
+    constexpr auto&& value() const { return std::move(this->item<T>::value()); }
 
     constexpr auto&& operator*() { return std::move(this->item<T>::operator*()); }
     constexpr auto&& operator*() const { return std::move(this->item<T>::operator*()); }
 
-    constexpr decltype(auto) consume() { return std::move(this->item<T>::consume()); }
-    constexpr decltype(auto) consume() const { return std::move(this->item<T>::consume()); }
+    constexpr auto&& consume() { return std::move(this->item<T>::consume()); }
+    constexpr auto&& consume() const { return std::move(this->item<T>::consume()); }
 };
 
 template<class T>

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220102
+#  define ITER_LIBRARY_VERSION 20220210
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -529,11 +529,6 @@ namespace xtd::detail {
 #define EMPLACE_NEW(current, ... /*expr*/) \
     ::iter::detail::emplace_new_impl(current, [&]<class T_UGLY>() { return T_UGLY(__VA_ARGS__); })
 
-// Semantically equivalent to `std::make_optional(expr)`, but constructs expr
-// directly inside the optional's payload without any intermediate moves
-#define MAKE_OPTIONAL(... /*expr*/) \
-    ::iter::detail::make_optional_impl([&]() -> decltype(auto) { return (__VA_ARGS__); })
-
 namespace iter {
     struct void_t {
         template<class... Ts> constexpr void_t(Ts&&...) {}
@@ -561,33 +556,6 @@ namespace iter::detail {
         new (std::addressof(current), constexpr_new_tag{}) T(FWD(ctor).template operator()<T>());
         return current;
     }
-
-    struct rvo_empty_base {};
-    template<class T>
-    struct rvo_ctor : rvo_empty_base {
-        T value;
-        template<class F>
-        rvo_ctor(F&& f) : value{std::invoke(FWD(f))} {}
-    };
-
-    template<class F>
-    std::optional<std::remove_cvref_t<std::invoke_result_t<F&&>>> make_optional_runtime_impl(F&& func) {
-        using T = std::remove_cvref_t<std::invoke_result_t<F&&>>;
-        using return_t = std::optional<T>;
-        using emplace_t = std::optional<rvo_ctor<T>>;
-        static_assert(sizeof(return_t) == sizeof(emplace_t));
-
-        return_t option;
-        new (std::addressof(option)) emplace_t(std::in_place, FWD(func));
-        return option;
-    }
-
-    template<class F>
-    constexpr auto make_optional_impl(F&& func) {
-        return std::is_constant_evaluated()
-            ? std::make_optional(std::invoke(FWD(func)))
-            : make_optional_runtime_impl(FWD(func));
-    }
 }
 
 #endif /* INCLUDE_ITER_EMPLACE_NEW_HPP */
@@ -606,138 +574,140 @@ struct item {
     using pointer = T*;
     static constexpr bool owner = true;
 
-    constexpr explicit item(std::invocable auto&& f) : inner{.payload{.value{std::invoke(FWD(f))}}, .engaged{true}} {}
-    constexpr item(auto&&... args) : inner{.payload{.value{FWD(args)...}}, .engaged{true}} {}
+    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{.value{std::invoke(FWD(f))}} {}
+    constexpr item(auto&&... args) : engaged{true}, payload{.value{FWD(args)...}} {}
 
-    constexpr item() : inner{.payload{.dummy{0}}, .engaged{false}} {}
+    constexpr item() = default;
     constexpr item(noitem_t) : item() {}
 
-    constexpr item(item const& other) : inner{
-        .payload = [&] {
-            if (other.inner.engaged)
-                return payload_t{.value{other.inner.payload.value}};
-            else
-                return payload_t{};
-        }(),
-        .engaged = other.inner.engaged
-    } {}
-    constexpr item(item&& other) : inner{
-        .payload = [&] {
-            if (other.inner.engaged)
-                return payload_t{.value{std::move(other.inner.payload.value)}};
-            else
-                return payload_t{};
-        }(),
-        .engaged = other.inner.engaged
-    } {}
+    constexpr item(item const& other)
+    : engaged{other.engaged}
+    , payload{[&] {
+        if (other.engaged)
+            return payload_t{.value{other.payload.value}};
+        else
+            return payload_t{};
+    }()}
+    {}
+    constexpr item(item&& other)
+    : engaged{other.engaged}
+    , payload{[&] {
+        if (other.engaged)
+            return payload_t{.value{std::move(other.payload.value)}};
+        else
+            return payload_t{};
+    }()}
+    {}
 
+    constexpr item& operator=(noitem_t) {
+        reset();
+        return *this;
+    }
     constexpr item& operator=(item const& other) {
-        if (std::exchange(inner.engaged, other.inner.engaged)) {
-            if (other.inner.engaged)
-                inner.payload.value = other.inner.payload.value;
+        if (std::exchange(engaged, other.engaged)) {
+            if (other.engaged)
+                payload.value = other.payload.value;
             else
-                inner.payload.value.~T();
-        } else if (other.inner.engaged) {
-            std::construct_at(std::addressof(inner.payload.value), other.inner.payload.value);
+                payload.value.~T();
+        } else if (other.engaged) {
+            std::construct_at(std::addressof(payload.value), other.payload.value);
         }
         return *this;
     }
     constexpr item& operator=(item&& other) {
-        if (std::exchange(inner.engaged, other.inner.engaged)) {
-            if (other.inner.engaged)
-                inner.payload.value = std::move(other.inner.payload.value);
+        if (std::exchange(engaged, other.engaged)) {
+            if (other.engaged)
+                payload.value = std::move(other.payload.value);
             else
-                inner.payload.value.~T();
-        } else if (other.inner.engaged) {
-            std::construct_at(std::addressof(inner.payload.value), std::move(other.inner.payload.value));
+                payload.value.~T();
+        } else if (other.engaged) {
+            std::construct_at(std::addressof(payload.value), std::move(other.payload.value));
         }
         return *this;
     }
 
-    constexpr bool has_value() const { return inner.engaged; }
+    constexpr bool has_value() const { return engaged; }
     constexpr operator bool() const { return has_value(); }
 
     constexpr auto operator<=>(item const& other) const {
-        if (auto comp = inner.engaged <=> other.inner.engaged; comp != 0)
+        if (auto comp = engaged <=> other.engaged; comp != 0)
             return comp;
-        if (inner.engaged)
-            return inner.payload.value <=> other.inner.payload.value;
+        if (engaged)
+            return payload.value <=> other.payload.value;
         return std::strong_ordering::equal;
     }
     constexpr bool operator==(item const& other) const {
-        if (inner.engaged != other.inner.engaged)
+        if (engaged != other.engaged)
             return false;
-        if (inner.engaged)
-            return inner.payload.value == other.inner.payload.value;
+        if (engaged)
+            return payload.value == other.payload.value;
         return true;
     }
 
-    constexpr auto& value() & { return inner.payload.value; }
-    constexpr auto& value() const & { return inner.payload.value; }
-    constexpr auto&& value() && { return std::move(inner.payload.value); }
-    constexpr auto&& value() const && { return std::move(inner.payload.value); }
+    constexpr auto& value() & { return payload.value; }
+    constexpr auto& value() const & { return payload.value; }
+    constexpr auto&& value() && { return std::move(payload.value); }
+    constexpr auto&& value() const && { return std::move(payload.value); }
 
     constexpr auto* operator->() { return std::addressof(value()); }
     constexpr auto* operator->() const { return std::addressof(value()); }
     constexpr auto& operator*() { return value(); }
     constexpr auto& operator*() const { return value(); }
 
-    constexpr auto&& consume() { return std::move(inner.payload.value); }
+    constexpr auto&& consume() { return std::move(payload.value); }
 
     template<class V>
     constexpr item& operator=(V&& value) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value = FWD(value);
+        if (std::exchange(engaged, true))
+            payload.value = FWD(value);
         else
-            std::construct_at(std::addressof(inner.payload.value), FWD(value));
+            std::construct_at(std::addressof(payload.value), FWD(value));
         return *this;
     }
 
     template<class... As>
     requires std::constructible_from<T, As...>
-    constexpr void emplace(As&&... args) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value.~T();
-        std::construct_at(std::addressof(inner.payload.value), FWD(args)...);
-    }
-
-    template<std::invocable F>
-    requires std::convertible_to<std::invoke_result_t<F>, T>
-    constexpr item& operator=(F&& f) {
-        emplace(FWD(f));
+    constexpr item& emplace(As&&... args) {
+        if (std::exchange(engaged, true))
+            payload.value.~T();
+        std::construct_at(std::addressof(payload.value), FWD(args)...);
         return *this;
     }
 
     template<std::invocable F>
     requires std::convertible_to<std::invoke_result_t<F>, T>
-    constexpr void emplace(F&& f) {
-        if (std::exchange(inner.engaged, true))
-            inner.payload.value.~T();
-        new (std::addressof(inner.payload.value), detail::constexpr_new_tag{}) T(std::invoke(FWD(f)));
+    constexpr item& operator=(F&& f) {
+        return emplace(FWD(f));
+    }
+
+    template<std::invocable F>
+    requires std::convertible_to<std::invoke_result_t<F>, T>
+    constexpr item& emplace(F&& f) {
+        if (std::exchange(engaged, true))
+            payload.value.~T();
+        new (std::addressof(payload.value), detail::constexpr_new_tag{}) T(std::invoke(FWD(f)));
+        return *this;
     }
 
     constexpr void reset() {
-        if (std::exchange(inner.engaged, false))
-            inner.payload.value.~T();
+        if (std::exchange(engaged, false))
+            payload.value.~T();
     }
 
     constexpr ~item() { destroy(); }
 
 private:
-    struct inner_t {
-        union Payload {
-            T value;
-            char dummy;
-            constexpr ~Payload() {}
-        } payload;
-        bool engaged;
-    } inner;
-
-    using payload_t = typename inner_t::Payload;
+    bool engaged = false;
+    [[no_unique_address]]
+    union payload_t {
+        [[no_unique_address]] void_t dummy{};
+        [[no_unique_address]] T value;
+        constexpr ~payload_t() {}
+    } payload{};
 
     constexpr void destroy() {
-        if (inner.engaged)
-            inner.payload.value.~T();
+        if (engaged)
+            payload.value.~T();
     }
 };
 
@@ -769,14 +739,14 @@ struct item<T> {
     auto operator<=>(item const&) const = delete;
 
     item& operator=(T&& ref) { emplace(ref); return *this; }
-    void emplace(T&& ref) { ptr = std::addressof(ref); }
+    item& emplace(T&& ref) { ptr = std::addressof(ref); return *this; }
 
     template<std::invocable F>
     requires std::same_as<std::invoke_result_t<F>, T>
-    item& operator=(F&& f) { emplace(FWD(f)); return *this; }
+    item& operator=(F&& f) { return emplace(FWD(f)); }
     template<std::invocable F>
     requires std::same_as<std::invoke_result_t<F>, T>
-    void emplace(F&& f) { ptr = detail::addressof(std::invoke(FWD(f))); }
+    item& emplace(F&& f) { ptr = detail::addressof(std::invoke(FWD(f))); return *this; }
 
     constexpr T&& value() const { return static_cast<T&&>(*ptr); }
 
@@ -816,14 +786,14 @@ struct move_item<item<T>> : item<T> {
     bool operator==(move_item const&) const = default;
     auto operator<=>(move_item const&) const = default;
 
-    constexpr decltype(auto) value() { return std::move(this->item<T>::value()); }
-    constexpr decltype(auto) value() const { return std::move(this->item<T>::value()); }
+    constexpr auto&& value() { return std::move(this->item<T>::value()); }
+    constexpr auto&& value() const { return std::move(this->item<T>::value()); }
 
     constexpr auto&& operator*() { return std::move(this->item<T>::operator*()); }
     constexpr auto&& operator*() const { return std::move(this->item<T>::operator*()); }
 
-    constexpr decltype(auto) consume() { return std::move(this->item<T>::consume()); }
-    constexpr decltype(auto) consume() const { return std::move(this->item<T>::consume()); }
+    constexpr auto&& consume() { return std::move(this->item<T>::consume()); }
+    constexpr auto&& consume() const { return std::move(this->item<T>::consume()); }
 };
 
 template<class T>
@@ -1118,7 +1088,7 @@ namespace iter {
 
         // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
-        requires (!std::is_const_v<I>)
+        requires (!std::is_const_v<I>) && (!std::is_reference_v<I>)
         struct iterator_wrapper : iterator_traits<I> {
             using traits = iterator_traits<I>;
             using typename traits::value_type;
@@ -1127,19 +1097,14 @@ namespace iter {
             {}
             constexpr iterator_wrapper() = default;
 
-            I* it;
-            next_t<I> current;
-
             auto operator<=>(const iterator_wrapper&) const = delete;
 
-            // This would need to be const to follow std::ranges::range concept,
-            // but do we actually need ranges interop?
-            // Use the const_cast if desperate for ranges iterop. Atchooo.
-            constexpr bool operator!=(sentinel_t) /*const*/ {
-                return !!detail::emplace_next(/*const_cast<next_t<I>&>*/current, *it);
+            // const to follow std::ranges::range concept,
+            constexpr bool operator!=(sentinel_t) const {
+                return detail::emplace_next(current, *it).has_value();
             }
-            constexpr bool operator==(sentinel_t) /*const*/ {
-                return !operator==(sentinel);
+            constexpr bool operator==(sentinel_t) const {
+                return !operator!=(sentinel);
             }
             constexpr auto& operator*() {
                 return *current;
@@ -1147,16 +1112,20 @@ namespace iter {
             constexpr auto& operator*() const {
                 return *current;
             }
-            constexpr auto operator->() {
+            constexpr auto* operator->() {
                 return std::addressof(*current);
             }
-            constexpr auto operator->() const {
+            constexpr auto* operator->() const {
                 return std::addressof(*current);
             }
             constexpr auto& operator++() {
                 return *this;
             }
             constexpr void operator++(int) {}
+
+        private:
+            I* it;
+            mutable next_t<I> current;
         };
 
         template<class T>
@@ -1244,14 +1213,7 @@ namespace iter {
         template<class I>
         [[nodiscard]] constexpr auto get_item(I&& iter, std::size_t index) {
             std::size_t size = impl::size(iter);
-            using get_t = decltype(impl::get(iter, index));
-            if constexpr (std::is_lvalue_reference_v<get_t>)
-                return item_from_pointer((index < size) ? std::addressof(impl::get(iter, index)) : nullptr);
-            else if constexpr (std::is_rvalue_reference_v<get_t>) {
-                auto&& item = impl::get(iter, index);
-                return move_item{item_from_pointer((index < size) ? std::addressof(item) : nullptr)};
-            } else
-                return (index < size) ? MAKE_ITEM(impl::get(iter, index)) : noitem;
+            return (index < size) ? MAKE_ITEM_AUTO(impl::get(iter, index)) : noitem;
         }
 
         template<class Self, class... I>
@@ -1404,16 +1366,16 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.pos != std::size(*self.container)
-                ? forward_as_item((*self.container)[self.pos++])
-                : noitem;
+            return item_from_pointer(self.pos != std::size(*self.container)
+                ? std::addressof((*self.container)[self.pos++])
+                : nullptr);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
-            return self.pos != size
-                ? forward_as_item((*self.container)[(size - 1 - self.pos++)])
-                : noitem;
+            return item_from_pointer(self.pos != size
+                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
+                : nullptr);
         }
 
         struct cycle;
@@ -2144,7 +2106,7 @@ constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
 namespace iter::detail {
     template<class I>
     struct iter_wrapper {
-        // static_assert(iterable<I&>);
+        static_assert(iterable<I&>);
         I iterable;
         using iter_t = iter::iter_t<I&>;
         iter_t iter = to_iter(iterable);
@@ -2159,7 +2121,7 @@ namespace iter::detail {
 
     template<class T>
     struct optional_iter_wrapper {
-        // static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
+        static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
         T optional_iterable;
         using iter_t = iter::iter_t<decltype(*optional_iterable)>;
         item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
@@ -2322,10 +2284,7 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             auto val = impl::next(self.i);
-            if constexpr (std::is_reference_v<result_t>)
-                return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
-            else
-                return val ? MAKE_ITEM(self.func(consume(val))) : noitem;
+            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
         }
 
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
@@ -2391,6 +2350,14 @@ constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
 ITER_DECLARE(zip)
 
 namespace iter::detail {
+    template<class T>
+    static constexpr auto lazy_unwrap_item(T&& in) {
+        if constexpr (concepts::owned_item<T>)
+            return [&] { return in.consume(); };
+        else
+            return [&]() -> auto&& { return in.consume(); };
+    }
+
     template<assert_iter... I>
     requires (sizeof...(I) > 1)
     struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
@@ -2402,9 +2369,9 @@ namespace iter::detail {
             requires (!this_t::random_access)
         {
             return apply([](auto&... is) {
-                return [](auto&&... vals) {
-                    return (... && vals)
-                        ? MAKE_ITEM(make_tuple_lazy([&] { return vals.consume(); }...))
+                return [](auto... items) {
+                    return (... && items)
+                        ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
                         : noitem;
                 }(impl::next(is)...);
             }, self.i);
@@ -2808,7 +2775,7 @@ namespace iter::detail {
                     self.end = (self.end + 1) % N;
                 } else break;
             }
-            return self.size == N ? MAKE_OPTIONAL(self.to_iter()) : std::nullopt;
+            return self.size == N ? MAKE_ITEM(self.to_iter()) : noitem;
         }
     };
 }
@@ -2876,7 +2843,7 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             emplace_next(self.store, self.i);
-            return self.store ? forward_as_item(self.store.value()) : noitem;
+            return item_from_pointer(self.store ? std::addressof(*self.store) : nullptr);
         }
     };
 
@@ -3309,12 +3276,12 @@ namespace iter::detail::minmax {
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
             current = std::move(next);
             while (emplace_next())
                 if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*current), iter::as_const(*next))))
-                    current = std::move(next);
+                    *current = std::move(*next);
         }
         return current;
     }
@@ -3323,8 +3290,8 @@ namespace iter::detail::minmax {
     requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        iter::next_t<I> val{};
-        auto emplace_next = [&] { return val = impl::next(iter); };
+        auto val = iter::no_next<I>();
+        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
         iter::item<iter::value_t<I>> result;
         if (emplace_next()) {
             result = *val;
@@ -3343,14 +3310,14 @@ namespace iter::detail::minmax {
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
         auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> auto& { return iter::detail::emplace_next(next, iter); };
+        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*next));
             current = std::move(next);
             while (emplace_next()) {
                 auto next_proj = std::invoke(FWD(func), iter::as_const(*next));
                 if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
-                    current = std::move(next);
+                    *current = std::move(*next);
                     current_proj = std::move(next_proj);
                 }
             }
@@ -3362,8 +3329,8 @@ namespace iter::detail::minmax {
     requires (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        iter::next_t<I> val{};
-        auto emplace_next = [&] { return val = impl::next(iter); };
+        auto val = iter::no_next<I>();
+        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
         item<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));

@@ -1,6 +1,8 @@
 #include "iter.hpp"
 #include "iter/dollar_macros/define.hpp"
+#include "iter/enable_ranges.hpp"
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <map>
@@ -55,7 +57,7 @@ constexpr auto triples() {
         return range{1, z+1} |flatmap| [=](int x) {
             return range{x, z+1} |flatmap| [=](int y) {
                 return x*x + y*y == z*z
-                    ? iter::item(std::tuple(x, y, z))
+                    ? iter::item(tuple{x, y, z})
                     : iter::noitem;
             };
         };
@@ -74,7 +76,7 @@ consteval auto get2(size_t max) {
     return *iter::wrap{fib(max)}.last();
 }
 
-#include <algorithm>
+#include <ranges>
 
 int main() {
 
@@ -173,5 +175,10 @@ int main() {
         | foreach | [](int i) {
             std::cout << "made it: " << i << "\n"; };
 
-
+    for (auto i : range{0, 10}
+            | map(_, [](auto i) { return i*i; })
+            | std::views::transform(std::identity{})
+            | std::views::drop(2)
+        )
+        std::cout << "range i: " << i << "\n";
 }

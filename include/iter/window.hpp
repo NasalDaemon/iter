@@ -42,7 +42,7 @@ namespace iter::detail {
                     self.end = (self.end + 1) % N;
                 } else break;
             }
-            return self.size == N ? MAKE_OPTIONAL(self.to_iter()) : std::nullopt;
+            return self.size == N ? MAKE_ITEM(self.to_iter()) : noitem;
         }
     };
 }
