@@ -26,7 +26,7 @@ namespace iter::detail {
         {
             return apply([](auto&... is) {
                 return [](auto... items) {
-                    return (... && items)
+                    return (... & items.has_value())
                         ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
                         : noitem;
                 }(impl::next(is)...);

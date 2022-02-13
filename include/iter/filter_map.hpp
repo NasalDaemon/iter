@@ -9,7 +9,7 @@ namespace iter::detail {
     template<assert_iter I, std::invocable<consume_t<I>> F>
     struct [[nodiscard]] filter_map_iter {
         using this_t = filter_map_iter;
-        using mapped_t = std::invoke_result_t<F, ref_t<I>>;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
         static_assert(concepts::item<mapped_t>);
 
         [[no_unique_address]] I i;

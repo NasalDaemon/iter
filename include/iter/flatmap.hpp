@@ -31,8 +31,8 @@ namespace iter::detail {
         constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
             auto val = no_next<inner_iter_t>();
             do {
-                if (self.current)
-                    if (emplace_next(val, self.current->iter))
+                if (self.current) [[likely]]
+                    if (emplace_next(val, self.current->iter)) [[likely]]
                         return val;
             } while (EMPLACE_NEW(self.current, self.get_current()));
             return val;

@@ -8,18 +8,14 @@ namespace iter {
     struct optional : item<T> {
         using this_t = optional;
 
-        constexpr optional(auto&&... args) : item<T>(FWD(args)...) {}
-
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self ? 1 : 0;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
             return *self;
         }
-        constexpr item<T> ITER_IMPL_NEXT (this_t& self) {
-            item<T> result(std::move(self));
-            self.reset();
-            return result;
+        constexpr auto ITER_IMPL_NEXT (item<T>& self) {
+            return std::exchange(self, noitem);
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return detail::impl::next(self);

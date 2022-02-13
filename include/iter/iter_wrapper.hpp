@@ -21,15 +21,15 @@ namespace iter::detail {
 
     template<class T>
     struct optional_iter_wrapper {
-        static_assert(iterable<decltype(get_value_t(std::declval<T>()))&>);
+        static_assert(iterable<typename T::value_type&>);
         T optional_iterable;
         using iter_t = iter::iter_t<decltype(*optional_iterable)>;
         item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
     };
     template<class T>
-    requires iter<decltype(get_value_t(std::declval<T>()))>
+    requires iter<typename T::value_type>
     struct optional_iter_wrapper<T> {
-        using iter_t = decltype(get_value_t(std::declval<T>()));
+        using iter_t = typename T::value_type;
         T optional_iter;
     };
     template<class T>

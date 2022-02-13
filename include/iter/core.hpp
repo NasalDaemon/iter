@@ -80,24 +80,6 @@ namespace iter {
 
     namespace concepts {
         template<class T>
-        concept pointer = std::is_pointer_v<T>;
-        template<class T>
-        static constexpr bool is_optional = false;
-        template<class T>
-        constexpr bool is_optional<std::optional<T>> = true;
-        template<class T>
-        concept optional = is_optional<std::remove_cvref_t<T>>;
-    }
-
-    namespace detail {
-        template<concepts::item T>
-        auto get_value_t(T) -> typename T::value_type;
-        template<concepts::pointer T>
-        auto get_value_t(T) -> typename std::iterator_traits<T>::value_type;
-    }
-
-    namespace concepts {
-        template<class T>
         concept iter = requires(T it) {
             { iter::detail::impl::next(it) } -> item;
         };
@@ -159,7 +141,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(iter::detail::impl::next(std::declval<iter_t<I>&>()));
+    using next_t = decltype(detail::impl::next(std::declval<iter_t<I>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -258,8 +240,13 @@ namespace iter {
     }
 
     namespace detail {
-        constexpr auto consume = [](concepts::item auto& next) -> decltype(auto) {
-            return next.consume();
+        constexpr auto consume = xtd::detail::overload {
+            []<class T>(item<T>& next) -> decltype(auto) {
+                return next.consume();
+            },
+            []<class T>(move_item<T>& next) -> decltype(auto) {
+                return next.consume();
+            }
         };
 
         template<class T>

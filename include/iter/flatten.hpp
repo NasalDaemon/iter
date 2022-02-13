@@ -22,8 +22,8 @@ namespace iter::detail {
             using inner_iter_t = typename decltype(current)::iter_t;
             auto val = no_next<inner_iter_t>();
             do {
-                if (self.current.optional_iter)
-                    if (emplace_next(val, *self.current.optional_iter))
+                if (self.current.optional_iter) [[likely]]
+                    if (emplace_next(val, *self.current.optional_iter)) [[likely]]
                         return val;
             } while (EMPLACE_NEW(self.current, get_current(self.i)).optional_iter);
             return val;
