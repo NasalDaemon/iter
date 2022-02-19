@@ -102,9 +102,11 @@ add_executable(iter_test
   test/move.cpp
   test/range.cpp
   test/reverse.cpp
+  test/split.cpp
   test/sum.cpp
   test/window.cpp
   test/wrap.cpp
+  test/zip_with.cpp
   )
 
 target_link_libraries(iter_test

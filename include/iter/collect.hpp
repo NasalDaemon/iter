@@ -28,7 +28,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
         container.reserve(iter::detail::impl::size(iter));
     }
     while (auto val = iter::detail::impl::next(iter)) {
-        container.emplace_back(iter::detail::consume(val));
+        container.push_back(iter::detail::consume(val));
     }
     return container;
 }
@@ -42,7 +42,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
     }
     container.reserve(reserve);
     while (auto val = iter::detail::impl::next(iter)) {
-        container.emplace_back(iter::detail::consume(val));
+        container.push_back(iter::detail::consume(val));
     }
     return container;
 }

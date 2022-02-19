@@ -3,6 +3,7 @@
 
 #include "iter/take.hpp"
 #include "iter/map.hpp"
+#include "iter/span.hpp"
 
 XTD_INVOKER(iter_chunks)
 
@@ -25,52 +26,51 @@ namespace iter::detail {
     requires std::is_trivially_default_constructible_v<T>
     struct chunks_iter_storage<T, N>
     {
-        std::array<T, N> buffer = {};
+        T buffer[N]{};
+    protected:
         template<class V>
         constexpr void assign(std::size_t n, V&& value) {
             EMPLACE_NEW(buffer[n], FWD(value));
         }
-        constexpr auto to_iter(std::size_t n) { return take(buffer, n); }
+        constexpr auto to_iter(std::size_t n) { return span{buffer, n}; }
     };
 
     template<class T, std::size_t N>
     requires (!std::is_trivially_default_constructible_v<T>)
     struct chunks_iter_storage<T, N>
     {
-        std::array<std::aligned_union_t<0, T>, N> buffer = {};
-        std::size_t size = 0;
-
-        template<class V>
-        constexpr void assign(std::size_t n, V&& value) {
-            if (n == size) [[unlikely]]
-                size++;
-            else
-                array()[n].~T();
-            new (std::addressof(buffer[n]), constexpr_new_tag{}) T(FWD(value));
-        }
-        constexpr auto to_iter(std::size_t n) {
-            return take(array(), n);
-        }
         chunks_iter_storage() = default;
         constexpr chunks_iter_storage(chunks_iter_storage const& other) : buffer{}, size{other.size} {
-            auto& ours = array(); auto& theirs = other.array();
-            for (std::size_t i = 0; i < size; ++i)
-                ours[i] = theirs[i];
-        }
-        constexpr chunks_iter_storage(chunks_iter_storage&& other) : buffer{}, size{other.size} {
-            auto& ours = array(); auto& theirs = other.array();
-            for (std::size_t i = 0; i < size; ++i)
-                ours[i] = std::move(theirs[i]);
+            std::copy_n(other.array(), size, array());
         }
         constexpr ~chunks_iter_storage() {
-            auto& arr = array();
-            while (size--) (arr[size]).~T();
+            auto ptr = array();
+            while (size) std::destroy_at(ptr + (--size));
+        }
+    protected:
+        template<class V>
+        constexpr void assign(std::size_t n, V&& value) {
+            T* ptr = array() + n;
+            if (n == size) [[unlikely]] {
+                size++;
+                std::construct_at(ptr, FWD(value));
+            } else {
+                *ptr = FWD(value);
+            }
+        }
+        constexpr auto to_iter(std::size_t n) {
+            return span{array(), n};
         }
     private:
-        constexpr auto& array() {
-            using array_t = std::array<T, N>;
-            static_assert(sizeof(buffer) == sizeof(array_t));
-            return reinterpret_cast<array_t&>(buffer);
+        std::aligned_union_t<0, T> buffer[N]{};
+        std::size_t size = 0;
+
+        using array_t = T[N];
+        constexpr array_t& array() {
+            return *std::launder(reinterpret_cast<array_t*>(std::addressof(buffer)));
+        }
+        constexpr array_t const& array() const {
+            return *std::launder(reinterpret_cast<array_t const*>(std::addressof(buffer)));
         }
     };
 
@@ -110,10 +110,10 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) -> item<lazy_chunk_iter<I>&> {
+        constexpr item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
                 self.remaining = self.size;
-                return item<lazy_chunk_iter<I>&>(self);
+                return self;
             }
             return noitem;
         }

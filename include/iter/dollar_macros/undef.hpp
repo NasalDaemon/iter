@@ -20,10 +20,13 @@
 #undef $map
 #undef $map_while
 #undef $zip
+#undef $zip_with
 #undef $enumerate
+#undef $enumerate_with
 #undef $reverse
 #undef $chain
 #undef $chunks
+#undef $split
 #undef $inspect
 #undef $to_pointer_iter
 #undef $move
@@ -52,6 +55,7 @@
 #undef $unzip
 #undef $sorted
 #undef $enumerate_
+#undef $enumerate_with_
 #undef $chunks_
 #undef $window
 #undef $collect

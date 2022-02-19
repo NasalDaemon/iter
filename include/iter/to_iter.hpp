@@ -83,6 +83,8 @@ namespace iter::concepts {
     static constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
+    constexpr bool is_random_access_container<T[N]> = true;
+    template<class T, std::size_t N>
     constexpr bool is_random_access_container<std::array<T, N>> = true;
     template<class T, class A>
     constexpr bool is_random_access_container<std::vector<T, A>> = true;

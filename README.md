@@ -70,7 +70,7 @@ void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vec
 ```
 ##### Functionality and nomenclature similar by existing functional iterator libraries in other languages, such as rust, python, scala.
 
-`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`
+`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`zip_with`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`,`split`
 
 ```c++
 float weighted_sum(std::vector<float> const& a) {
@@ -87,7 +87,7 @@ float weighted_sum(std::vector<float> const& a) {
 
 There are two fundamental concepts: `iter::iter` and `iter::iterable`.
 
-An `iter` is anything that can be passed as the only argument to `iter::detail::impl::next(...)`, which should return either `std::optional<T>` for an optional value or `T*` for an optional reference.
+An `iter` is anything that can be passed as the only argument to `iter::detail::impl::next(...)`, which should return either `iter::item<T>` for an optional value or `iter::item<T&>` for an optional reference. `iter::item<T>` is analagous to `std::optional<T>` and `iter::item<T&>` is analogous to `T*`, but with the same interface as `iter::item<T>`.
 
 An `iterable` is anything that can be passed to `iter::to_iter(...)` and returns an `iter`. Anything that is an `iter` is also an `iterable` (since there is a default implementation of `iter::to_iter` for `iter` arguments which simply returns the argument back).
 
@@ -95,7 +95,7 @@ All adaptors and consumers operate on `iterable` or `iter`.
 
 Informally, an `iter` should be cheap to copy -- at least before any iteration has started. This is not enforced at compile-time due to the unstarted iteration caveat. For example:
 1. The `iter` for `std::vector` contains only a pointer to the source vector and the current position. This is always cheap to copy.
-1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `std::optional<std::vector<std::string>>` of the latest vector returned by the callable. The optional is only populated once iteration has started, making copying cheap until then.
+1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `iter::item<std::vector<std::string>>` of the latest vector returned by the callable. The item is only populated once iteration has started, making copying cheap until then.
 1. All `iter` adaptors with callables are to be as cheap to copy as their respective callables are. It is up to the user code to ensure that the callables are cheap to copy if the iter is expected to be copied around.
 
 To make any type an `iter`, you simply define the relevant `iter::detail::impl::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
@@ -107,7 +107,7 @@ struct enumerate_until {
 
   using this_t = enumerate_until;
   constexpr auto ITER_IMPL_NEXT (this_t& self) {
-    return self.i < self.max ? std::optional(self.i++) : std::nullopt;
+    return self.i < self.max ? iter::item(self.i++) : iter::noitem;
   }
 };
 ```

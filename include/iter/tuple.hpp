@@ -28,7 +28,7 @@ namespace iter {
         template<std::size_t I, class T> T const& get(tuple_element<I, T> const& el) { return el.value; }
         template<std::size_t I, class T> T&& get(tuple_element<I, T>&& el) { return static_cast<T&&>(el.value); }
         template<std::size_t I, class T> T const&& get(tuple_element<I, T> const&& el) { return static_cast<T const&&>(el.value); }
-        template<std::size_t I, class T> T element_type(tuple_element<I, T>*) { static_assert(I == I, "never to be invoked"); }
+        template<std::size_t I, class T> T element_type(tuple_element<I, T>*) { static_assert(I != I, "never to be invoked"); }
     }
 
     template<class... Ts>
@@ -56,10 +56,20 @@ namespace iter {
     }
 
     // Make a tuple with element types exactly the same as those returned from lazy_values
-    template<std::invocable<>... Fs>
+    template<std::invocable... Fs>
     tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
         static_assert((!std::same_as<void, std::invoke_result_t<Fs>> && ...));
         return {std::invoke(FWD(lazy_values))...};
+    }
+
+    template<class... Ts>
+    tuple<Ts&&...> forward_as_tuple(Ts&&... values) {
+        return {FWD(values)...};
+    }
+
+    template<class... Ts>
+    tuple<Ts&...> tie(Ts&... values) {
+        return {values...};
     }
 
     template<class F, concepts::decays_to_tuple Tuple>
@@ -77,17 +87,15 @@ namespace iter {
     }
 }
 
-// Implement tuple-like customization points in std namespace
-namespace std {
-    template<std::size_t I, class... Ts>
-    struct tuple_element<I, iter::tuple<Ts...>> {
-        static_assert(I < iter::tuple<Ts...>::size(), "Tuple index out of bounds.");
-        using type = decltype(iter::detail::element_type<I>(std::declval<iter::tuple<Ts...>*>()));
-    };
-    template<class... Ts>
-    struct tuple_size<iter::tuple<Ts...>> {
-        static constexpr std::size_t value = iter::tuple<Ts...>::size();
-    };
-}
+// Implement tuple customization points in std namespace
+template<std::size_t I, class... Ts>
+struct std::tuple_element<I, iter::tuple<Ts...>> {
+    static_assert(I < iter::tuple<Ts...>::size(), "Tuple index out of bounds.");
+    using type = decltype(iter::detail::element_type<I>(std::declval<iter::tuple<Ts...>*>()));
+};
+template<class... Ts>
+struct std::tuple_size<iter::tuple<Ts...>> {
+    static constexpr std::size_t value = iter::tuple<Ts...>::size();
+};
 
 #endif /* INCLUDE_ITER_TUPLE_HPP */

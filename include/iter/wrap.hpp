@@ -9,6 +9,18 @@ namespace iter {
         template<class II>
         wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
     };
+
+    namespace detail {
+        template<xtd::concepts::Bindable Tag, class... Ts>
+        static constexpr decltype(auto) wrap_invoke(Tag const& tag, Ts&&... args) {
+            auto call = [&]() -> decltype(auto) { return tag(FWD(args)...); };
+            if constexpr (iter<decltype(call())>)
+                return wrap{call()};
+            else
+                return call();
+        }
+    }
+
     template<iter I>
     struct [[nodiscard]] wrap<I> {
         [[no_unique_address]] I i;
@@ -36,11 +48,11 @@ namespace iter {
 #define ITER_X(fun) \
         template<class... Ts>\
         constexpr decltype(auto) fun(Ts&&... args) & {\
-            return invoke(::iter::fun, i, FWD(args)...);\
+            return detail::wrap_invoke(iter::fun, i, FWD(args)...);\
         }\
         template<class... Ts>\
         constexpr decltype(auto) fun(Ts&&... args) && {\
-            return invoke(::iter::fun, std::move(i), FWD(args)...);\
+            return detail::wrap_invoke(iter::fun, std::move(i), FWD(args)...);\
         }
 #include "iter/x_macros/iter_functions_simple.ipp"
 #undef ITER_X
@@ -49,25 +61,15 @@ namespace iter {
 #define ITER_X(fun, tmplParams, tmplArgs) \
         template<ITER_EXPAND tmplParams, class... Ts>\
         constexpr decltype(auto) fun(Ts&&... args) & {\
-            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
+            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
         }\
         template<ITER_EXPAND tmplParams, class... Ts>\
         constexpr decltype(auto) fun(Ts&&... args) && {\
-            return invoke(::iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
+            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
         }
 #include "iter/x_macros/iter_functions_tmpl.ipp"
 #undef ITER_EXPAND
 #undef ITER_X
-
-    private:
-        template<xtd::concepts::Bindable Tag, class Underlying, class... Ts>
-        static constexpr decltype(auto) invoke(Tag const& tag, Underlying&& underlying, Ts&&... args) {
-            auto call = [&]() -> decltype(auto) { return tag(FWD(underlying), FWD(args)...); };
-            if constexpr (iter<decltype(call())>)
-                return ::iter::wrap{call()};
-            else
-                return call();
-        }
     };
 
     template<iter::iterable I>

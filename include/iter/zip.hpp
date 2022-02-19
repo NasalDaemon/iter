@@ -24,20 +24,20 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return apply([](auto&... is) {
+            return apply([](auto&... iters) {
                 return [](auto... items) {
                     return (... & items.has_value())
                         ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
                         : noitem;
-                }(impl::next(is)...);
+                }(impl::next(iters)...);
             }, self.i);
         }
 
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return apply([=](auto&... is) {
-                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(is, index); }...);
+            return apply([=](auto&... iters) {
+                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(iters, index); }...);
             }, self.i);
         }
     };
