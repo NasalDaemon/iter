@@ -30,8 +30,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef ITER_INCLUDE_ITER_HPP
-#define ITER_INCLUDE_ITER_HPP
+#ifndef INCLUDE_ITER_ITER_HPP
+#define INCLUDE_ITER_ITER_HPP
 
 #ifndef INCLUDE_ITER_CORE_HPP
 #define INCLUDE_ITER_CORE_HPP
@@ -729,7 +729,7 @@ struct item<T> {
     constexpr item(T&& ref) : ptr(std::addressof(ref)) {}
     constexpr explicit item(std::invocable auto&& f) : ptr(detail::addressof(std::invoke(FWD(f)))) {}
 
-    constexpr item() : ptr(nullptr) {}
+    item() = default;
     constexpr item(noitem_t) : item() {}
     constexpr item(std::nullptr_t) : item() {}
 
@@ -761,7 +761,7 @@ struct item<T> {
     constexpr void reset() { ptr = nullptr; }
 
 private:
-    pointer ptr;
+    pointer ptr = nullptr;
     template<class TT>
     friend constexpr item<TT&> item_from_pointer(TT*);
     constexpr explicit item(pointer p) : ptr(p) {}
@@ -828,8 +828,8 @@ namespace concepts {
 
 #endif /* INCLUDE_ITER_ITEM_HPP */
 
-#ifndef INCLUDE_ITER_TUPLE_HPP
-#define INCLUDE_ITER_TUPLE_HPP
+#ifndef ITER_CORE_TUPLE_HPP
+#define ITER_CORE_TUPLE_HPP
 
 #include <utility>
 
@@ -928,7 +928,7 @@ struct std::tuple_size<iter::tuple<Ts...>> {
     static constexpr std::size_t value = iter::tuple<Ts...>::size();
 };
 
-#endif /* INCLUDE_ITER_TUPLE_HPP */
+#endif /* ITER_CORE_TUPLE_HPP */
 
 #ifndef ITER_GLOBAL_INVOKER
 #  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
@@ -1321,7 +1321,7 @@ void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
 #endif /* INCLUDE_ITER_CORE_HPP */
 
-// Iterables
+// Iters
 #ifndef INCLUDE_ITER_TO_ITER_HPP
 #define INCLUDE_ITER_TO_ITER_HPP
 
@@ -1463,8 +1463,8 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_TO_ITER_HPP */
 
-#ifndef INCLUDE_ITER_ONCE_HPP
-#define INCLUDE_ITER_ONCE_HPP
+#ifndef ITER_ITERS_ONCE_HPP
+#define ITER_ITERS_ONCE_HPP
 
 #ifndef INCLUDE_ITER_REPEAT_HPP
 #define INCLUDE_ITER_REPEAT_HPP
@@ -1541,7 +1541,7 @@ namespace iter {
     once_ref(F&) -> once_ref<F>;
 }
 
-#endif /* INCLUDE_ITER_ONCE_HPP */
+#endif /* ITER_ITERS_ONCE_HPP */
 
 #ifndef INCLUDE_ITER_OPTIONAL_HPP
 #define INCLUDE_ITER_OPTIONAL_HPP
@@ -1669,8 +1669,8 @@ constexpr auto ITER_IMPL(until) (T begin, T end) {
 
 #endif /* INCLUDE_ITER_RANGE_HPP */
 
-#ifndef INCLUDE_ITER_GENERATE_HPP
-#define INCLUDE_ITER_GENERATE_HPP
+#ifndef ITER_ITERS_GENERATE_HPP
+#define ITER_ITERS_GENERATE_HPP
 
 namespace iter {
     template<std::invocable<> F>
@@ -1686,7 +1686,7 @@ namespace iter {
     generate(F) -> generate<F>;
 }
 
-#endif /* INCLUDE_ITER_GENERATE_HPP */
+#endif /* ITER_ITERS_GENERATE_HPP */
 
 #if __cpp_impl_coroutine >= 201902L && !defined(INCLUDE_ITER_GENERATOR_HPP)
 #define INCLUDE_ITER_GENERATOR_HPP
@@ -1893,7 +1893,7 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_EMPTY_HPP */
 
-// Adaptors
+// Adapters
 #ifndef INCLUDE_ITER_FILTER_HPP
 #define INCLUDE_ITER_FILTER_HPP
 
@@ -1930,8 +1930,8 @@ constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
 
 #endif /* INCLUDE_ITER_FILTER_HPP */
 
-#ifndef INCLUDE_ITER_TAKE_HPP
-#define INCLUDE_ITER_TAKE_HPP
+#ifndef ITER_ADAPTERS_TAKE_HPP
+#define ITER_ADAPTERS_TAKE_HPP
 
 ITER_DECLARE(take)
 
@@ -1971,7 +1971,7 @@ constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
     return iter::detail::take_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
-#endif /* INCLUDE_ITER_TAKE_HPP */
+#endif /* ITER_ADAPTERS_TAKE_HPP */
 
 #ifndef INCLUDE_ITER_TAKE_WHILE_HPP
 #define INCLUDE_ITER_TAKE_WHILE_HPP
@@ -2221,8 +2221,8 @@ constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
     return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#ifndef INCLUDE_ITER_FILTER_MAP_HPP
-#define INCLUDE_ITER_FILTER_MAP_HPP
+#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
+#define ITER_ADAPTERS_FILTER_MAP_HPP
 
 ITER_DECLARE(filter_map)
 
@@ -2256,7 +2256,7 @@ constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
     return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#endif /* INCLUDE_ITER_FILTER_MAP_HPP */
+#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */
 
 // flatmap on iter::item is equivalent to the specially optimised filter_map
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
@@ -2471,8 +2471,8 @@ constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
 
 #endif /* INCLUDE_ITER_ZIP_MAP_HPP */
 
-#ifndef INCLUDE_ITER_ENUMERATE_HPP
-#define INCLUDE_ITER_ENUMERATE_HPP
+#ifndef ITER_ADAPTERS_ENUMERATE_HPP
+#define ITER_ADAPTERS_ENUMERATE_HPP
 
 XTD_INVOKER(iter_enumerate)
 
@@ -2493,7 +2493,7 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::tag::enumerate_<T>)
     return iter::zip(FWD(iterable), iter::indices_<T>);
 }
 
-#endif /* INCLUDE_ITER_ENUMERATE_HPP */
+#endif /* ITER_ADAPTERS_ENUMERATE_HPP */
 
 #ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
 #define INCLUDE_ITER_ENUMERATE_MAP_HPP
@@ -2615,8 +2615,8 @@ constexpr auto ITER_IMPL(reverse) (I&& iterable) {
 
 #endif /* INCLUDE_ITER_REVERSE_HPP */
 
-#ifndef INCLUDE_ITER_CHAIN_HPP
-#define INCLUDE_ITER_CHAIN_HPP
+#ifndef ITER_ADAPTERS_CHAIN_HPP
+#define ITER_ADAPTERS_CHAIN_HPP
 
 ITER_DECLARE(chain)
 
@@ -2684,7 +2684,7 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     }
 }
 
-#endif /* INCLUDE_ITER_CHAIN_HPP */
+#endif /* ITER_ADAPTERS_CHAIN_HPP */
 
 #ifndef INCLUDE_ITER_CHUNKS_HPP
 #define INCLUDE_ITER_CHUNKS_HPP
@@ -2986,8 +2986,8 @@ constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */
 
-#ifndef INCLUDE_ITER_TO_POINTER_ITER_HPP
-#define INCLUDE_ITER_TO_POINTER_ITER_HPP
+#ifndef ITER_ITERS_TO_POINTER_ITER_HPP
+#define ITER_ITERS_TO_POINTER_ITER_HPP
 
 ITER_DECLARE(to_pointer_iter)
 
@@ -3037,10 +3037,10 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     }
 }
 
-#endif /* INCLUDE_ITER_TO_POINTER_ITER_HPP */
+#endif /* ITER_ITERS_TO_POINTER_ITER_HPP */
 
-#ifndef INCLUDE_ITER_MOVE_HPP
-#define INCLUDE_ITER_MOVE_HPP
+#ifndef ITER_ADAPTERS_MOVE_HPP
+#define ITER_ADAPTERS_MOVE_HPP
 
 ITER_DECLARE(move)
 
@@ -3080,7 +3080,7 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
         return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
 }
 
-#endif /* INCLUDE_ITER_MOVE_HPP */
+#endif /* ITER_ADAPTERS_MOVE_HPP */
 
 #ifndef INCLUDE_ITER_BOX_HPP
 #define INCLUDE_ITER_BOX_HPP
@@ -3227,8 +3227,8 @@ constexpr void ITER_IMPL(foreach) (I&& iterable) {
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */
 
-#ifndef INCLUDE_ITER_FOLD_HPP
-#define INCLUDE_ITER_FOLD_HPP
+#ifndef ITER_COLLECTORS_FOLD_HPP
+#define ITER_COLLECTORS_FOLD_HPP
 
 ITER_DECLARE(fold)
 ITER_ALIAS(fold_left, fold)
@@ -3243,7 +3243,7 @@ constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
     return acc;
 }
 
-#endif /* INCLUDE_ITER_FOLD_HPP */
+#endif /* ITER_COLLECTORS_FOLD_HPP */
 
 #ifndef INCLUDE_ITER_REDUCE_HPP
 #define INCLUDE_ITER_REDUCE_HPP
@@ -3279,8 +3279,8 @@ constexpr auto ITER_IMPL(sum) (I&& iterable) {
 
 #endif /* INCLUDE_ITER_SUM_HPP */
 
-#ifndef INCLUDE_ITER_PRODUCT_HPP
-#define INCLUDE_ITER_PRODUCT_HPP
+#ifndef ITER_CONSUMERS_PRODUCT_HPP
+#define ITER_CONSUMERS_PRODUCT_HPP
 
 ITER_DECLARE(product)
 
@@ -3295,10 +3295,10 @@ constexpr auto ITER_IMPL(product) (I&& iterable) {
     return product;
 }
 
-#endif /* INCLUDE_ITER_PRODUCT_HPP */
+#endif /* ITER_CONSUMERS_PRODUCT_HPP */
 
-#ifndef INCLUDE_ITER_LAST_HPP
-#define INCLUDE_ITER_LAST_HPP
+#ifndef ITER_CONSUMERS_LAST_HPP
+#define ITER_CONSUMERS_LAST_HPP
 
 ITER_DECLARE(last)
 
@@ -3374,7 +3374,7 @@ constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     return result;
 }
 
-#endif /* INCLUDE_ITER_LAST_HPP */
+#endif /* ITER_CONSUMERS_LAST_HPP */
 
 #ifndef INCLUDE_ITER_NTH_HPP
 #define INCLUDE_ITER_NTH_HPP
@@ -3597,8 +3597,8 @@ constexpr auto ITER_IMPL(any) (I&& iterable, P&& predicate) {
 
 #endif /* INCLUDE_ITER_ANY_HPP */
 
-#ifndef INCLUDE_ITER_ALL_HPP
-#define INCLUDE_ITER_ALL_HPP
+#ifndef ITER_CONSUMERS_ALL_HPP
+#define ITER_CONSUMERS_ALL_HPP
 
 ITER_DECLARE(all)
 
@@ -3614,7 +3614,7 @@ constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
     return true;
 }
 
-#endif /* INCLUDE_ITER_ALL_HPP */
+#endif /* ITER_CONSUMERS_ALL_HPP */
 
 // Collectors
 #ifndef INCLUDE_ITER_COLLECT_HPP
@@ -3685,8 +3685,8 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
 
 #endif /* INCLUDE_ITER_COLLECT_HPP */
 
-#ifndef INCLUDE_ITER_PARTITION_HPP
-#define INCLUDE_ITER_PARTITION_HPP
+#ifndef ITER_COLLECTORS_PARTITION_HPP
+#define ITER_COLLECTORS_PARTITION_HPP
 
 ITER_DECLARE(partition)
 
@@ -3768,7 +3768,7 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
     return out;
 }
 
-#endif /* INCLUDE_ITER_PARTITION_HPP */
+#endif /* ITER_COLLECTORS_PARTITION_HPP */
 
 #ifndef INCLUDE_ITER_UNZIP_HPP
 #define INCLUDE_ITER_UNZIP_HPP
@@ -3849,8 +3849,8 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, st
 
 #endif /* INCLUDE_ITER_UNZIP_HPP */
 
-#ifndef INCLUDE_ITER_SORTED_HPP
-#define INCLUDE_ITER_SORTED_HPP
+#ifndef ITER_COLLECTORS_SORTED_HPP
+#define ITER_COLLECTORS_SORTED_HPP
 
 XTD_INVOKER(iter_sorted)
 
@@ -3881,7 +3881,7 @@ constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter) 
     return container;
 }
 
-#endif /* INCLUDE_ITER_SORTED_HPP */
+#endif /* ITER_COLLECTORS_SORTED_HPP */
 
 // Misc
 #ifndef INCLUDE_ITER_COMPARISON_HPP
@@ -3928,197 +3928,4 @@ constexpr std::compare_three_way_result_t<iter::ref_t<I1>, iter::ref_t<I2>> oper
 
 #endif /* INCLUDE_ITER_COMPARISON_HPP */
 
-// Must be last
-#ifndef INCLUDE_ITER_WRAP_HPP
-#define INCLUDE_ITER_WRAP_HPP
-
-namespace iter {
-    template<iterable I>
-    struct [[nodiscard]] wrap : wrap<iter_t<I>> {
-        template<class II>
-        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
-    };
-
-    namespace detail {
-        template<xtd::concepts::Bindable Tag, class... Ts>
-        static constexpr decltype(auto) wrap_invoke(Tag const& tag, Ts&&... args) {
-            auto call = [&]() -> decltype(auto) { return tag(FWD(args)...); };
-            if constexpr (iter<decltype(call())>)
-                return wrap{call()};
-            else
-                return call();
-        }
-    }
-
-    template<iter I>
-    struct [[nodiscard]] wrap<I> {
-        [[no_unique_address]] I i;
-
-        using this_t = wrap;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return iter::detail::impl::next(self.i);
-        }
-        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
-            requires concepts::double_ended_iter<I>
-        {
-            return iter::detail::impl::next_back(self.i);
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires concepts::random_access_iter<I>
-        {
-            return iter::detail::impl::get(self.i, index);
-        }
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
-            requires concepts::random_access_iter<I>
-        {
-            return iter::detail::impl::size(self.i);
-        }
-
-#define ITER_X(fun) \
-        template<class... Ts>\
-        constexpr decltype(auto) fun(Ts&&... args) & {\
-            return detail::wrap_invoke(iter::fun, i, FWD(args)...);\
-        }\
-        template<class... Ts>\
-        constexpr decltype(auto) fun(Ts&&... args) && {\
-            return detail::wrap_invoke(iter::fun, std::move(i), FWD(args)...);\
-        }
-/* Do not modify, generated by scripts/update_x_macros.sh */
-
-// Invoke iter::cycle on this iter
-ITER_X(cycle)
-// Invoke iter::filter on this iter
-ITER_X(filter)
-// Invoke iter::take on this iter
-ITER_X(take)
-// Invoke iter::take_while on this iter
-ITER_X(take_while)
-// Invoke iter::skip on this iter
-ITER_X(skip)
-// Invoke iter::skip_while on this iter
-ITER_X(skip_while)
-// Invoke iter::flatten on this iter
-ITER_X(flatten)
-// Invoke iter::flatmap on this iter
-ITER_X(flatmap)
-// Invoke iter::flat_map (aka iter::flatmap) on this iter
-ITER_X(flat_map)
-// Invoke iter::filter_map on this iter
-ITER_X(filter_map)
-// Invoke iter::map on this iter
-ITER_X(map)
-// Invoke iter::map_while on this iter
-ITER_X(map_while)
-// Invoke iter::zip on this iter
-ITER_X(zip)
-// Invoke iter::zip_map on this iter
-ITER_X(zip_map)
-// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
-ITER_X(enumerate)
-// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
-ITER_X(enumerate_map)
-// Invoke iter::reverse on this iter
-ITER_X(reverse)
-// Invoke iter::chain on this iter
-ITER_X(chain)
-// Invoke iter::chunks (aka iter::chunks_<>) on this iter
-ITER_X(chunks)
-// Invoke iter::split on this iter
-ITER_X(split)
-// Invoke iter::inspect on this iter
-ITER_X(inspect)
-// Invoke iter::move on this iter
-ITER_X(move)
-// Invoke iter::box on this iter
-ITER_X(box)
-// Invoke iter::foreach on this iter
-ITER_X(foreach)
-// Invoke iter::for_each (aka iter::foreach) on this iter
-ITER_X(for_each)
-// Invoke iter::fold on this iter
-ITER_X(fold)
-// Invoke iter::fold_left (aka iter::fold) on this iter
-ITER_X(fold_left)
-// Invoke iter::reduce on this iter
-ITER_X(reduce)
-// Invoke iter::sum on this iter
-ITER_X(sum)
-// Invoke iter::product on this iter
-ITER_X(product)
-// Invoke iter::last on this iter
-ITER_X(last)
-// Invoke iter::nth on this iter
-ITER_X(nth)
-// Invoke iter::min on this iter
-ITER_X(min)
-// Invoke iter::min_by on this iter
-ITER_X(min_by)
-// Invoke iter::max on this iter
-ITER_X(max)
-// Invoke iter::max_by on this iter
-ITER_X(max_by)
-// Invoke iter::find_linear on this iter
-ITER_X(find_linear)
-// Invoke iter::find_map on this iter
-ITER_X(find_map)
-// Invoke iter::any on this iter
-ITER_X(any)
-// Invoke iter::all on this iter
-ITER_X(all)
-// Invoke iter::to_vector (aka iter::collect<std::vector>) on this iter
-ITER_X(to_vector)
-// Invoke iter::to_map (aka iter::collect<std::map>) on this iter
-ITER_X(to_map)
-// Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
-ITER_X(to_string)
-// Invoke iter::partition on this iter
-ITER_X(partition)
-// Invoke iter::unzip (aka iter::unzip_<>) on this iter
-ITER_X(unzip)
-// Invoke iter::sorted (aka iter::sorted_<>) on this iter
-ITER_X(sorted)
-
-#undef ITER_X
-
-#define ITER_EXPAND(...) __VA_ARGS__
-#define ITER_X(fun, tmplParams, tmplArgs) \
-        template<ITER_EXPAND tmplParams, class... Ts>\
-        constexpr decltype(auto) fun(Ts&&... args) & {\
-            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
-        }\
-        template<ITER_EXPAND tmplParams, class... Ts>\
-        constexpr decltype(auto) fun(Ts&&... args) && {\
-            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
-        }
-/* Do not modify, generated by scripts/update_x_macros.sh */
-
-// Invoke iter::enumerate_ on this iter
-ITER_X(enumerate_, (class T = std::size_t), (T))
-// Invoke iter::enumerate_map_ on this iter
-ITER_X(enumerate_map_, (class T = std::size_t), (T))
-// Invoke iter::chunks_ on this iter
-ITER_X(chunks_, (std::size_t N = 0), (N))
-// Invoke iter::window on this iter
-ITER_X(window, (std::size_t N = 2), (N))
-// Invoke iter::collect on this iter
-ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
-// Invoke iter::unzip_ on this iter
-ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
-// Invoke iter::sorted_ on this iter
-ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
-
-#undef ITER_EXPAND
-#undef ITER_X
-    };
-
-    template<iter::iterable I>
-    requires (!iter::iter<I>)
-    wrap(I&&) -> wrap<I>;
-
-    template<iter::iter I>
-    wrap(I) -> wrap<I>;
-}
-
-#endif /* INCLUDE_ITER_WRAP_HPP */
-
-#endif /* ITER_INCLUDE_ITER_HPP */
+#endif /* INCLUDE_ITER_ITER_HPP */
