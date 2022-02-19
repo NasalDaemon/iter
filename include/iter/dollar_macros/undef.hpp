@@ -59,7 +59,6 @@
 #undef $chunks_
 #undef $window
 #undef $collect
-#undef $partition_
 #undef $unzip_
 #undef $sorted_
 

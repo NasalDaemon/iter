@@ -59,7 +59,6 @@
 #define $chunks_(...) $(::iter::chunks_<__VA_ARGS__>)
 #define $window(...) $(::iter::window<__VA_ARGS__>)
 #define $collect(...) $(::iter::collect<__VA_ARGS__>)
-#define $partition_(...) $(::iter::partition_<__VA_ARGS__>)
 #define $unzip_(...) $(::iter::unzip_<__VA_ARGS__>)
 #define $sorted_(...) $(::iter::sorted_<__VA_ARGS__>)
 

@@ -570,6 +570,7 @@ static constexpr struct noitem_t {} noitem;
 
 template<class T>
 struct item {
+    using wrapped_type = T;
     using value_type = T;
     using reference = T&;
     using pointer = T*;
@@ -719,6 +720,7 @@ auto* addressof(auto&& ref) { return std::addressof(ref); }
 template<class T>
 requires std::is_reference_v<T>
 struct item<T> {
+    using wrapped_type = T;
     using value_type = std::remove_reference_t<T>;
     using reference = T;
     using pointer = value_type*;
@@ -1062,6 +1064,7 @@ namespace iter {
     struct iterator_traits {
         using next_t = iter::next_t<I>;
         using iter_t = I;
+        using wrapped_type = typename next_t::wrapped_type;
         using value_type = typename next_t::value_type;
         using reference = typename next_t::reference;
         using pointer = typename next_t::pointer;
@@ -1188,6 +1191,8 @@ namespace iter {
 
     template<class T>
     using value_t = typename detail::iter_traits<T>::value_t;
+    template<iter I>
+    using item_t = typename next_t<I>::wrapped_type;
     template<class T>
     using ref_t = typename detail::iter_traits<T>::ref_t;
     template<class T>
@@ -1499,7 +1504,7 @@ namespace iter {
             return (self.value);
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(self.on ? (self.on = false, std::addressof(self.value)) : nullptr);
+            return item_from_pointer(std::exchange(self.on, false) ? std::addressof(self.value) : nullptr);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};
@@ -3083,8 +3088,8 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
 ITER_DECLARE(box)
 
 namespace iter {
-    template<concepts::item Next, class GetType = void>
-    struct virtual_iter : virtual_iter<Next, void> {
+    template<class ItemType, class GetType = void>
+    struct virtual_iter : virtual_iter<ItemType, void> {
         virtual std::size_t size() const = 0;
         virtual GetType get(std::size_t index) = 0;
     private:
@@ -3092,9 +3097,9 @@ namespace iter {
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) { return self.get(index); }
         constexpr auto ITER_IMPL_SIZE (this_t const& self) { return self.size(); }
     };
-    template<concepts::item Next>
-    struct virtual_iter<Next, void> {
-        virtual Next next() = 0;
+    template<class ItemType>
+    struct virtual_iter<ItemType, void> {
+        virtual item<ItemType> next() = 0;
         virtual ~virtual_iter() = default;
     private:
         using this_t = virtual_iter;
@@ -3103,13 +3108,13 @@ namespace iter {
 
     namespace detail {
         template<iter I>
-        struct virtual_iter_impl final : I, virtual_iter<next_t<I>> {
+        struct virtual_iter_impl final : I, virtual_iter<item_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
-        struct virtual_iter_impl<I> final : I, virtual_iter<next_t<I>, get_t<I>> {
+        struct virtual_iter_impl<I> final : I, virtual_iter<item_t<I>, get_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
             next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
@@ -3121,8 +3126,8 @@ namespace iter {
             }
         };
 
-        struct alignas(char) deleter {
-            char const heap = 1;
+        struct deleter {
+            bool heap = true;
             template<class T>
             void operator()(T* ptr) const {
                 if (heap) delete ptr;
@@ -3132,17 +3137,18 @@ namespace iter {
     }
 
     template<std::size_t Size, std::size_t Align = 8>
-    struct scratch : void_t {
+    struct scratch {
         template<class T, class... Ts>
         requires (sizeof(T) <= Size) && (alignof(T) <= Align) && (Align % alignof(T) == 0)
         T* make(Ts&&... ins) { return std::launder(new (std::addressof(storage)) T(FWD(ins)...)); }
     private:
-        std::aligned_storage_t<Size, Align> storage;
+        [[no_unique_address]] std::aligned_storage_t<Size, Align> storage;
     };
 
-    template<concepts::item Next, class Get = void>
+    template<class ItemType, class Get = void>
     struct boxed {
         using this_t = boxed;
+        using Next = item<ItemType>;
         static constexpr bool random_access = !std::same_as<Get, void>;
 
         template<iter I>
@@ -3160,10 +3166,10 @@ namespace iter {
         {}
 
         template<class OU> requires (!random_access)
-        constexpr boxed(boxed<Next, OU>&& other) : it{std::move(other.it)} {}
+        constexpr boxed(boxed<ItemType, OU>&& other) : it{std::move(other.it)} {}
 
     private:
-        template<concepts::item, class> friend struct boxed;
+        template<class, class> friend struct boxed;
         constexpr Next ITER_IMPL_NEXT (this_t& self) { return self.it->next(); }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) requires random_access {
             return self.it->size();
@@ -3172,18 +3178,18 @@ namespace iter {
             return self.it->get(index);
         }
 
-        std::unique_ptr<virtual_iter<Next, Get>, detail::deleter> it;
+        std::unique_ptr<virtual_iter<ItemType, Get>, detail::deleter> it;
     };
 
-    template<iter::iter I>
-    boxed(I) -> boxed<next_t<I>, detail::get_t<I>>;
-    template<iter::iter I, std::size_t Size, std::size_t Align>
-    boxed(I, scratch<Size, Align>&) -> boxed<next_t<I>, detail::get_t<I>>;
+    template<iter I>
+    boxed(I) -> boxed<item_t<I>, detail::get_t<I>>;
+    template<iter I, std::size_t Size, std::size_t Align>
+    boxed(I, scratch<Size, Align>&) -> boxed<item_t<I>, detail::get_t<I>>;
 
     template<iter I>
-    using virtual_t = iter::virtual_iter<iter::next_t<I>, detail::get_t<I>>;
+    using virtual_t = virtual_iter<item_t<I>, detail::get_t<I>>;
     template<iter I>
-    using boxed_t = boxed<next_t<I>, detail::get_t<I>>;
+    using boxed_t = boxed<item_t<I>, detail::get_t<I>>;
 }
 
 template<iter::assert_iter I>
@@ -3682,17 +3688,9 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
 #ifndef INCLUDE_ITER_PARTITION_HPP
 #define INCLUDE_ITER_PARTITION_HPP
 
-XTD_INVOKER(iter_partition)
+ITER_DECLARE(partition)
 
 namespace iter {
-    namespace tag {
-        template<std::size_t N = 2>
-        struct partition_ : xtd::tagged_bindable<partition_<N>, xtd::invokers::iter_partition> {};
-    }
-
-    template<std::size_t N = 2>
-    static constexpr tag::partition_<N> partition_;
-
     template<std::size_t I>
     struct index_t : index_t<I+1> {
         template<std::size_t J>
@@ -3704,7 +3702,7 @@ namespace iter {
     };
 
     template<>
-    struct index_t<12> {
+    struct index_t<6> {
         constexpr std::size_t value() const { return index; }
     protected:
         constexpr index_t(size_t i) : index{i} {}
@@ -3714,6 +3712,16 @@ namespace iter {
     template<std::size_t I>
     static constexpr auto index = index_t<I>{};
 
+    namespace concepts {
+        template<class T>
+        static constexpr bool is_partition_index = false;
+        template<std::size_t I>
+        constexpr bool is_partition_index<index_t<I>> = true;
+
+        template<class T>
+        concept partition_index = is_partition_index<T>;
+    }
+
     template<std::size_t I>
     struct maximum {
         static constexpr auto values = []<std::size_t... Is>(std::index_sequence<Is...>) {
@@ -3722,16 +3730,23 @@ namespace iter {
     };
 }
 
-ITER_ALIAS(partition, partition_<>)
-
-template<size_t N, iter::assert_iterable I, class F>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iterable, F&& func) {
-    return iter::partition_<N>(iter::to_iter(FWD(iterable)), FWD(func));
+template<iter::assert_iterable I, class F>
+constexpr decltype(auto) ITER_IMPL(partition) (I&& iterable, F&& func) {
+    return iter::partition(iter::to_iter(FWD(iterable)), FWD(func));
 }
 
-template<size_t N, iter::iter I, class F>
-requires (N > 1)
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>) (I&& iter, F&& func) {
+template<iter::iter I, class F>
+constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
+    using index_t = std::invoke_result_t<F, iter::consume_t<I>>;
+    constexpr std::size_t N = []{
+        if constexpr (std::is_same_v<bool, index_t>)
+            return 2;
+        else {
+            static_assert(iter::concepts::partition_index<index_t>);
+            return 1 + index_t{}.value();
+        }
+    }();
+    static_assert(N > 1, "Must partition at least 2 ways");
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
@@ -3742,12 +3757,9 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_partition, iter::tag::partition_<N>)
     while (auto val = iter::detail::impl::next(iter)) {
         auto slot = std::invoke(FWD(func), iter::as_const(*val));
         std::size_t index;
-        if constexpr (std::is_same_v<bool, decltype(slot)>) {
-            static_assert(N == 2, "Boolean predicate function only permitted with iter::partition<2>.");
+        if constexpr (std::is_same_v<bool, index_t>) {
             index = slot ? 0 : 1;
         } else {
-            static_assert(std::is_same_v<iter::index_t<N-1>, decltype(slot)>,
-                "Function called in iter::partition<N> must return iter::index_t<N-1>.");
             index = slot.value();
         }
 
@@ -4059,7 +4071,7 @@ ITER_X(to_vector)
 ITER_X(to_map)
 // Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
 ITER_X(to_string)
-// Invoke iter::partition (aka iter::partition_<>) on this iter
+// Invoke iter::partition on this iter
 ITER_X(partition)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter
 ITER_X(unzip)
@@ -4090,8 +4102,6 @@ ITER_X(chunks_, (std::size_t N = 0), (N))
 ITER_X(window, (std::size_t N = 2), (N))
 // Invoke iter::collect on this iter
 ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
-// Invoke iter::partition_ on this iter
-ITER_X(partition_, (std::size_t N = 2), (N))
 // Invoke iter::unzip_ on this iter
 ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
 // Invoke iter::sorted_ on this iter

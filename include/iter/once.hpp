@@ -17,7 +17,7 @@ namespace iter {
             return (self.value);
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(self.on ? (self.on = false, std::addressof(self.value)) : nullptr);
+            return item_from_pointer(std::exchange(self.on, false) ? std::addressof(self.value) : nullptr);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};

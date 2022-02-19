@@ -100,6 +100,7 @@ add_executable(iter_test
   test/max.cpp
   test/min.cpp
   test/move.cpp
+  test/partition.cpp
   test/range.cpp
   test/reverse.cpp
   test/split.cpp

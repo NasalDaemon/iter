@@ -10,8 +10,6 @@ ITER_X(chunks_, (std::size_t N = 0), (N))
 ITER_X(window, (std::size_t N = 2), (N))
 // Invoke iter::collect on this iter
 ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
-// Invoke iter::partition_ on this iter
-ITER_X(partition_, (std::size_t N = 2), (N))
 // Invoke iter::unzip_ on this iter
 ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
 // Invoke iter::sorted_ on this iter

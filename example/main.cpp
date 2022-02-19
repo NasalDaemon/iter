@@ -166,7 +166,7 @@ int main() {
     range{0, 10}
         | inspect | [](int i) {
             std::cout << "entering flatmap: " << i << "\n"; }
-        | flatmap | [&s](int i) -> boxed<item<int&>> {
+        | flatmap | [&s](int i) -> boxed<int&> {
             if (i % 2 == 0)
                 return empty<int> | box | s;
             else

@@ -86,7 +86,7 @@ ITER_X(to_vector)
 ITER_X(to_map)
 // Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
 ITER_X(to_string)
-// Invoke iter::partition (aka iter::partition_<>) on this iter
+// Invoke iter::partition on this iter
 ITER_X(partition)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter
 ITER_X(unzip)

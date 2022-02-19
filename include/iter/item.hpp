@@ -7,6 +7,7 @@ static constexpr struct noitem_t {} noitem;
 
 template<class T>
 struct item {
+    using wrapped_type = T;
     using value_type = T;
     using reference = T&;
     using pointer = T*;
@@ -156,6 +157,7 @@ auto* addressof(auto&& ref) { return std::addressof(ref); }
 template<class T>
 requires std::is_reference_v<T>
 struct item<T> {
+    using wrapped_type = T;
     using value_type = std::remove_reference_t<T>;
     using reference = T;
     using pointer = value_type*;

@@ -148,6 +148,7 @@ namespace iter {
     struct iterator_traits {
         using next_t = iter::next_t<I>;
         using iter_t = I;
+        using wrapped_type = typename next_t::wrapped_type;
         using value_type = typename next_t::value_type;
         using reference = typename next_t::reference;
         using pointer = typename next_t::pointer;
@@ -274,6 +275,8 @@ namespace iter {
 
     template<class T>
     using value_t = typename detail::iter_traits<T>::value_t;
+    template<iter I>
+    using item_t = typename next_t<I>::wrapped_type;
     template<class T>
     using ref_t = typename detail::iter_traits<T>::ref_t;
     template<class T>
