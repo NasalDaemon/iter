@@ -517,9 +517,10 @@ namespace xtd::detail {
 
 #endif /* EXTEND_INCLUDE_EXTEND_HPP */
 
+#include <compare>
+#include <limits>
 #include <optional>
 #include <memory>
-#include <limits>
 
 #ifndef INCLUDE_ITER_EMPLACE_NEW_HPP
 #define INCLUDE_ITER_EMPLACE_NEW_HPP
@@ -3901,7 +3902,7 @@ constexpr bool operator==(I1 i1, I2 i2) {
 }
 
 template<iter::iter I1, iter::iter I2>
-constexpr auto operator<=>(I1 i1, I2 i2) {
+constexpr std::compare_three_way_result_t<iter::ref_t<I1>, iter::ref_t<I2>> operator<=>(I1 i1, I2 i2) {
     auto item1 = iter::no_next<I1>();
     auto item2 = iter::no_next<I2>();
 

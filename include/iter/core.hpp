@@ -5,9 +5,10 @@
 
 #include "extend.hpp"
 
+#include <compare>
+#include <limits>
 #include <optional>
 #include <memory>
-#include <limits>
 
 #include "iter/emplace_new.hpp"
 #include "iter/item.hpp"
