@@ -13,7 +13,7 @@ namespace iter::detail {
         using this_t = flatmap_iter;
         using invoke_result = std::invoke_result_t<F, consume_t<I>>;
         static_assert(!concepts::iter_of_optional<invoke_result>,
-            "Do not return iter::optional in iter::flatmap, instead return std::optional in iter::filter_map.");
+            "Do not return iter::optional in iter::flatmap, instead return iter::item (preferrably in iter::filter_map).");
         using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
         using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
 

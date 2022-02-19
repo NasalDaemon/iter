@@ -51,7 +51,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     }
     while (auto val = iter::detail::impl::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (get<Is>(containers).emplace_back(std::move(get<Is>(*val))), ...);
+            (get<Is>(containers).push_back(get<Is>(iter::detail::consume(val))), ...);
         }(std::make_index_sequence<traits::size>{});
     }
     return containers;
@@ -71,7 +71,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, st
 
     while (auto val = iter::detail::impl::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (get<Is>(containers).emplace_back(std::move(get<Is>(*val))), ...);
+            (get<Is>(containers).push_back(get<Is>(iter::detail::consume(val))), ...);
         }(std::make_index_sequence<traits::size>{});
     }
 
