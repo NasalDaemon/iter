@@ -144,7 +144,7 @@ void bench_iter_enumerate_with(benchmark::State& state)
 
     for (auto s : state) {
         auto sum = a
-            | iter::enumerate_with | [](float f, int i) {
+            | iter::enumerate_map | [](float f, int i) {
                 return f + i; }
             | iter::sum();
         benchmark::DoNotOptimize(sum > 10);

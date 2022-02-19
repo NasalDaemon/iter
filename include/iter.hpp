@@ -26,9 +26,9 @@
 #include "iter/flatmap.hpp"
 #include "iter/flatten.hpp"
 #include "iter/zip.hpp"
-#include "iter/zip_with.hpp"
+#include "iter/zip_map.hpp"
 #include "iter/enumerate.hpp"
-#include "iter/enumerate_with.hpp"
+#include "iter/enumerate_map.hpp"
 #include "iter/cycle.hpp"
 #include "iter/reverse.hpp"
 

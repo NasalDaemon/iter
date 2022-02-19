@@ -26,12 +26,12 @@ ITER_X(map)
 ITER_X(map_while)
 // Invoke iter::zip on this iter
 ITER_X(zip)
-// Invoke iter::zip_with on this iter
-ITER_X(zip_with)
+// Invoke iter::zip_map on this iter
+ITER_X(zip_map)
 // Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
 ITER_X(enumerate)
-// Invoke iter::enumerate_with (aka iter::enumerate_with_<>) on this iter
-ITER_X(enumerate_with)
+// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
+ITER_X(enumerate_map)
 // Invoke iter::reverse on this iter
 ITER_X(reverse)
 // Invoke iter::chain on this iter

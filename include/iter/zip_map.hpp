@@ -1,15 +1,15 @@
-#ifndef INCLUDE_ITER_ZIP_WITH_HPP
-#define INCLUDE_ITER_ZIP_WITH_HPP
+#ifndef INCLUDE_ITER_ZIP_MAP_HPP
+#define INCLUDE_ITER_ZIP_MAP_HPP
 
 #include "iter/core.hpp"
 
-ITER_DECLARE(zip_with)
+ITER_DECLARE(zip_map)
 
 namespace iter::detail {
     template<class F, assert_iter... I>
     requires (sizeof...(I) > 1) && std::invocable<F, consume_t<I>...>
-    struct [[nodiscard]] zip_with_iter : enable_random_access<zip_with_iter<F, I...>, I...> {
-        using this_t = zip_with_iter;
+    struct [[nodiscard]] zip_map_iter : enable_random_access<zip_map_iter<F, I...>, I...> {
+        using this_t = zip_map_iter;
 
         [[no_unique_address]] F func;
         [[no_unique_address]] tuple<I...> i;
@@ -36,19 +36,19 @@ namespace iter::detail {
     };
 
     template<assert_iterable... Is, class F>
-    constexpr decltype(auto) make_zip_with_iter(Is&&... iterables, F&& func)
+    constexpr decltype(auto) make_zip_map_iter(Is&&... iterables, F&& func)
     {
-        return zip_with_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
+        return zip_map_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
             .func{FWD(func)}, .i{to_iter(FWD(iterables))...}};
     }
 }
 
 // First args are iterables, last arg is function
 template<class... Ts>
-constexpr auto ITER_IMPL(zip_with) (Ts&&... args) {
+constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
     auto zip = [&]<std::size_t... I>(std::index_sequence<I...>) {
         // TODO: Avoid std::tuple_element_t
-        return iter::detail::make_zip_with_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
+        return iter::detail::make_zip_map_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
     }(std::make_index_sequence<sizeof...(Ts) - 1>{});
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
@@ -58,4 +58,4 @@ constexpr auto ITER_IMPL(zip_with) (Ts&&... args) {
     return zip;
 }
 
-#endif /* INCLUDE_ITER_ZIP_WITH_HPP */
+#endif /* INCLUDE_ITER_ZIP_MAP_HPP */

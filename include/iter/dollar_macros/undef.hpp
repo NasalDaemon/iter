@@ -20,9 +20,9 @@
 #undef $map
 #undef $map_while
 #undef $zip
-#undef $zip_with
+#undef $zip_map
 #undef $enumerate
-#undef $enumerate_with
+#undef $enumerate_map
 #undef $reverse
 #undef $chain
 #undef $chunks
@@ -55,7 +55,7 @@
 #undef $unzip
 #undef $sorted
 #undef $enumerate_
-#undef $enumerate_with_
+#undef $enumerate_map_
 #undef $chunks_
 #undef $window
 #undef $collect

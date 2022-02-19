@@ -70,7 +70,7 @@ void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vec
 ```
 ##### Functionality and nomenclature similar by existing functional iterator libraries in other languages, such as rust, python, scala.
 
-`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`zip_with`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`,`split`
+`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`enumerate_map`,`zip`,`zip_map`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`,`split`
 
 ```c++
 float weighted_sum(std::vector<float> const& a) {

@@ -106,7 +106,7 @@ add_executable(iter_test
   test/sum.cpp
   test/window.cpp
   test/wrap.cpp
-  test/zip_with.cpp
+  test/zip_map.cpp
   )
 
 target_link_libraries(iter_test

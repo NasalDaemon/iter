@@ -2405,16 +2405,16 @@ constexpr auto ITER_IMPL(zip) (I&& zip_iter, Is&&... iterables) {
 
 #endif /* INCLUDE_ITER_ZIP_HPP */
 
-#ifndef INCLUDE_ITER_ZIP_WITH_HPP
-#define INCLUDE_ITER_ZIP_WITH_HPP
+#ifndef INCLUDE_ITER_ZIP_MAP_HPP
+#define INCLUDE_ITER_ZIP_MAP_HPP
 
-ITER_DECLARE(zip_with)
+ITER_DECLARE(zip_map)
 
 namespace iter::detail {
     template<class F, assert_iter... I>
     requires (sizeof...(I) > 1) && std::invocable<F, consume_t<I>...>
-    struct [[nodiscard]] zip_with_iter : enable_random_access<zip_with_iter<F, I...>, I...> {
-        using this_t = zip_with_iter;
+    struct [[nodiscard]] zip_map_iter : enable_random_access<zip_map_iter<F, I...>, I...> {
+        using this_t = zip_map_iter;
 
         [[no_unique_address]] F func;
         [[no_unique_address]] tuple<I...> i;
@@ -2441,19 +2441,19 @@ namespace iter::detail {
     };
 
     template<assert_iterable... Is, class F>
-    constexpr decltype(auto) make_zip_with_iter(Is&&... iterables, F&& func)
+    constexpr decltype(auto) make_zip_map_iter(Is&&... iterables, F&& func)
     {
-        return zip_with_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
+        return zip_map_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
             .func{FWD(func)}, .i{to_iter(FWD(iterables))...}};
     }
 }
 
 // First args are iterables, last arg is function
 template<class... Ts>
-constexpr auto ITER_IMPL(zip_with) (Ts&&... args) {
+constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
     auto zip = [&]<std::size_t... I>(std::index_sequence<I...>) {
         // TODO: Avoid std::tuple_element_t
-        return iter::detail::make_zip_with_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
+        return iter::detail::make_zip_map_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
     }(std::make_index_sequence<sizeof...(Ts) - 1>{});
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
@@ -2463,7 +2463,7 @@ constexpr auto ITER_IMPL(zip_with) (Ts&&... args) {
     return zip;
 }
 
-#endif /* INCLUDE_ITER_ZIP_WITH_HPP */
+#endif /* INCLUDE_ITER_ZIP_MAP_HPP */
 
 #ifndef INCLUDE_ITER_ENUMERATE_HPP
 #define INCLUDE_ITER_ENUMERATE_HPP
@@ -2489,29 +2489,29 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::tag::enumerate_<T>)
 
 #endif /* INCLUDE_ITER_ENUMERATE_HPP */
 
-#ifndef INCLUDE_ITER_ENUMERATE_WITH_HPP
-#define INCLUDE_ITER_ENUMERATE_WITH_HPP
+#ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
+#define INCLUDE_ITER_ENUMERATE_MAP_HPP
 
-XTD_INVOKER(iter_enumerate_with)
+XTD_INVOKER(iter_enumerate_map)
 
 namespace iter {
     namespace tag {
         template<class T = std::size_t>
-        struct enumerate_with_ : xtd::tagged_bindable<enumerate_with_<T>, xtd::invokers::iter_enumerate_with> {};
+        struct enumerate_map_ : xtd::tagged_bindable<enumerate_map_<T>, xtd::invokers::iter_enumerate_map> {};
     }
 
     template<class T = std::size_t>
-    static constexpr tag::enumerate_with_<T> enumerate_with_;
+    static constexpr tag::enumerate_map_<T> enumerate_map_;
 }
 
-ITER_ALIAS(enumerate_with, enumerate_with_<>)
+ITER_ALIAS(enumerate_map, enumerate_map_<>)
 
 template<class T, iter::assert_iterable I, class F>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate_with, iter::tag::enumerate_with_<T>) (I&& iterable, F&& func) {
-    return iter::zip_with(FWD(iterable), iter::indices_<T>, FWD(func));
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate_map, iter::tag::enumerate_map_<T>) (I&& iterable, F&& func) {
+    return iter::zip_map(FWD(iterable), iter::indices_<T>, FWD(func));
 }
 
-#endif /* INCLUDE_ITER_ENUMERATE_WITH_HPP */
+#endif /* INCLUDE_ITER_ENUMERATE_MAP_HPP */
 
 #ifndef INCLUDE_ITER_CYCLE_HPP
 #define INCLUDE_ITER_CYCLE_HPP
@@ -3998,12 +3998,12 @@ ITER_X(map)
 ITER_X(map_while)
 // Invoke iter::zip on this iter
 ITER_X(zip)
-// Invoke iter::zip_with on this iter
-ITER_X(zip_with)
+// Invoke iter::zip_map on this iter
+ITER_X(zip_map)
 // Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
 ITER_X(enumerate)
-// Invoke iter::enumerate_with (aka iter::enumerate_with_<>) on this iter
-ITER_X(enumerate_with)
+// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
+ITER_X(enumerate_map)
 // Invoke iter::reverse on this iter
 ITER_X(reverse)
 // Invoke iter::chain on this iter
@@ -4081,8 +4081,8 @@ ITER_X(sorted)
 
 // Invoke iter::enumerate_ on this iter
 ITER_X(enumerate_, (class T = std::size_t), (T))
-// Invoke iter::enumerate_with_ on this iter
-ITER_X(enumerate_with_, (class T = std::size_t), (T))
+// Invoke iter::enumerate_map_ on this iter
+ITER_X(enumerate_map_, (class T = std::size_t), (T))
 // Invoke iter::chunks_ on this iter
 ITER_X(chunks_, (std::size_t N = 0), (N))
 // Invoke iter::window on this iter

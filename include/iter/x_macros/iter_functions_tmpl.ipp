@@ -2,8 +2,8 @@
 
 // Invoke iter::enumerate_ on this iter
 ITER_X(enumerate_, (class T = std::size_t), (T))
-// Invoke iter::enumerate_with_ on this iter
-ITER_X(enumerate_with_, (class T = std::size_t), (T))
+// Invoke iter::enumerate_map_ on this iter
+ITER_X(enumerate_map_, (class T = std::size_t), (T))
 // Invoke iter::chunks_ on this iter
 ITER_X(chunks_, (std::size_t N = 0), (N))
 // Invoke iter::window on this iter
