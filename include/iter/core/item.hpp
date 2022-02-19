@@ -166,7 +166,7 @@ struct item<T> {
     constexpr item(T&& ref) : ptr(std::addressof(ref)) {}
     constexpr explicit item(std::invocable auto&& f) : ptr(detail::addressof(std::invoke(FWD(f)))) {}
 
-    constexpr item() : ptr(nullptr) {}
+    item() = default;
     constexpr item(noitem_t) : item() {}
     constexpr item(std::nullptr_t) : item() {}
 
@@ -198,7 +198,7 @@ struct item<T> {
     constexpr void reset() { ptr = nullptr; }
 
 private:
-    pointer ptr;
+    pointer ptr = nullptr;
     template<class TT>
     friend constexpr item<TT&> item_from_pointer(TT*);
     constexpr explicit item(pointer p) : ptr(p) {}

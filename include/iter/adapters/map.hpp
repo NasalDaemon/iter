@@ -1,8 +1,8 @@
 #ifndef INCLUDE_ITER_MAP_HPP
 #define INCLUDE_ITER_MAP_HPP
 
-#include "iter/flatten.hpp"
-#include "iter/flatmap.hpp"
+#include "iter/adapters/flatten.hpp"
+#include "iter/adapters/flatmap.hpp"
 
 ITER_DECLARE(map)
 

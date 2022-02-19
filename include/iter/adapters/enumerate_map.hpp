@@ -1,8 +1,8 @@
 #ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
 #define INCLUDE_ITER_ENUMERATE_MAP_HPP
 
-#include "iter/zip_map.hpp"
-#include "iter/range.hpp"
+#include "iter/adapters/zip_map.hpp"
+#include "iter/iters/range.hpp"
 
 XTD_INVOKER(iter_enumerate_map)
 

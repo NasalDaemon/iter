@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_LAST_HPP
-#define INCLUDE_ITER_LAST_HPP
+#ifndef ITER_CONSUMERS_LAST_HPP
+#define ITER_CONSUMERS_LAST_HPP
 
 #include "iter/core.hpp"
 
@@ -77,4 +77,4 @@ constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     return result;
 }
 
-#endif /* INCLUDE_ITER_LAST_HPP */
+#endif /* ITER_CONSUMERS_LAST_HPP */

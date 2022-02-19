@@ -117,8 +117,8 @@ target_link_libraries(iter_test
 # Enable pre-compiled headers when cmake supports it
 if(${CMAKE_VERSION} VERSION_GREATER "3.16.0")
   target_precompile_headers(iter PUBLIC
-    include/iter/dollar_macros/define.hpp
-    include/iter.hpp
+    include/iter/macros/dollar/define.hpp
+    include/iter/wrap.hpp
     )
 
   target_precompile_headers(iter_example REUSE_FROM iter)

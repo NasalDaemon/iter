@@ -1,8 +1,8 @@
-#ifndef INCLUDE_ITER_ENUMERATE_HPP
-#define INCLUDE_ITER_ENUMERATE_HPP
+#ifndef ITER_ADAPTERS_ENUMERATE_HPP
+#define ITER_ADAPTERS_ENUMERATE_HPP
 
-#include "iter/zip.hpp"
-#include "iter/range.hpp"
+#include "iter/adapters/zip.hpp"
+#include "iter/iters/range.hpp"
 
 XTD_INVOKER(iter_enumerate)
 
@@ -23,4 +23,4 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::tag::enumerate_<T>)
     return iter::zip(FWD(iterable), iter::indices_<T>);
 }
 
-#endif /* INCLUDE_ITER_ENUMERATE_HPP */
+#endif /* ITER_ADAPTERS_ENUMERATE_HPP */

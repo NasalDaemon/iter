@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_TUPLE_HPP
-#define INCLUDE_ITER_TUPLE_HPP
+#ifndef ITER_CORE_TUPLE_HPP
+#define ITER_CORE_TUPLE_HPP
 
 #include <utility>
 
@@ -98,4 +98,4 @@ struct std::tuple_size<iter::tuple<Ts...>> {
     static constexpr std::size_t value = iter::tuple<Ts...>::size();
 };
 
-#endif /* INCLUDE_ITER_TUPLE_HPP */
+#endif /* ITER_CORE_TUPLE_HPP */

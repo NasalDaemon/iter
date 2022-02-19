@@ -1,8 +1,8 @@
 #ifndef INCLUDE_ITER_SPLIT_HPP
 #define INCLUDE_ITER_SPLIT_HPP
 
-#include "iter/take.hpp"
-#include "iter/map.hpp"
+#include "iter/adapters/take.hpp"
+#include "iter/adapters/map.hpp"
 
 ITER_DECLARE(split)
 

@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_MOVE_HPP
-#define INCLUDE_ITER_MOVE_HPP
+#ifndef ITER_ADAPTERS_MOVE_HPP
+#define ITER_ADAPTERS_MOVE_HPP
 
 #include "iter/core.hpp"
 
@@ -41,4 +41,4 @@ constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
         return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
 }
 
-#endif /* INCLUDE_ITER_MOVE_HPP */
+#endif /* ITER_ADAPTERS_MOVE_HPP */

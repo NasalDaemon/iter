@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_ALL_HPP
-#define INCLUDE_ITER_ALL_HPP
+#ifndef ITER_CONSUMERS_ALL_HPP
+#define ITER_CONSUMERS_ALL_HPP
 
 #include "iter/core.hpp"
 
@@ -17,4 +17,4 @@ constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
     return true;
 }
 
-#endif /* INCLUDE_ITER_ALL_HPP */
+#endif /* ITER_CONSUMERS_ALL_HPP */

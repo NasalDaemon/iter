@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_MAX_HPP
 #define INCLUDE_ITER_MAX_HPP
 
-#include "iter/min.hpp"
+#include "iter/consumers/min.hpp"
 
 ITER_DECLARE(max)
 ITER_DECLARE(max_by)

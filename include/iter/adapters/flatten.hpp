@@ -2,7 +2,7 @@
 #define INCLUDE_ITER_FLATTEN_HPP
 
 #include "iter/core.hpp"
-#include "iter/iter_wrapper.hpp"
+#include "iter/core/iter_wrapper.hpp"
 
 ITER_DECLARE(flatten)
 

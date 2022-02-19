@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_CHAIN_HPP
-#define INCLUDE_ITER_CHAIN_HPP
+#ifndef ITER_ADAPTERS_CHAIN_HPP
+#define ITER_ADAPTERS_CHAIN_HPP
 
 #include "iter/core.hpp"
 
@@ -69,4 +69,4 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     }
 }
 
-#endif /* INCLUDE_ITER_CHAIN_HPP */
+#endif /* ITER_ADAPTERS_CHAIN_HPP */

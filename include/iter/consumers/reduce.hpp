@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_REDUCE_HPP
 #define INCLUDE_ITER_REDUCE_HPP
 
-#include "iter/fold.hpp"
+#include "iter/consumers/fold.hpp"
 
 ITER_DECLARE(reduce)
 

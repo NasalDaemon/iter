@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_GENERATE_HPP
-#define INCLUDE_ITER_GENERATE_HPP
+#ifndef ITER_ITERS_GENERATE_HPP
+#define ITER_ITERS_GENERATE_HPP
 
 #include "iter/core.hpp"
 
@@ -17,4 +17,4 @@ namespace iter {
     generate(F) -> generate<F>;
 }
 
-#endif /* INCLUDE_ITER_GENERATE_HPP */
+#endif /* ITER_ITERS_GENERATE_HPP */

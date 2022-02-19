@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_PRODUCT_HPP
-#define INCLUDE_ITER_PRODUCT_HPP
+#ifndef ITER_CONSUMERS_PRODUCT_HPP
+#define ITER_CONSUMERS_PRODUCT_HPP
 
 #include "iter/core.hpp"
 
@@ -16,4 +16,4 @@ constexpr auto ITER_IMPL(product) (I&& iterable) {
     return product;
 }
 
-#endif /* INCLUDE_ITER_PRODUCT_HPP */
+#endif /* ITER_CONSUMERS_PRODUCT_HPP */

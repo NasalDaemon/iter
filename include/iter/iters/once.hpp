@@ -1,8 +1,8 @@
-#ifndef INCLUDE_ITER_ONCE_HPP
-#define INCLUDE_ITER_ONCE_HPP
+#ifndef ITER_ITERS_ONCE_HPP
+#define ITER_ITERS_ONCE_HPP
 
 #include "iter/core.hpp"
-#include "iter/repeat.hpp"
+#include "iter/iters/repeat.hpp"
 
 namespace iter {
     template<class T>
@@ -54,4 +54,4 @@ namespace iter {
     once_ref(F&) -> once_ref<F>;
 }
 
-#endif /* INCLUDE_ITER_ONCE_HPP */
+#endif /* ITER_ITERS_ONCE_HPP */

@@ -1,5 +1,5 @@
 #include "test.hpp"
-#include "iter/dollar_macros/define.hpp"
+#include "iter/macros/dollar/define.hpp"
 
 TEST(TestChunks, dynamic) {
     auto s = range{0, 10}

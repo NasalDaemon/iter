@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_TAKE_HPP
-#define INCLUDE_ITER_TAKE_HPP
+#ifndef ITER_ADAPTERS_TAKE_HPP
+#define ITER_ADAPTERS_TAKE_HPP
 
 #include "iter/core.hpp"
 
@@ -41,4 +41,4 @@ constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
     return iter::detail::take_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
 }
 
-#endif /* INCLUDE_ITER_TAKE_HPP */
+#endif /* ITER_ADAPTERS_TAKE_HPP */

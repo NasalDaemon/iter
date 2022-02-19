@@ -1,9 +1,8 @@
 #ifndef INCLUDE_ITER_CHUNKS_HPP
 #define INCLUDE_ITER_CHUNKS_HPP
 
-#include "iter/take.hpp"
-#include "iter/map.hpp"
-#include "iter/span.hpp"
+#include "iter/adapters/take.hpp"
+#include "iter/iters/span.hpp"
 
 XTD_INVOKER(iter_chunks)
 

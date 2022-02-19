@@ -2,7 +2,7 @@
 #define INCLUDE_ITER_FLATMAP_HPP
 
 #include "iter/core.hpp"
-#include "iter/iter_wrapper.hpp"
+#include "iter/core/iter_wrapper.hpp"
 
 ITER_DECLARE(flatmap)
 ITER_ALIAS(flat_map, flatmap)
@@ -48,7 +48,7 @@ constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
     return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#include "iter/filter_map.hpp"
+#include "iter/adapters/filter_map.hpp"
 
 // flatmap on iter::item is equivalent to the specially optimised filter_map
 template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>

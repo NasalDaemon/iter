@@ -54,7 +54,7 @@ namespace iter {
         constexpr decltype(auto) fun(Ts&&... args) && {\
             return detail::wrap_invoke(iter::fun, std::move(i), FWD(args)...);\
         }
-#include "iter/x_macros/iter_functions_simple.ipp"
+#include "iter/macros/x/iter_functions_simple.ipp"
 #undef ITER_X
 
 #define ITER_EXPAND(...) __VA_ARGS__
@@ -67,7 +67,7 @@ namespace iter {
         constexpr decltype(auto) fun(Ts&&... args) && {\
             return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
         }
-#include "iter/x_macros/iter_functions_tmpl.ipp"
+#include "iter/macros/x/iter_functions_tmpl.ipp"
 #undef ITER_EXPAND
 #undef ITER_X
     };

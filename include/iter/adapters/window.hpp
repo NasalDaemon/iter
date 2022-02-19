@@ -1,9 +1,9 @@
 #ifndef INCLUDE_ITER_WINDOW_HPP
 #define INCLUDE_ITER_WINDOW_HPP
 
-#include "iter/cycle.hpp"
-#include "iter/skip.hpp"
-#include "iter/take.hpp"
+#include "iter/adapters/cycle.hpp"
+#include "iter/adapters/skip.hpp"
+#include "iter/adapters/take.hpp"
 
 XTD_INVOKER(iter_window)
 

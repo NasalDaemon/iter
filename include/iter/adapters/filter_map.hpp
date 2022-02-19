@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_FILTER_MAP_HPP
-#define INCLUDE_ITER_FILTER_MAP_HPP
+#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
+#define ITER_ADAPTERS_FILTER_MAP_HPP
 
 #include "iter/core.hpp"
 
@@ -35,4 +35,4 @@ constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
     return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#endif /* INCLUDE_ITER_FILTER_MAP_HPP */
+#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */

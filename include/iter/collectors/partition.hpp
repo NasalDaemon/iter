@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_PARTITION_HPP
-#define INCLUDE_ITER_PARTITION_HPP
+#ifndef ITER_COLLECTORS_PARTITION_HPP
+#define ITER_COLLECTORS_PARTITION_HPP
 
 #include "iter/core.hpp"
 
@@ -83,4 +83,4 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
     return out;
 }
 
-#endif /* INCLUDE_ITER_PARTITION_HPP */
+#endif /* ITER_COLLECTORS_PARTITION_HPP */

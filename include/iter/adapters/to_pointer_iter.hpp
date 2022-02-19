@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_TO_POINTER_ITER_HPP
-#define INCLUDE_ITER_TO_POINTER_ITER_HPP
+#ifndef ITER_ITERS_TO_POINTER_ITER_HPP
+#define ITER_ITERS_TO_POINTER_ITER_HPP
 
 #include "iter/core.hpp"
 
@@ -51,4 +51,4 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     }
 }
 
-#endif /* INCLUDE_ITER_TO_POINTER_ITER_HPP */
+#endif /* ITER_ITERS_TO_POINTER_ITER_HPP */

@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_SUM_HPP
 #define INCLUDE_ITER_SUM_HPP
 
-#include "iter/reduce.hpp"
+#include "iter/consumers/reduce.hpp"
 
 ITER_DECLARE(sum)
 

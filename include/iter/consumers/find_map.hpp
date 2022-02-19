@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_FIND_MAP_HPP
 #define INCLUDE_ITER_FIND_MAP_HPP
 
-#include "iter/filter_map.hpp"
+#include "iter/adapters/filter_map.hpp"
 
 ITER_DECLARE(find_map)
 

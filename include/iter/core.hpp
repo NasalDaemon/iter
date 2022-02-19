@@ -10,9 +10,9 @@
 #include <optional>
 #include <memory>
 
-#include "iter/emplace_new.hpp"
-#include "iter/item.hpp"
-#include "iter/tuple.hpp"
+#include "iter/core/emplace_new.hpp"
+#include "iter/core/item.hpp"
+#include "iter/core/tuple.hpp"
 
 #ifndef ITER_GLOBAL_INVOKER
 #  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)

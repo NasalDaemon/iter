@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_FOLD_HPP
-#define INCLUDE_ITER_FOLD_HPP
+#ifndef ITER_COLLECTORS_FOLD_HPP
+#define ITER_COLLECTORS_FOLD_HPP
 
 #include "iter/core.hpp"
 
@@ -16,4 +16,4 @@ constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
     return acc;
 }
 
-#endif /* INCLUDE_ITER_FOLD_HPP */
+#endif /* ITER_COLLECTORS_FOLD_HPP */
