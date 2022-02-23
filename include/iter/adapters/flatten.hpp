@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_FLATTEN_HPP
 #define INCLUDE_ITER_FLATTEN_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 #include "iter/core/iter_wrapper.hpp"
 
 ITER_DECLARE(flatten)

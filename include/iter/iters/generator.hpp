@@ -1,7 +1,7 @@
 #if __cpp_impl_coroutine >= 201902L && !defined(INCLUDE_ITER_GENERATOR_HPP)
 #define INCLUDE_ITER_GENERATOR_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 #include <coroutine>
 

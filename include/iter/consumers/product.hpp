@@ -1,7 +1,7 @@
 #ifndef ITER_CONSUMERS_PRODUCT_HPP
 #define ITER_CONSUMERS_PRODUCT_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(product)
 

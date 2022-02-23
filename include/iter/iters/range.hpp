@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_RANGE_HPP
 #define INCLUDE_ITER_RANGE_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(until)
 ITER_ALIAS(til, until)

@@ -1,8 +1,8 @@
 #ifndef INCLUDE_ITER_TO_ITER_HPP
 #define INCLUDE_ITER_TO_ITER_HPP
 
-#include "iter/core.hpp"
-#include "iter/std_fwd.hpp"
+#include "iter/core/core.hpp"
+#include "iter/core/std_fwd.hpp"
 
 namespace iter::detail {
     template<class Container>

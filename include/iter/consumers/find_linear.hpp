@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_FIND_LINEAR_HPP
 #define INCLUDE_ITER_FIND_LINEAR_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(find_linear)
 

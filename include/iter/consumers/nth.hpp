@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_NTH_HPP
 #define INCLUDE_ITER_NTH_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(nth)
 

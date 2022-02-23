@@ -1,8 +1,8 @@
-#ifndef INCLUDE_ITER_COLLECT_HPP
-#define INCLUDE_ITER_COLLECT_HPP
+#ifndef ITER_COLLECTORS_COLLECT_HPP
+#define ITER_COLLECTORS_COLLECT_HPP
 
-#include "iter/core.hpp"
-#include "iter/std_fwd.hpp"
+#include "iter/core/core.hpp"
+#include "iter/core/std_fwd.hpp"
 
 XTD_INVOKER(iter_collect)
 
@@ -67,4 +67,4 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     return iter::collect<std::map, AT>(FWD(iter), std::less<K>{});
 }
 
-#endif /* INCLUDE_ITER_COLLECT_HPP */
+#endif /* ITER_COLLECTORS_COLLECT_HPP */

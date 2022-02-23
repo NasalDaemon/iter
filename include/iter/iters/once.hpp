@@ -1,7 +1,7 @@
 #ifndef ITER_ITERS_ONCE_HPP
 #define ITER_ITERS_ONCE_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 #include "iter/iters/repeat.hpp"
 
 namespace iter {

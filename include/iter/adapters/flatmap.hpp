@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_FLATMAP_HPP
 #define INCLUDE_ITER_FLATMAP_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 #include "iter/core/iter_wrapper.hpp"
 
 ITER_DECLARE(flatmap)

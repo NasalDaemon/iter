@@ -1,7 +1,7 @@
 #ifndef ITER_ITERS_TO_POINTER_ITER_HPP
 #define ITER_ITERS_TO_POINTER_ITER_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(to_pointer_iter)
 

@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_ITER_HPP
 #define INCLUDE_ITER_ITER_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 // Iters
 #include "iter/iters/to_iter.hpp"
@@ -65,6 +65,6 @@
 #include "iter/collectors/sorted.hpp"
 
 // Misc
-#include "iter/comparison.hpp"
+#include "iter/core/comparison.hpp"
 
 #endif /* INCLUDE_ITER_ITER_HPP */

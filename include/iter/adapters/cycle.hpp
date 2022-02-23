@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_CYCLE_HPP
 #define INCLUDE_ITER_CYCLE_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 namespace iter::detail {
     template<assert_iter I>

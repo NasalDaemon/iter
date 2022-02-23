@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_FOREACH_HPP
 #define INCLUDE_ITER_FOREACH_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(foreach)
 ITER_ALIAS(for_each, foreach)

@@ -1,8 +1,8 @@
 #ifndef INCLUDE_ITER_UNZIP_HPP
 #define INCLUDE_ITER_UNZIP_HPP
 
-#include "iter/core.hpp"
-#include "iter/std_fwd.hpp"
+#include "iter/core/core.hpp"
+#include "iter/core/std_fwd.hpp"
 
 XTD_INVOKER(iter_unzip)
 

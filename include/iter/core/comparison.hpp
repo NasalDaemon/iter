@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_COMPARISON_HPP
 #define INCLUDE_ITER_COMPARISON_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 template<iter::iter I1, iter::iter I2>
 constexpr bool operator==(I1 i1, I2 i2) {

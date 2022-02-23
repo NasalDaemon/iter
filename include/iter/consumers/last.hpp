@@ -1,7 +1,7 @@
 #ifndef ITER_CONSUMERS_LAST_HPP
 #define ITER_CONSUMERS_LAST_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(last)
 

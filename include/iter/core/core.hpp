@@ -1,9 +1,9 @@
 #ifndef INCLUDE_ITER_CORE_HPP
 #define INCLUDE_ITER_CORE_HPP
 
-#include "iter/version.hpp"
+#include "iter/core/version.hpp"
 
-#include "extend.hpp"
+#include "extend/extend.hpp"
 
 #include <compare>
 #include <limits>

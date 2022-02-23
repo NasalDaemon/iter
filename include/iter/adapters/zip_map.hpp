@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_ZIP_MAP_HPP
 #define INCLUDE_ITER_ZIP_MAP_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(zip_map)
 

@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_SPAN_HPP
 #define INCLUDE_ITER_SPAN_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 namespace iter {
     template<class T>

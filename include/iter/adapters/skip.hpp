@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_SKIP_HPP
 #define INCLUDE_ITER_SKIP_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(skip)
 

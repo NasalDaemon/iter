@@ -1,7 +1,7 @@
 #ifndef ITER_COLLECTORS_FOLD_HPP
 #define ITER_COLLECTORS_FOLD_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(fold)
 ITER_ALIAS(fold_left, fold)

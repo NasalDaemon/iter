@@ -1,7 +1,7 @@
 #ifndef ITER_ITERS_GENERATE_HPP
 #define ITER_ITERS_GENERATE_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 namespace iter {
     template<std::invocable<> F>

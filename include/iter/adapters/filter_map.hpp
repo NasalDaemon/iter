@@ -1,7 +1,7 @@
 #ifndef ITER_ADAPTERS_FILTER_MAP_HPP
 #define ITER_ADAPTERS_FILTER_MAP_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(filter_map)
 

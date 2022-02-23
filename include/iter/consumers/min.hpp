@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_MIN_HPP
 #define INCLUDE_ITER_MIN_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 ITER_DECLARE(min)
 ITER_DECLARE(min_by)

@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_ENABLE_RANGES_HPP
 #define INCLUDE_ITER_ENABLE_RANGES_HPP
 
-#include "iter/core.hpp"
+#include "iter/core/core.hpp"
 
 #include <ranges>
 
