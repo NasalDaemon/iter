@@ -3943,7 +3943,7 @@ namespace iter {
     template<iterable I>
     struct [[nodiscard]] wrap : wrap<iter_t<I>> {
         template<class II>
-        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
+        constexpr wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
     };
 
     namespace detail {
