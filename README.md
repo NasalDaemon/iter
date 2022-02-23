@@ -20,7 +20,7 @@ Small, single header, feature-rich, functional C++20 iterator library that aims 
 ## Getting started
 
 ### Single header
-1. Copy [singleheader/iter/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter/iter.hpp) into your include directory
+1. Copy [singleheader/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter.hpp) into your include directory
 1. Enable C++20
 1. `#include "iter/iter.hpp"`
 ### Full
