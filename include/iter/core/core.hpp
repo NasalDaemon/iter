@@ -7,8 +7,8 @@
 
 #include <compare>
 #include <limits>
-#include <optional>
 #include <memory>
+#include <utility>
 
 #include "iter/core/emplace_new.hpp"
 #include "iter/core/item.hpp"

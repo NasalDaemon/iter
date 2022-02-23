@@ -1,8 +1,6 @@
 #ifndef ITER_CORE_TUPLE_HPP
 #define ITER_CORE_TUPLE_HPP
 
-#include <utility>
-
 /**
  * iter::tuple is a tuple that can only be initialized by aggregate,
  * making this class much more efficient for constructing tuple

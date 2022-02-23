@@ -519,8 +519,8 @@ namespace xtd::detail {
 
 #include <compare>
 #include <limits>
-#include <optional>
 #include <memory>
+#include <utility>
 
 #ifndef INCLUDE_ITER_EMPLACE_NEW_HPP
 #define INCLUDE_ITER_EMPLACE_NEW_HPP
@@ -830,8 +830,6 @@ namespace concepts {
 
 #ifndef ITER_CORE_TUPLE_HPP
 #define ITER_CORE_TUPLE_HPP
-
-#include <utility>
 
 /**
  * iter::tuple is a tuple that can only be initialized by aggregate,

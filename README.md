@@ -6,7 +6,7 @@ Small, single header, feature-rich, functional C++20 iterator library that aims 
 
 - [x] Single header
 - [x] Simple implementation (~3000 source lines all-in)
-- [x] Minimal std library dependencies: `<type_traits> <concepts> <functional> <optional> <limits> <memory>`
+- [x] Minimal std library dependencies: `<type_traits> <concepts> <functional> <limits> <memory> <utility>`
 - [x] `constexpr`/`consteval` friendly
 - [x] Interoperable with range-based for loops
 - [x] Zero-overhead
@@ -58,7 +58,7 @@ Since people like to write functional algorithms in many different styles, funct
 | <code>it &#124; iter::map &#124; mapper</code> | Binary call to `iter::map(it, mapper)` |
 | <code>it &#124; iter::sum &#124; _</code> | Unary call to `iter::sum(like)` |
 | `it $(iter::map) (mapper)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
-| `it $map (mapper)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/dollar_macros/define.hpp). |
+| `it $map (mapper)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/macros/dollar/define.hpp). |
 
 ```c++
 void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vector<float>& c) {
