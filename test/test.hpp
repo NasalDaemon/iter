@@ -2,7 +2,7 @@
 #define ITER_TEST_TEST_HPP
 
 #include "gtest/gtest.h"
-#include "iter.hpp"
+#include "iter/iter.hpp"
 
 /* Clang won't do NRVO with auto return type deduction due to a bug.
  * Where explicit return types don't make code too ugly, use them.

@@ -3,7 +3,7 @@
 TEST(TestWindow, twos) {
     auto it = range{0, 10} | iter::window<2>();
 
-                                      auto a = std::array{0, 1};
+                            auto a = std::array{0, 1};
     ASSERT_TRUE(*impl::next(it) == to_iter(a));
     ASSERT_TRUE(*impl::next(it) == to_iter(a = {1, 2}));
     ASSERT_TRUE(*impl::next(it) == to_iter(a = {2, 3}));
@@ -18,7 +18,7 @@ TEST(TestWindow, twos) {
 
 TEST(TestWindow, fives) {
     auto it = range{0, 10} | iter::window<5>();
-                                      auto a = std::array{0, 1, 2, 3, 4};
+                            auto a = std::array{0, 1, 2, 3, 4};
     ASSERT_TRUE(*impl::next(it) == to_iter(a));
     ASSERT_TRUE(*impl::next(it) == to_iter(a = {1, 2, 3, 4, 5}));
     ASSERT_TRUE(*impl::next(it) == to_iter(a = {2, 3, 4, 5, 6}));

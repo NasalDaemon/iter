@@ -1,5 +1,5 @@
 #include "benchmark/benchmark.h"
-#include "iter.hpp"
+#include "iter/iter.hpp"
 
 #ifndef __clang__
 #include <ranges>
@@ -20,7 +20,7 @@ void bench_iter_filtermap_mapfirst(benchmark::State& state)
         auto sum = a
             | iter::filter_map(_, [&](auto f) {
                 auto r = mapper(f);
-                return filterer(r) ? std::optional(r) : std::nullopt; })
+                return filterer(r) ? iter::item(r) : iter::noitem; })
             | iter::sum(_);
         benchmark::DoNotOptimize(sum > 10);
     }
@@ -49,7 +49,7 @@ void bench_iter_map_flatten(benchmark::State& state)
         auto sum = a
             | iter::map(_, [&](auto f) {
                 auto r = mapper(f);
-                return filterer(r) ? std::optional(r) : std::nullopt; })
+                return filterer(r) ? iter::item(r) : iter::noitem; })
             | iter::flatten(_)
             | iter::sum(_);
         benchmark::DoNotOptimize(sum > 10);
@@ -101,7 +101,7 @@ void bench_iter_filtermap_filterfirst(benchmark::State& state)
     for (auto s : state) {
         auto sum = a
             | iter::filter_map | [&](auto f) {
-                return filterer(f) ? std::optional(mapper(f)) : std::nullopt; }
+                return filterer(f) ? iter::item(mapper(f)) : iter::noitem; }
             | iter::sum(_);
         benchmark::DoNotOptimize(sum > 10);
     }

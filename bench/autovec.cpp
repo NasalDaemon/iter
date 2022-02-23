@@ -1,5 +1,6 @@
 #include "benchmark/benchmark.h"
-#include "iter.hpp"
+#include "iter/iter.hpp"
+#include "iter/wrap.hpp"
 #include "extend/dollar_macros/define.hpp"
 
 #include <numeric>
@@ -129,9 +130,23 @@ void bench_iter_enumerate(benchmark::State& state)
     for (auto s : state) {
         auto sum = a
             | iter::enumerate_<int>()
-            | iter::map | [](auto ai) {
-                auto& [a, i] = ai;
-                return a + i; }
+            | iter::map | [](auto fi) {
+                auto& [f, i] = fi;
+                return f + i; }
+            | iter::sum();
+        benchmark::DoNotOptimize(sum > 10);
+    }
+}
+
+void bench_iter_enumerate_with(benchmark::State& state)
+{
+    std::vector<float> a(1024);
+    std::iota(a.begin(), a.end(), 10);
+
+    for (auto s : state) {
+        auto sum = a
+            | iter::enumerate_map | [](float f, int i) {
+                return f + i; }
             | iter::sum();
         benchmark::DoNotOptimize(sum > 10);
     }
@@ -153,4 +168,5 @@ void bench_std_enumerate(benchmark::State& state)
 }
 
 BENCHMARK(bench_iter_enumerate);
+BENCHMARK(bench_iter_enumerate_with);
 BENCHMARK(bench_std_enumerate);

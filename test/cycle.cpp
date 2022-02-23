@@ -8,19 +8,19 @@ TEST(TestCycle, indices_take) {
     static_assert(concepts::random_access_iter<type>);
     static_assert(impl::size(c) == std::numeric_limits<std::size_t>::max());
     auto c1 = c;
-    ASSERT_EQ(c1 |nth| 0, 0);
-    ASSERT_EQ(c1 |nth| 1, 1);
-    ASSERT_EQ(c1 |nth| 2, 2);
-    ASSERT_EQ(c1 |nth| 3, 3);
-    ASSERT_EQ(c1 |nth| 4, 4);
-    ASSERT_EQ(c1 |nth| 5, 0);
-    ASSERT_EQ(c1 |nth| 6, 1);
-    ASSERT_EQ(c1 |nth| 7, 2);
-    ASSERT_EQ(c1 |nth| 8, 3);
-    ASSERT_EQ(c1 |nth| 9, 4);
-    ASSERT_EQ(c1 |nth| 10, 0);
-    for (int i = 0; i < 10; ++i) {
-        ASSERT_EQ(impl::next(c1), i % 5);
+    ASSERT_EQ(c1 |nth| 0, item(0ul));
+    ASSERT_EQ(c1 |nth| 1, item(1ul));
+    ASSERT_EQ(c1 |nth| 2, item(2ul));
+    ASSERT_EQ(c1 |nth| 3, item(3ul));
+    ASSERT_EQ(c1 |nth| 4, item(4ul));
+    ASSERT_EQ(c1 |nth| 5, item(0ul));
+    ASSERT_EQ(c1 |nth| 6, item(1ul));
+    ASSERT_EQ(c1 |nth| 7, item(2ul));
+    ASSERT_EQ(c1 |nth| 8, item(3ul));
+    ASSERT_EQ(c1 |nth| 9, item(4ul));
+    ASSERT_EQ(c1 |nth| 10, item(0ul));
+    for (std::size_t i = 0; i < 10; ++i) {
+        ASSERT_EQ(impl::next(c1), item(i % 5));
     }
 }
 
@@ -81,7 +81,7 @@ TEST(TestCycle, container) {
 TEST(TestCycle, rvo) {
     auto gen = generate {
         [i = 0]() mutable {
-            return MAKE_OPTIONAL(ctor_count(i++));
+            return MAKE_ITEM(ctor_count(i++));
         }
     };
     auto s = gen

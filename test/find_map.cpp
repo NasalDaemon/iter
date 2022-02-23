@@ -3,15 +3,15 @@
 TEST(TestFindMap, not_found_optional) {
     auto r = indices
         | take | 100
-        | find_map | [](auto) { return std::optional<int>(); };
-    ASSERT_EQ(std::nullopt, r);
+        | find_map | [](auto) { return item<int>(); };
+    ASSERT_EQ(noitem, r);
 }
 
 TEST(TestFindMap, not_found_pointer) {
     auto r = indices
         | take | 100
-        | find_map | [](auto) { return (int*)nullptr; };
-    ASSERT_EQ(std::nullopt, r);
+        | find_map | [](auto) { return item<int&>(); };
+    ASSERT_EQ(noitem, r);
 }
 
 TEST(TestFindMap, find_first_optional) {
@@ -21,7 +21,7 @@ TEST(TestFindMap, find_first_optional) {
         | inspect | [&](auto&) {
             ++iterated; }
         | find_map | [](auto const& i) {
-            return i.value == 21 ? std::make_optional(i) : std::nullopt; };
+            return i.value == 21 ? item(i) : noitem; };
 
     ASSERT_EQ(iterated, 22);
     ASSERT_TRUE(r.has_value());
@@ -41,9 +41,10 @@ TEST(TestFindMap, find_first_pointer) {
             ASSERT_EQ(i.copies, 0);
             ++iterated; }
         | find_map | [c = std::aligned_storage_t<sizeof(ctor_count<int>)>{}](auto const& i) mutable {
-            return i.value == 99
-                ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
-                : nullptr; };
+            return item_from_pointer(
+                i.value == 99
+                    ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
+                    : nullptr); };
 
     ASSERT_EQ(iterated, 79);
     ASSERT_TRUE(r.has_value());
@@ -64,10 +65,11 @@ TEST(TestFindMap, find_first_pointer_move) {
             ASSERT_EQ(i.copies, 0);
             ++iterated; }
         | find_map | [c = std::aligned_storage_t<sizeof(ctor_count<int>)>{}](auto const& i) mutable {
-            return move_next {
-                i.value == 99
-                    ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
-                    : nullptr}; };
+            return move_item {
+                item_from_pointer(
+                    i.value == 99
+                        ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
+                        : nullptr) }; };
 
     ASSERT_EQ(iterated, 79);
     ASSERT_TRUE(r.has_value());

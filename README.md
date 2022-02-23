@@ -1,33 +1,33 @@
 # iter (alpha)
 Functional C++20 iterator library.
-[Godbolt demo](https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:38,endLineNumber:1,positionColumn:38,positionLineNumber:1,selectionStartColumn:38,selectionStartLineNumber:1,startColumn:38,startLineNumber:1),source:'%23include+%22https://tinyurl.com/libiter%22%0A%0A%23include+%3Carray%3E%0A%0A//+Auto-vectorized+/+zero-overhead%0A//+Interop+with+std::array%0A//+Interop+with+range-based+for+loop%0A%0Avoid+multiply(std::array%3Cfloat,+64%3E+const%26+x,+std::array%3Cfloat,+64%3E+const%26+y,+std::array%3Cfloat,+64%3E%26+z)+%7B%0A++for+(auto+%5Ba,+b,+c%5D+:+iter::zip(x,+y,+z))+%7B%0A++++c+%3D+a+*+b%3B%0A++%7D%0A%7D%0A%0A//+Pipe+syntax%0A//+Still+auto-vectorized%0A%0Afloat+weighted_sum(std::array%3Cfloat,+64%3E+const%26+a)+%7B%0A++return+a%0A++++%7C+iter::enumerate_%3Cint%3E()%0A++++%7C+iter::map+%7C+%5B%5D(auto+ai)+%7B%0A++++++++auto%26+%5Ba,+i%5D+%3D+ai%3B%0A++++++++return+a+*+i%3B+%7D%0A++++%7C+iter::sum()%3B%0A%7D%0A%0Ausing+namespace+iter%3B%0Ausing+namespace+xtd::literals%3B%0A%0A//+Constexpr+friendly%0A%0Astatic+constexpr+int+sum_0_to_9+%3D+indices+%7C+take(_,+10)+%7C+sum()%3B%0Astatic_assert(sum_0_to_9+%3D%3D+45)%3B'),l:'5',n:'0',o:'C%2B%2B+source+%231',t:'0')),k:52.80187823291271,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((g:!((h:compiler,i:(compiler:g102,filters:(b:'0',binary:'1',commentOnly:'0',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-std%3Dc%2B%2B20+-Ofast',selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1,tree:'1'),l:'5',n:'0',o:'x86-64+gcc+10.2+(C%2B%2B,+Editor+%231,+Compiler+%231)',t:'0')),k:47.19812176708729,l:'4',m:50,n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:clang_trunk,filters:(b:'0',binary:'1',commentOnly:'0',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:2,lang:c%2B%2B,libs:!(),options:'-std%3Dc%2B%2B20+-Ofast',selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1,tree:'1'),l:'5',n:'0',o:'x86-64+clang+(trunk)+(C%2B%2B,+Editor+%231,+Compiler+%232)',t:'0')),l:'4',m:50,n:'0',o:'',s:0,t:'0')),k:47.19812176708729,l:'3',n:'0',o:'',t:'0')),l:'2',n:'0',o:'',t:'0')),version:4)
+[Compiler explorer demo](https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIAMwAHKSuADJ4DJgAcj4ARpjEINIADqgKhE4MHt6%2BAcGp6Y4C4ZExLPGJ0naYDplCBEzEBNk%2BfkG2mPZFDPWNBCXRcQlJtg1NLbntCmP9EYPlw5IAlLaoXsTI7Bzm/hHI3lgA1Cb%2Bbo3ETACeJ9gmGgCCO3sHmMenYsAkhAgsN3ePDyeDH2XiO5jMCAIBGSChAAHo4Y4GJd1rQAHRoFhw2h4WKEBLg/7/BGHe5eIgAWgAbjUiMQ8AAvTDoQ5ww5M4ioCmoGnEBCYJjoYlsgCSggSqGShwA7t9DtN0CAQOcrsLDmKCBKpbKCAhDhcjJgKbEmEoWfxiIdaKhJUSHlTUHgWSwvLRHMlaJcIAqlSrrqcqNamARSIcAGySG6HNAMabmMOHVShn3K4gXf1uQOoYOhiNRmNxswJy7JgiK1Ppk6ZoMh8OR/y3IvspbHADsVgeh0OFsOECY5NQxwArBYmKHYqHTEOACKHECHfGJEAMvDJCBJw4l5stkzt/5drvIN6zpiHABUh1iJw79y7u%2BnRNbD8BDxJylXrwUl0ETFUavqdC0Ic/aUjSDhfEyQovvcWbBjKmB4MAkLMgA%2BgoPjemWvppqqAY1rm9bYNGAiFgmfo7nunb6pgBDrAwwE4dcVF3q2bgLpqS6MD4CTBpgKEsEwUq7mxJgjqJ07UDW3ahhEBALgwWCqBRN4Hqp1G0cQ9FUOe8mKdebbPreB7CexwwgOhLAQEs16PoZaoAGJeMC3TRmIQFfj%2BqiHFSeCnouSrShcyRqh4saaqoySWlQ9KuJ6dr3NMwZ4EeBbhZF8lyRZKEaChRAoQAnMeplLoFgm7hY/kgBE%2BCbAo95og0ADWmAQFwGhLGiFlWTZDyJY4yAoaaShNN6PjZblqAFceJyzpIQ7Wf4FgcCstCcEOvB%2BBwWikKgnBuNY1jymsGyvDsPCkAQmjLSsjUgEOXBooEYatvlXCBIEZhcPlkhvVI%2BicJIG1XTtnC8LCGgXVdKxwLAMCICgqAsMkdAJOQlCYsj9CJMACjMDCCCoCGNBugksIQLEwN4swxCXJw52YmwggAPIMJ6wNYAJRjiFtvD4MQtJ4DSsI8yEqg1OSWznbJnTAzisQXDTHhYMDBD0iwdPLXwBg4wAangmDSkzySMBrMiCCIYjsH9/CCIoKjqCLuhcPohjGAdlj6LisKQCskrdMLFIKjNpiWNYZgaIcFJM1QpoEGDnQC84ECuBMfjO2EcxlBUegFBkAipznaR5wwAxZ8MzvVLUAi9OMnitHolfdDXsylEMiQVzMBcd30pdtxIKwKMdmx6KrmCS5rq0cOtpCbdtu0cKoT0UhGhzAMgR4QKrTmNS2ED7aHHuHLghAkMcZj%2BM7hweEjKOWmdSy8JdPNLDdSSBGiXD%2BOHgRcFwraBBoIcP98r/Q4IDUg6t/D%2BDRFA2BcD4FhhnsDeeYMQAQyfloaGcMIBIAxrfNGEA8FYxQAYIwuViDbz4HQDiZMKYiypo0Wm3BeAM0YAQFmbMRYc1dtzbafMBZC2BpgMWyAJam2lpPbacsFaXCVlsbaqs8Dq2YSsQMTBdb60NsbTa50bbCFEOIa2sg7ZqGBroMwLsjAoHdjYOW3srI7WSP7TggcyzBxseHSO0dY7xy6JkFwCku4hAUr3BY7dSC526EEyJmRQnZwrgnKuPRO511yAkvx1cZhxPLqMPoQTEpNGye3AeQ8rYXX5uPFaa0gYi3novMMy9JDRlIcAXsW8GA717PvKwh9j50jPhfUM19MYJAGWYB%2BkNn5VLAbwSB0D4ELNgYg2evAUG2DQZMzBpAYbwyIajCghDEYjMSFSZAyRkgoSpF9FCBhNTTBQqoCMVCSbEFoZTCIjDTasOZqzJhfDMCc2ALw3meB%2Ba1EESLYR4tNTiPFJI3g0jGFyJVmrDWqjtYKD1gbI2JtmFm30ZbCQ0g9EmIdttXQ/hLFuwPrYr28BfZOMyMLOEPoQ49IsLczA0xWRM1UL4xOfhk6BNSWnYJ6AimF0KJkaJRdugSvSQK5u%2BTElNyyZnPu3da45FFQUlu8x4klPWMPZ2o9KmgOniskGC8V4sAUKc7yX00Scu5XvGxoY%2BmnzOkMo5t8Bn%2BAmRg66oDwFzJgYshZSDamg3WegqGr9JDv0/t/X%2B/9AHANAf4Gpc9o2BpfqAswWbVk5rjaQXk6RnCSCAA%3D%3D)
 
 Small, single header, feature-rich, functional C++20 iterator library that aims to be simple, composable, and easily extensible. Much of the simplicity in the design is owed to the [extend library](https://github.com/NasalDaemon/extend).
 
 - [x] Single header
 - [x] Simple implementation (~3000 source lines all-in)
-- [x] Minimal std library dependencies: `<type_traits> <concepts> <functional> <optional> <limits> <memory>`
+- [x] Minimal std library dependencies: `<type_traits> <concepts> <functional> <limits> <memory> <utility>`
 - [x] `constexpr`/`consteval` friendly
 - [x] Interoperable with range-based for loops
 - [x] Zero-overhead
 - [x] Auto vectorisable
-- [x] Seemless interop with std::vector, std::array, std::optional
+- [x] Seemless interop with std::vector, std::array, std::string
 - [ ] Seemless interop with other std containers
 - [x] Predictible API: the function signatures align more-or-less with those of the [rust iterator library](https://doc.rust-lang.org/std/iter/trait.Iterator.html), which itself follows a pretty standard functional nomenclature.
 - [ ] Documentation (relies on previous experience with standard iterator libraries in other languages)
-- [ ] Full unit test coverage. Only ~50% coverage. Use at your own risk!
+- [ ] Full unit test coverage. Only ~70% coverage. Use at your own risk!
 
 ## Getting started
 
 ### Single header
-1. Copy [singleheader/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter.hpp) into your include directory
+1. Copy [singleheader/iter/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter/iter.hpp) into your include directory
 1. Enable C++20
-1. `#include "iter.hpp"`
+1. `#include "iter/iter.hpp"`
 ### Full
 1. `git clone https://github.com/NasalDaemon/iter.git --recurse-submodules`
-1. Add `iter/include/` and `iter/extern/extend/include/` to your include path
+1. Add `iter/include` and `iter/extern/extend/include` to your include path
 1. Enable C++20
-1. `#include "iter/zip.hpp"` (include whichever headers you need: each iter function is in its own header). `#include "iter.hpp"` to include all iter functions
+1. `#include "iter/adapters/zip.hpp"` (include whichever headers you need: each iter function is in its own header). `#include "iter/iter.hpp"` to include all iter functionality
 
 ## Compiler support
 
@@ -43,21 +43,22 @@ void multiply(std::vector<float> const& x, std::vector<float> const& y, std::vec
   }
 }
 ```
+All `iter`s can be used as a `std::ranges::view` with `#include "iter/enable_ranges.hpp`.
 ##### Supports UFCS-style syntax via the [extend](https://github.com/NasalDaemon/extend) library.
 
 Since people like to write functional algorithms in many different styles, functions in the `iter` namespace support a wide range of calling styles. In practice, you will use only a subset corresponding to your preferred style.
 
 |Calling style|Notes|
 |--|--|
-| `iter::fun(like, that, ...)` | Simple free function syntax|
-| `iter::wrap(like).fun(that)` | Wraps an `iterable` `like` to enable method style calls. If `iter::fun(that)` returns an `iter`, then it will also be wrapped. |
-| <code>like &#124; iter::fun()</code> | Unary call to `iter::fun(like)` |
-| <code>like &#124; iter::fun(_, that, ...)</code> | Calls `iter::fun(like, that, ...)` |
-| <code>that &#124; iter::fun(like, _, ...)</code> | Calls `iter::fun(like, that, ...)` |
-| <code>like &#124; iter::fun &#124; that</code> | Binary call to `iter::fun(like, that)` |
-| <code>like &#124; iter::fun &#124; _</code> | Unary call to `iter::fun(like)` |
-| `like $(iter::fun) (that, ...)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
-| `like $fun (that, ...)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/dollar_macros/define.hpp). |
+| `iter::map(it, mapper)` | Simple free function syntax|
+| `iter::wrap(it).map(mapper)` | Wraps an `iter::iterable` `it` to enable method style calls. Since `iter::map(it)` returns an `iter::iter`, it is also wrapped. |
+| <code>it &#124; iter::sum()</code> | Unary call to `iter::sum(it)` |
+| <code>it &#124; iter::map(_, mapper)</code> | Calls `iter::map(it, mapper)` |
+| <code>mapper &#124; iter::map(it, _)</code> | Calls `iter::map(it, mapper)` |
+| <code>it &#124; iter::map &#124; mapper</code> | Binary call to `iter::map(it, mapper)` |
+| <code>it &#124; iter::sum &#124; _</code> | Unary call to `iter::sum(like)` |
+| `it $(iter::map) (mapper)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
+| `it $map (mapper)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/macros/dollar/define.hpp). |
 
 ```c++
 void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vector<float>& c) {
@@ -70,7 +71,7 @@ void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vec
 ```
 ##### Functionality and nomenclature similar by existing functional iterator libraries in other languages, such as rust, python, scala.
 
-`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`zip`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`
+`foreach`,`map`,`flatmap`,`range`,`generator`,`compound`,`once`,`repeat`,`chain`,`enumerate`,`enumerate_map`,`zip`,`zip_map`,`unzip`,`fold`,`reduce`,`filter`,`take`,`take_while`,`skip`,`skip_while`,`inspect`,`collect`,`partition`,`sorted`,`last`,`min`,`max`,`find_linear`,`any`,`all`,`map_while`,`filter_map`,`chunks`,`window`,`split`
 
 ```c++
 float weighted_sum(std::vector<float> const& a) {
@@ -87,7 +88,7 @@ float weighted_sum(std::vector<float> const& a) {
 
 There are two fundamental concepts: `iter::iter` and `iter::iterable`.
 
-An `iter` is anything that can be passed as the only argument to `iter::detail::impl::next(...)`, which should return either `std::optional<T>` for an optional value or `T*` for an optional reference.
+An `iter` is anything that can be passed as the only argument to `iter::traits::next(...)`, which should return either `iter::item<T>` for an optional value or `iter::item<T&>` for an optional reference. `iter::item<T>` is analagous to `std::optional<T>` and `iter::item<T&>` is analogous to `T*`, but with the same interface as `iter::item<T>`.
 
 An `iterable` is anything that can be passed to `iter::to_iter(...)` and returns an `iter`. Anything that is an `iter` is also an `iterable` (since there is a default implementation of `iter::to_iter` for `iter` arguments which simply returns the argument back).
 
@@ -95,10 +96,10 @@ All adaptors and consumers operate on `iterable` or `iter`.
 
 Informally, an `iter` should be cheap to copy -- at least before any iteration has started. This is not enforced at compile-time due to the unstarted iteration caveat. For example:
 1. The `iter` for `std::vector` contains only a pointer to the source vector and the current position. This is always cheap to copy.
-1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `std::optional<std::vector<std::string>>` of the latest vector returned by the callable. The optional is only populated once iteration has started, making copying cheap until then.
+1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `iter::item<std::vector<std::string>>` of the latest vector returned by the callable. The item is only populated once iteration has started, making copying cheap until then.
 1. All `iter` adaptors with callables are to be as cheap to copy as their respective callables are. It is up to the user code to ensure that the callables are cheap to copy if the iter is expected to be copied around.
 
-To make any type an `iter`, you simply define the relevant `iter::detail::impl::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
+To make any type an `iter`, you simply define the relevant `iter::traits::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
 
 ```c++
 struct enumerate_until {
@@ -107,7 +108,7 @@ struct enumerate_until {
 
   using this_t = enumerate_until;
   constexpr auto ITER_IMPL_NEXT (this_t& self) {
-    return self.i < self.max ? std::optional(self.i++) : std::nullopt;
+    return self.i < self.max ? iter::item(self.i++) : iter::noitem;
   }
 };
 ```
@@ -125,6 +126,6 @@ constexpr auto ITER_IMPL(to_iter) (int max) {
 
 Not quite, and it doesn't aim to be. iter aims to do one thing, and one thing well: provide a simple functional interface to consume iterable things without adding run-time or compile-time overhead. It does this by avoiding the standard C++ iterator concept in favour of a simpler `iter::iter` concept. On the other hand, std::ranges builds on standard iterators while attempting to hide away their complexities, offering useful concepts and algorithms for existing standard containers and iterators. In other words, std::ranges offers a wider scope of functionality than iter. That wider scope necesarily comes at the cost of complexity, bloat and often poorer performance in the subset of things that iter does specialise in.
 
-The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::detail::impl::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
+The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::traits::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
 
 Anything that can use iter should use iter rather than std::ranges: iter has lower compile-time overhead and is also more likely to be better optimised by the compiler. However, anything that can't be represented with the simple `iter::iter` concept is out of scope for this library, and std::ranges deals with it perfectly well. `std::ranges::sort(container)` is simple enough!
