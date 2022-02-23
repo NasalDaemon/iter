@@ -55,7 +55,7 @@ namespace iter {
         return detail::get<I>(FWD(tuple));
     }
 
-    // Make a tuple with element types exactly the same as those returned from lazy_values
+    // Make a tuple with element types exactly the same as those returned from lazy_values()
     template<std::invocable... Fs>
     tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
         static_assert((!std::same_as<void, std::invoke_result_t<Fs>> && ...));

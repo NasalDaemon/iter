@@ -2,7 +2,7 @@
 
 cd "$(dirname "$0")"/../
 
-VERSION_FILE=include/iter/version.hpp
+VERSION_FILE=include/iter/core/version.hpp
 
 cat > $VERSION_FILE <<- EOM
 #ifndef ITER_LIBRARY_VERSION

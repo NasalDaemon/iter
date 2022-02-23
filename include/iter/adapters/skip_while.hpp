@@ -11,7 +11,7 @@ namespace iter::detail {
         using this_t = skip_while_iter;
 
         [[no_unique_address]] I i;
-        std::optional<P> pred;
+        item<P> pred;
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto next = no_next<I>();

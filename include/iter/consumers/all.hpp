@@ -8,7 +8,7 @@ ITER_DECLARE(all)
 template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         if (!FWD(predicate)(*val)) {
             return false;
         }

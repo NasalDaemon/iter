@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220219
+#  define ITER_LIBRARY_VERSION 20220223
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -885,7 +885,7 @@ namespace iter {
         return detail::get<I>(FWD(tuple));
     }
 
-    // Make a tuple with element types exactly the same as those returned from lazy_values
+    // Make a tuple with element types exactly the same as those returned from lazy_values()
     template<std::invocable... Fs>
     tuple<std::invoke_result_t<Fs>...> make_tuple_lazy(Fs&&... lazy_values) {
         static_assert((!std::same_as<void, std::invoke_result_t<Fs>> && ...));
@@ -987,29 +987,40 @@ ITER_INVOKER(get)
 ITER_INVOKER(size)
 
 namespace iter {
-    namespace detail::impl {
-        // basic iter customisation points
+    // customisation points
+    namespace traits {
         ITER_FUNCTION(next);
-        ITER_FUNCTION(next_back);
-        ITER_FUNCTION(get);
-        ITER_FUNCTION(size);
+        namespace double_ended {
+            ITER_FUNCTION(next_back);
+        }
+        namespace random_access {
+            ITER_FUNCTION(get);
+            ITER_FUNCTION(size);
+        }
+    }
+
+    // import and flatten all traits into detail::impl
+    namespace detail::impl {
+        using namespace iter::traits;
+        using namespace double_ended;
+        using namespace random_access;
     }
 
     namespace concepts {
         template<class T>
         concept iter = requires(T it) {
-            { iter::detail::impl::next(it) } -> item;
+            { iter::traits::next(it) } -> item;
         };
 
         template<class T>
         concept random_access_iter = iter<T> && requires (T it, std::size_t index) {
-            iter::detail::impl::get(it, index);
-            { iter::detail::impl::size(it) } -> std::same_as<std::size_t>;
+            iter::traits::random_access::get(it, index);
+            { iter::traits::random_access::size(it) } -> std::same_as<std::size_t>;
         };
 
         template<class T>
         concept double_ended_iter = iter<T> && requires (T it, std::size_t index) {
-            { iter::detail::impl::next_back(it) } -> std::same_as<decltype(iter::detail::impl::next(it))>;
+            { iter::traits::double_ended::next_back(it) } -> std::same_as<decltype(iter::traits::next(it))>;
         };
 
         template<class T>
@@ -1058,7 +1069,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(detail::impl::next(std::declval<iter_t<I>&>()));
+    using next_t = decltype(traits::next(std::declval<iter_t<I>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -1207,7 +1218,7 @@ namespace iter {
         template<class I>
         auto get_type() -> void;
         template<concepts::random_access_iter I>
-        auto get_type() -> decltype(iter::detail::impl::get(std::declval<I&>(), 0ul));
+        auto get_type() -> decltype(iter::traits::random_access::get(std::declval<I&>(), 0ul));
         template<class I>
         using get_t = decltype(get_type<I>());
 
@@ -1561,7 +1572,7 @@ namespace iter {
             return std::exchange(self, noitem);
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return detail::impl::next(self);
+            return traits::next(self);
         }
     };
 
@@ -1823,7 +1834,7 @@ namespace iter {
         // The outer function takes by universal reference to observe constness
         return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
             while (true)
-                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::detail::impl::next(it);)
+                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::traits::next(it);)
                     co_yield *next;
         }(FWD(make_iter), FWD(args)...);
     }
@@ -1832,7 +1843,7 @@ namespace iter {
     constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
         return [](auto make_iter) -> std::invoke_result_t<F> {
             while (true)
-                for (auto it = std::invoke(make_iter); auto next = iter::detail::impl::next(it);)
+                for (auto it = std::invoke(make_iter); auto next = iter::traits::next(it);)
                     co_yield *next;
         }(FWD(make_iter));
     }
@@ -2065,7 +2076,7 @@ namespace iter::detail {
         using this_t = skip_while_iter;
 
         [[no_unique_address]] I i;
-        std::optional<P> pred;
+        item<P> pred;
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto next = no_next<I>();
@@ -2396,7 +2407,7 @@ constexpr auto ITER_IMPL(zip) (I&&... iterables) {
     auto zip = iter::detail::zip_iter<iter::iter_t<I>...>{.i = {iter::to_iter(FWD(iterables))...}};
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
-            return std::min({iter::detail::impl::size(iters)...});
+            return std::min({iter::traits::random_access::size(iters)...});
         }, zip.i);
     }
     return zip;
@@ -2463,7 +2474,7 @@ constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
     }(std::make_index_sequence<sizeof...(Ts) - 1>{});
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
-            return std::min({iter::detail::impl::size(iters)...});
+            return std::min({iter::traits::random_access::size(iters)...});
         }, zip.i);
     }
     return zip;
@@ -2677,7 +2688,7 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     using chain_t = iter::detail::chain_iter<iter::iter_t<I1>, iter::iter_t<I2>>;
     if constexpr (chain_t::random_access) {
         auto chain = chain_t{.i1 = MAKE_ITEM(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
-        chain.size = iter::detail::impl::size(*chain.i1) + iter::detail::impl::size(chain.i2);
+        chain.size = iter::traits::random_access::size(*chain.i1) + iter::traits::random_access::size(chain.i2);
         return chain;
     } else {
         return chain_t{.i1 = MAKE_ITEM(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
@@ -3214,7 +3225,7 @@ ITER_ALIAS(for_each, foreach)
 template<iter::assert_iterable I, iter::concepts::inspector<iter::consume_t<I>> F>
 constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         func(iter::detail::consume(val));
     }
 }
@@ -3222,7 +3233,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 template<iter::assert_iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (iter::detail::impl::next(iter)) {}
+    while (iter::traits::next(iter)) {}
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */
@@ -3237,7 +3248,7 @@ template<iter::assert_iterable I, class T, std::invocable<const T&, iter::consum
 constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     auto acc = FWD(init);
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         acc = func(iter::as_const(acc), iter::detail::consume(val));
     }
     return acc;
@@ -3245,21 +3256,21 @@ constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
 
 #endif /* ITER_COLLECTORS_FOLD_HPP */
 
-#ifndef INCLUDE_ITER_REDUCE_HPP
-#define INCLUDE_ITER_REDUCE_HPP
+#ifndef ITER_CONSUMERS_REDUCE_HPP
+#define ITER_CONSUMERS_REDUCE_HPP
 
 ITER_DECLARE(reduce)
 
 template<iter::assert_iterable I, std::invocable<iter::ref_t<I>, iter::consume_t<I>> F>
-constexpr std::optional<iter::value_t<I>> ITER_IMPL(reduce) (I&& iterable, F&& func) {
+constexpr iter::item<iter::value_t<I>> ITER_IMPL(reduce) (I&& iterable, F&& func) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    auto acc = iter::detail::impl::next(iter);
+    auto acc = iter::traits::next(iter);
     return acc
-        ? MAKE_OPTIONAL(iter::fold(iter, iter::detail::consume(acc), FWD(func)))
-        : std::nullopt;
+        ? MAKE_ITEM(iter::fold(iter, iter::detail::consume(acc), FWD(func)))
+        : iter::noitem;
 }
 
-#endif /* INCLUDE_ITER_REDUCE_HPP */
+#endif /* ITER_CONSUMERS_REDUCE_HPP */
 
 #ifndef INCLUDE_ITER_SUM_HPP
 #define INCLUDE_ITER_SUM_HPP
@@ -3271,7 +3282,7 @@ requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(sum) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> sum = 0;
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         sum += *val;
     }
     return sum;
@@ -3289,7 +3300,7 @@ requires std::is_arithmetic_v<iter::value_t<I>>
 constexpr auto ITER_IMPL(product) (I&& iterable) {
     std::remove_const_t<iter::value_t<I>> product = 1;
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         product *= *val;
     }
     return product;
@@ -3305,19 +3316,19 @@ ITER_DECLARE(last)
 template<iter::concepts::random_access_iterable I>
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::detail::impl::size(iter);
-    using get_t = decltype(iter::detail::impl::get(iter, size - 1));
+    std::size_t size = iter::traits::random_access::size(iter);
+    using get_t = decltype(iter::traits::random_access::get(iter, size - 1));
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
-        return size > 0 ? MAKE_ITEM_AUTO(iter::detail::impl::get(iter, size - 1)) : iter::noitem;
+        return size > 0 ? MAKE_ITEM_AUTO(iter::traits::random_access::get(iter, size - 1)) : iter::noitem;
     else
-        return size > 0 ? MAKE_ITEM(iter::detail::impl::get(iter, size - 1)) : iter::noitem;
+        return size > 0 ? MAKE_ITEM(iter::traits::random_access::get(iter, size - 1)) : iter::noitem;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::detail::impl::size(iter);
-    return size > 0 ? iter::detail::impl::get(iter, size - 1) : FWD(fallback);
+    std::size_t size = iter::traits::random_access::size(iter);
+    return size > 0 ? iter::traits::random_access::get(iter, size - 1) : FWD(fallback);
 }
 
 template<iter::iterable I>
@@ -3340,7 +3351,7 @@ requires (!iter::concepts::owned_item<iter::next_t<I>>)
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     iter::item<iter::value_t<I>> result;
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         result.emplace(val.consume());
     }
     return result;
@@ -3368,7 +3379,7 @@ requires (!iter::concepts::owned_item<iter::next_t<I>>)
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     iter::value_t<I> result = FWD(fallback);
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         result = iter::detail::consume(val);
     }
     return result;
@@ -3384,19 +3395,19 @@ ITER_DECLARE(nth)
 template<iter::concepts::random_access_iterable I>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::detail::impl::size(iter);
-    using get_t = decltype(iter::detail::impl::get(iter, n));
+    std::size_t size = iter::traits::random_access::size(iter);
+    using get_t = decltype(iter::traits::random_access::get(iter, n));
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
-        return size > n ? MAKE_ITEM_AUTO(iter::detail::impl::get(iter, n)) : iter::noitem;
+        return size > n ? MAKE_ITEM_AUTO(iter::traits::random_access::get(iter, n)) : iter::noitem;
     else
-        return size > n ? MAKE_ITEM(iter::detail::impl::get(iter, n)) : iter::noitem;
+        return size > n ? MAKE_ITEM(iter::traits::random_access::get(iter, n)) : iter::noitem;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
 constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    std::size_t size = iter::detail::impl::size(iter);
-    return size > n ? iter::detail::impl::get(iter, n) : FWD(fallback);
+    std::size_t size = iter::traits::random_access::size(iter);
+    return size > n ? iter::traits::random_access::get(iter, n) : FWD(fallback);
 }
 
 template<iter::assert_iterable I>
@@ -3569,9 +3580,9 @@ template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
 constexpr auto ITER_IMPL(find_map) (I&& iterable, F&& func) {
     auto fm = iter::filter_map(FWD(iterable), FWD(func));
     if constexpr (iter::concepts::owned_item<iter::next_t<decltype(fm)>>)
-        return iter::detail::impl::next(fm);
+        return iter::traits::next(fm);
     else {
-        auto val = iter::detail::impl::next(fm);
+        auto val = iter::traits::next(fm);
         return val ? iter::item{val.consume()} : iter::noitem;
     }
 }
@@ -3586,7 +3597,7 @@ ITER_DECLARE(any)
 template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(any) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         if (FWD(predicate)(*val)) {
             return true;
         }
@@ -3605,7 +3616,7 @@ ITER_DECLARE(all)
 template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
 constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         if (!FWD(predicate)(*val)) {
             return false;
         }
@@ -3617,8 +3628,8 @@ constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
 #endif /* ITER_CONSUMERS_ALL_HPP */
 
 // Collectors
-#ifndef INCLUDE_ITER_COLLECT_HPP
-#define INCLUDE_ITER_COLLECT_HPP
+#ifndef ITER_COLLECTORS_COLLECT_HPP
+#define ITER_COLLECTORS_COLLECT_HPP
 
 XTD_INVOKER(iter_collect)
 
@@ -3641,9 +3652,9 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
-        container.reserve(iter::detail::impl::size(iter));
+        container.reserve(iter::traits::random_access::size(iter));
     }
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         container.push_back(iter::detail::consume(val));
     }
     return container;
@@ -3654,10 +3665,10 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
-        reserve = std::max(reserve, iter::detail::impl::size(iter));
+        reserve = std::max(reserve, iter::traits::random_access::size(iter));
     }
     container.reserve(reserve);
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         container.push_back(iter::detail::consume(val));
     }
     return container;
@@ -3670,7 +3681,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     using V = std::tuple_element_t<1, KV>;
     using A = AT<std::pair<K const, V>>;
     std::map<K, V, std::remove_cvref_t<Comp>, A> container(FWD(compare));
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         container.emplace(iter::detail::consume(val));
     }
     return container;
@@ -3683,7 +3694,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
     return iter::collect<std::map, AT>(FWD(iter), std::less<K>{});
 }
 
-#endif /* INCLUDE_ITER_COLLECT_HPP */
+#endif /* ITER_COLLECTORS_COLLECT_HPP */
 
 #ifndef ITER_COLLECTORS_PARTITION_HPP
 #define ITER_COLLECTORS_PARTITION_HPP
@@ -3692,42 +3703,40 @@ ITER_DECLARE(partition)
 
 namespace iter {
     template<std::size_t I>
-    struct index_t : index_t<I+1> {
+    struct part_t : part_t<I+1> {
         template<std::size_t J>
         requires (J < I)
-        constexpr index_t(index_t<J> j) : index_t<I+1>{j} {}
-        constexpr index_t() : index_t<I+1>{I} {}
+        constexpr part_t(part_t<J>) : part_t<I+1>{J} {}
+        constexpr part_t() : part_t<I+1>{I} {}
     protected:
-        constexpr index_t(size_t i) : index_t<I+1>{i} {}
+        constexpr part_t(size_t i) : part_t<I+1>{i} {}
     };
 
     template<>
-    struct index_t<6> {
+    struct part_t<6> {
         constexpr std::size_t value() const { return index; }
     protected:
-        constexpr index_t(size_t i) : index{i} {}
+        constexpr part_t(size_t i) : index{i} {}
         std::size_t const index;
     };
 
     template<std::size_t I>
-    static constexpr auto index = index_t<I>{};
+    static constexpr auto part = part_t<I>{};
 
     namespace concepts {
         template<class T>
         static constexpr bool is_partition_index = false;
         template<std::size_t I>
-        constexpr bool is_partition_index<index_t<I>> = true;
+        constexpr bool is_partition_index<part_t<I>> = true;
 
         template<class T>
         concept partition_index = is_partition_index<T>;
     }
 
     template<std::size_t I>
-    struct maximum {
-        static constexpr auto values = []<std::size_t... Is>(std::index_sequence<Is...>) {
-            return std::array<index_t<I>, I+1>{index_t<Is>{}...};
-        }(std::make_index_sequence<I+1>{});
-    };
+    static constexpr auto parts = []<std::size_t... Is>(std::index_sequence<Is...>) {
+        return std::array<part_t<I>, I+1>{part_t<Is>{}...};
+    }(std::make_index_sequence<I+1>{});
 }
 
 template<iter::assert_iterable I, class F>
@@ -3737,27 +3746,27 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iterable, F&& func) {
 
 template<iter::iter I, class F>
 constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
-    using index_t = std::invoke_result_t<F, iter::consume_t<I>>;
+    using part_t = std::invoke_result_t<F, iter::consume_t<I>>;
     constexpr std::size_t N = []{
-        if constexpr (std::is_same_v<bool, index_t>)
+        if constexpr (std::is_same_v<bool, part_t>)
             return 2;
         else {
-            static_assert(iter::concepts::partition_index<index_t>);
-            return 1 + index_t{}.value();
+            static_assert(iter::concepts::partition_index<part_t>);
+            return 1 + part_t{}.value();
         }
     }();
     static_assert(N > 1, "Must partition at least 2 ways");
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
-        std::size_t size = iter::detail::impl::size(iter) / N;
+        std::size_t size = iter::traits::random_access::size(iter) / N;
         apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         auto slot = std::invoke(FWD(func), iter::as_const(*val));
         std::size_t index;
-        if constexpr (std::is_same_v<bool, index_t>) {
+        if constexpr (std::is_same_v<bool, part_t>) {
             index = slot ? 0 : 1;
         } else {
             index = slot.value();
@@ -3814,11 +3823,11 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
     typename traits::type containers{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
-        apply([size = iter::detail::impl::size(iter)](auto&... c) {
+        apply([size = iter::traits::random_access::size(iter)](auto&... c) {
             (c.reserve(size), ...);
         }, containers);
     }
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (get<Is>(containers).push_back(get<Is>(iter::detail::consume(val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -3832,13 +3841,13 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, st
     typename traits::type containers{};
 
     if constexpr (iter::concepts::random_access_iter<I>)
-        reserve = std::max(reserve, iter::detail::impl::size(iter));
+        reserve = std::max(reserve, iter::traits::random_access::size(iter));
 
     apply([=](auto&... c) {
         (c.reserve(reserve), ...);
     }, containers);
 
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
             (get<Is>(containers).push_back(get<Is>(iter::detail::consume(val))), ...);
         }(std::make_index_sequence<traits::size>{});
@@ -3901,12 +3910,12 @@ constexpr bool operator==(I1 i1, I2 i2) {
 
 template<iter::concepts::random_access_iter I1, iter::concepts::random_access_iter I2>
 constexpr bool operator==(I1 i1, I2 i2) {
-    auto size = iter::detail::impl::size(i1);
-    if (size != iter::detail::impl::size(i2)) return false;
+    auto size = iter::traits::random_access::size(i1);
+    if (size != iter::traits::random_access::size(i2)) return false;
 
     for (std::size_t i = 0; i < size; ++i) {
-        decltype(auto) item1 = iter::detail::impl::get(i1, i);
-        decltype(auto) item2 = iter::detail::impl::get(i2, i);
+        decltype(auto) item1 = iter::traits::random_access::get(i1, i);
+        decltype(auto) item2 = iter::traits::random_access::get(i2, i);
         if (item1 != item2) return false;
     }
 
@@ -3927,5 +3936,198 @@ constexpr std::compare_three_way_result_t<iter::ref_t<I1>, iter::ref_t<I2>> oper
 }
 
 #endif /* INCLUDE_ITER_COMPARISON_HPP */
+
+// Must be included last
+#ifndef INCLUDE_ITER_WRAP_HPP
+#define INCLUDE_ITER_WRAP_HPP
+
+namespace iter {
+    template<iterable I>
+    struct [[nodiscard]] wrap : wrap<iter_t<I>> {
+        template<class II>
+        wrap(II&& iterable) : wrap<iter_t<I>>{to_iter(FWD(iterable))} {}
+    };
+
+    namespace detail {
+        template<xtd::concepts::Bindable Tag, class... Ts>
+        static constexpr decltype(auto) wrap_invoke(Tag const& tag, Ts&&... args) {
+            auto call = [&]() -> decltype(auto) { return tag(FWD(args)...); };
+            if constexpr (iter<decltype(call())>)
+                return wrap{call()};
+            else
+                return call();
+        }
+    }
+
+    template<iter I>
+    struct [[nodiscard]] wrap<I> {
+        [[no_unique_address]] I i;
+
+        using this_t = wrap;
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            return iter::traits::next(self.i);
+        }
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
+            requires concepts::double_ended_iter<I>
+        {
+            return iter::traits::double_ended::next_back(self.i);
+        }
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires concepts::random_access_iter<I>
+        {
+            return iter::traits::random_access::get(self.i, index);
+        }
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
+            requires concepts::random_access_iter<I>
+        {
+            return iter::traits::random_access::size(self.i);
+        }
+
+#define ITER_X(fun) \
+        template<class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return detail::wrap_invoke(iter::fun, i, FWD(args)...);\
+        }\
+        template<class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return detail::wrap_invoke(iter::fun, std::move(i), FWD(args)...);\
+        }
+/* Do not modify, generated by scripts/update_x_macros.sh */
+
+// Invoke iter::cycle on this iter
+ITER_X(cycle)
+// Invoke iter::filter on this iter
+ITER_X(filter)
+// Invoke iter::take on this iter
+ITER_X(take)
+// Invoke iter::take_while on this iter
+ITER_X(take_while)
+// Invoke iter::skip on this iter
+ITER_X(skip)
+// Invoke iter::skip_while on this iter
+ITER_X(skip_while)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
+// Invoke iter::flatmap on this iter
+ITER_X(flatmap)
+// Invoke iter::flat_map (aka iter::flatmap) on this iter
+ITER_X(flat_map)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::map on this iter
+ITER_X(map)
+// Invoke iter::map_while on this iter
+ITER_X(map_while)
+// Invoke iter::zip on this iter
+ITER_X(zip)
+// Invoke iter::zip_map on this iter
+ITER_X(zip_map)
+// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
+ITER_X(enumerate)
+// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
+ITER_X(enumerate_map)
+// Invoke iter::reverse on this iter
+ITER_X(reverse)
+// Invoke iter::chain on this iter
+ITER_X(chain)
+// Invoke iter::chunks (aka iter::chunks_<>) on this iter
+ITER_X(chunks)
+// Invoke iter::split on this iter
+ITER_X(split)
+// Invoke iter::inspect on this iter
+ITER_X(inspect)
+// Invoke iter::move on this iter
+ITER_X(move)
+// Invoke iter::box on this iter
+ITER_X(box)
+// Invoke iter::foreach on this iter
+ITER_X(foreach)
+// Invoke iter::for_each (aka iter::foreach) on this iter
+ITER_X(for_each)
+// Invoke iter::fold on this iter
+ITER_X(fold)
+// Invoke iter::fold_left (aka iter::fold) on this iter
+ITER_X(fold_left)
+// Invoke iter::reduce on this iter
+ITER_X(reduce)
+// Invoke iter::sum on this iter
+ITER_X(sum)
+// Invoke iter::product on this iter
+ITER_X(product)
+// Invoke iter::last on this iter
+ITER_X(last)
+// Invoke iter::nth on this iter
+ITER_X(nth)
+// Invoke iter::min on this iter
+ITER_X(min)
+// Invoke iter::min_by on this iter
+ITER_X(min_by)
+// Invoke iter::max on this iter
+ITER_X(max)
+// Invoke iter::max_by on this iter
+ITER_X(max_by)
+// Invoke iter::find_linear on this iter
+ITER_X(find_linear)
+// Invoke iter::find_map on this iter
+ITER_X(find_map)
+// Invoke iter::any on this iter
+ITER_X(any)
+// Invoke iter::all on this iter
+ITER_X(all)
+// Invoke iter::to_vector (aka iter::collect<std::vector>) on this iter
+ITER_X(to_vector)
+// Invoke iter::to_map (aka iter::collect<std::map>) on this iter
+ITER_X(to_map)
+// Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
+ITER_X(to_string)
+// Invoke iter::partition on this iter
+ITER_X(partition)
+// Invoke iter::unzip (aka iter::unzip_<>) on this iter
+ITER_X(unzip)
+// Invoke iter::sorted (aka iter::sorted_<>) on this iter
+ITER_X(sorted)
+
+#undef ITER_X
+
+#define ITER_EXPAND(...) __VA_ARGS__
+#define ITER_X(fun, tmplParams, tmplArgs) \
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) & {\
+            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, i, FWD(args)...);\
+        }\
+        template<ITER_EXPAND tmplParams, class... Ts>\
+        constexpr decltype(auto) fun(Ts&&... args) && {\
+            return detail::wrap_invoke(iter::fun<ITER_EXPAND tmplArgs>, std::move(i), FWD(args)...);\
+        }
+/* Do not modify, generated by scripts/update_x_macros.sh */
+
+// Invoke iter::enumerate_ on this iter
+ITER_X(enumerate_, (class T = std::size_t), (T))
+// Invoke iter::enumerate_map_ on this iter
+ITER_X(enumerate_map_, (class T = std::size_t), (T))
+// Invoke iter::chunks_ on this iter
+ITER_X(chunks_, (std::size_t N = 0), (N))
+// Invoke iter::window on this iter
+ITER_X(window, (std::size_t N = 2), (N))
+// Invoke iter::collect on this iter
+ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
+// Invoke iter::unzip_ on this iter
+ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::sorted_ on this iter
+ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+
+#undef ITER_EXPAND
+#undef ITER_X
+    };
+
+    template<iter::iterable I>
+    requires (!iter::iter<I>)
+    wrap(I&&) -> wrap<I>;
+
+    template<iter::iter I>
+    wrap(I) -> wrap<I>;
+}
+
+#endif /* INCLUDE_ITER_WRAP_HPP */
 
 #endif /* INCLUDE_ITER_ITER_HPP */

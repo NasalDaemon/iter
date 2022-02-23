@@ -62,7 +62,7 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
     using chain_t = iter::detail::chain_iter<iter::iter_t<I1>, iter::iter_t<I2>>;
     if constexpr (chain_t::random_access) {
         auto chain = chain_t{.i1 = MAKE_ITEM(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};
-        chain.size = iter::detail::impl::size(*chain.i1) + iter::detail::impl::size(chain.i2);
+        chain.size = iter::traits::random_access::size(*chain.i1) + iter::traits::random_access::size(chain.i2);
         return chain;
     } else {
         return chain_t{.i1 = MAKE_ITEM(iter::to_iter(FWD(iterable1))), .i2 = iter::to_iter(FWD(iterable2))};

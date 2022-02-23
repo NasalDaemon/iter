@@ -9,7 +9,7 @@ cat > $X_MACROS_FILE <<- EOM
 
 EOM
 
-grep -oE '(ITER_DECLARE\([^\)]+\)$)|(ITER_ALIAS\([^,]+,.*\)$)' singleheader/iter.hpp \
+grep -oE '(ITER_DECLARE\([^\)]+\)$)|(ITER_ALIAS\([^,]+,.*\)$)' singleheader/iter/iter.hpp \
     | grep -E -v '(to_iter|til|until|to_pointer_iter)' \
     | sed -E 's|ITER_DECLARE\((\w+)\)|// Invoke iter::\1 on this iter\nITER_X(\1)|g' \
     | sed -E 's|ITER_ALIAS\(([^,]+),\s*(.*)\)|// Invoke iter::\1 (aka iter::\2) on this iter\nITER_X(\1)|g' \
@@ -22,7 +22,7 @@ cat > $X_MACROS_FILE <<- EOM
 
 EOM
 
-grep -Pzo 'template<(.*)>\n.*tag::(\w+)<(.*)> \w+;' singleheader/iter.hpp \
+grep -Pzo 'template<(.*)>\n.*tag::(\w+)<(.*)> \w+;' singleheader/iter/iter.hpp \
     | tr '\r\n' ';' \
     | tr '\0' ';' \
     | perl -pe 's#template<([^;]+)>;\s+static constexpr tag::\w+<([^>]+)>\s+(\w+)[;]+#// Invoke iter::\3 on this iter\nITER_X(\3, (\1), (\2))\n#g' \

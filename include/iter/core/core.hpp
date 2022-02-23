@@ -71,29 +71,40 @@ ITER_INVOKER(get)
 ITER_INVOKER(size)
 
 namespace iter {
-    namespace detail::impl {
-        // basic iter customisation points
+    // customisation points
+    namespace traits {
         ITER_FUNCTION(next);
-        ITER_FUNCTION(next_back);
-        ITER_FUNCTION(get);
-        ITER_FUNCTION(size);
+        namespace double_ended {
+            ITER_FUNCTION(next_back);
+        }
+        namespace random_access {
+            ITER_FUNCTION(get);
+            ITER_FUNCTION(size);
+        }
+    }
+
+    // import and flatten all traits into detail::impl
+    namespace detail::impl {
+        using namespace iter::traits;
+        using namespace double_ended;
+        using namespace random_access;
     }
 
     namespace concepts {
         template<class T>
         concept iter = requires(T it) {
-            { iter::detail::impl::next(it) } -> item;
+            { iter::traits::next(it) } -> item;
         };
 
         template<class T>
         concept random_access_iter = iter<T> && requires (T it, std::size_t index) {
-            iter::detail::impl::get(it, index);
-            { iter::detail::impl::size(it) } -> std::same_as<std::size_t>;
+            iter::traits::random_access::get(it, index);
+            { iter::traits::random_access::size(it) } -> std::same_as<std::size_t>;
         };
 
         template<class T>
         concept double_ended_iter = iter<T> && requires (T it, std::size_t index) {
-            { iter::detail::impl::next_back(it) } -> std::same_as<decltype(iter::detail::impl::next(it))>;
+            { iter::traits::double_ended::next_back(it) } -> std::same_as<decltype(iter::traits::next(it))>;
         };
 
         template<class T>
@@ -142,7 +153,7 @@ namespace iter {
     }
 
     template<iterable I>
-    using next_t = decltype(detail::impl::next(std::declval<iter_t<I>&>()));
+    using next_t = decltype(traits::next(std::declval<iter_t<I>&>()));
 
     template<iter I>
     struct iterator_traits {
@@ -291,7 +302,7 @@ namespace iter {
         template<class I>
         auto get_type() -> void;
         template<concepts::random_access_iter I>
-        auto get_type() -> decltype(iter::detail::impl::get(std::declval<I&>(), 0ul));
+        auto get_type() -> decltype(iter::traits::random_access::get(std::declval<I&>(), 0ul));
         template<class I>
         using get_t = decltype(get_type<I>());
 

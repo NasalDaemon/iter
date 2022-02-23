@@ -52,7 +52,7 @@ constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
     }(std::make_index_sequence<sizeof...(Ts) - 1>{});
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
-            return std::min({iter::detail::impl::size(iters)...});
+            return std::min({iter::traits::random_access::size(iters)...});
         }, zip.i);
     }
     return zip;

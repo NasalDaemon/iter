@@ -20,14 +20,14 @@ Small, single header, feature-rich, functional C++20 iterator library that aims 
 ## Getting started
 
 ### Single header
-1. Copy [singleheader/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter.hpp) into your include directory
+1. Copy [singleheader/iter/iter.hpp](https://github.com/NasalDaemon/iter/blob/main/singleheader/iter/iter.hpp) into your include directory
 1. Enable C++20
-1. `#include "iter.hpp"`
+1. `#include "iter/iter.hpp"`
 ### Full
 1. `git clone https://github.com/NasalDaemon/iter.git --recurse-submodules`
-1. Add `iter/include/` and `iter/extern/extend/include/` to your include path
+1. Add `iter/include` and `iter/extern/extend/include` to your include path
 1. Enable C++20
-1. `#include "iter/zip.hpp"` (include whichever headers you need: each iter function is in its own header). `#include "iter.hpp"` to include all iter functions
+1. `#include "iter/adapters/zip.hpp"` (include whichever headers you need: each iter function is in its own header). `#include "iter/iter.hpp"` to include all iter functionality
 
 ## Compiler support
 
@@ -43,21 +43,22 @@ void multiply(std::vector<float> const& x, std::vector<float> const& y, std::vec
   }
 }
 ```
+All `iter`s can be used as a `std::ranges::view` with `#include "iter/enable_ranges.hpp`.
 ##### Supports UFCS-style syntax via the [extend](https://github.com/NasalDaemon/extend) library.
 
 Since people like to write functional algorithms in many different styles, functions in the `iter` namespace support a wide range of calling styles. In practice, you will use only a subset corresponding to your preferred style.
 
 |Calling style|Notes|
 |--|--|
-| `iter::fun(like, that, ...)` | Simple free function syntax|
-| `iter::wrap(like).fun(that)` | Wraps an `iterable` `like` to enable method style calls. If `iter::fun(that)` returns an `iter`, then it will also be wrapped. |
-| <code>like &#124; iter::fun()</code> | Unary call to `iter::fun(like)` |
-| <code>like &#124; iter::fun(_, that, ...)</code> | Calls `iter::fun(like, that, ...)` |
-| <code>that &#124; iter::fun(like, _, ...)</code> | Calls `iter::fun(like, that, ...)` |
-| <code>like &#124; iter::fun &#124; that</code> | Binary call to `iter::fun(like, that)` |
-| <code>like &#124; iter::fun &#124; _</code> | Unary call to `iter::fun(like)` |
-| `like $(iter::fun) (that, ...)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
-| `like $fun (that, ...)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/dollar_macros/define.hpp). |
+| `iter::map(it, mapper)` | Simple free function syntax|
+| `iter::wrap(it).map(mapper)` | Wraps an `iter::iterable` `it` to enable method style calls. Since `iter::map(it)` returns an `iter::iter`, it is also wrapped. |
+| <code>it &#124; iter::sum()</code> | Unary call to `iter::sum(it)` |
+| <code>it &#124; iter::map(_, mapper)</code> | Calls `iter::map(it, mapper)` |
+| <code>mapper &#124; iter::map(it, _)</code> | Calls `iter::map(it, mapper)` |
+| <code>it &#124; iter::map &#124; mapper</code> | Binary call to `iter::map(it, mapper)` |
+| <code>it &#124; iter::sum &#124; _</code> | Unary call to `iter::sum(like)` |
+| `it $(iter::map) (mapper)` | After including extend dollar macros [header](https://github.com/NasalDaemon/extend/blob/main/include/extend/dollar_macros/define.hpp). |
+| `it $map (mapper)` | After including iter dollar macros [header](https://github.com/NasalDaemon/iter/blob/main/include/iter/dollar_macros/define.hpp). |
 
 ```c++
 void multiply(std::vector<float> const& a, std::vector<float> const& b, std::vector<float>& c) {
@@ -87,7 +88,7 @@ float weighted_sum(std::vector<float> const& a) {
 
 There are two fundamental concepts: `iter::iter` and `iter::iterable`.
 
-An `iter` is anything that can be passed as the only argument to `iter::detail::impl::next(...)`, which should return either `iter::item<T>` for an optional value or `iter::item<T&>` for an optional reference. `iter::item<T>` is analagous to `std::optional<T>` and `iter::item<T&>` is analogous to `T*`, but with the same interface as `iter::item<T>`.
+An `iter` is anything that can be passed as the only argument to `iter::traits::next(...)`, which should return either `iter::item<T>` for an optional value or `iter::item<T&>` for an optional reference. `iter::item<T>` is analagous to `std::optional<T>` and `iter::item<T&>` is analogous to `T*`, but with the same interface as `iter::item<T>`.
 
 An `iterable` is anything that can be passed to `iter::to_iter(...)` and returns an `iter`. Anything that is an `iter` is also an `iterable` (since there is a default implementation of `iter::to_iter` for `iter` arguments which simply returns the argument back).
 
@@ -98,7 +99,7 @@ Informally, an `iter` should be cheap to copy -- at least before any iteration h
 1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `iter::item<std::vector<std::string>>` of the latest vector returned by the callable. The item is only populated once iteration has started, making copying cheap until then.
 1. All `iter` adaptors with callables are to be as cheap to copy as their respective callables are. It is up to the user code to ensure that the callables are cheap to copy if the iter is expected to be copied around.
 
-To make any type an `iter`, you simply define the relevant `iter::detail::impl::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
+To make any type an `iter`, you simply define the relevant `iter::traits::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
 
 ```c++
 struct enumerate_until {
@@ -125,6 +126,6 @@ constexpr auto ITER_IMPL(to_iter) (int max) {
 
 Not quite, and it doesn't aim to be. iter aims to do one thing, and one thing well: provide a simple functional interface to consume iterable things without adding run-time or compile-time overhead. It does this by avoiding the standard C++ iterator concept in favour of a simpler `iter::iter` concept. On the other hand, std::ranges builds on standard iterators while attempting to hide away their complexities, offering useful concepts and algorithms for existing standard containers and iterators. In other words, std::ranges offers a wider scope of functionality than iter. That wider scope necesarily comes at the cost of complexity, bloat and often poorer performance in the subset of things that iter does specialise in.
 
-The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::detail::impl::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
+The extremely simple `iter::iter` concept, which iter builds upon, has only one requirement: `iter::traits::next(it)` optionally returns the next item of `it`. Items are consumed one after the other until no item is returned. This greatly simplifies the implementation of this library's many components, scales extremely well, and greatly helps the compiler to optimise things away -- but it also precludes implementing certain algorithms. For example, any algorithm that accesses items in non-sequential order cannot be expressed using this concept. This includes algorithms such as: quicksort, in-place partition.
 
 Anything that can use iter should use iter rather than std::ranges: iter has lower compile-time overhead and is also more likely to be better optimised by the compiler. However, anything that can't be represented with the simple `iter::iter` concept is out of scope for this library, and std::ranges deals with it perfectly well. `std::ranges::sort(container)` is simple enough!

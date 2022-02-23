@@ -53,7 +53,7 @@ constexpr auto ITER_IMPL(zip) (I&&... iterables) {
     auto zip = iter::detail::zip_iter<iter::iter_t<I>...>{.i = {iter::to_iter(FWD(iterables))...}};
     if constexpr(decltype(zip)::random_access) {
         zip.size = apply([](auto&... iters) {
-            return std::min({iter::detail::impl::size(iters)...});
+            return std::min({iter::traits::random_access::size(iters)...});
         }, zip.i);
     }
     return zip;

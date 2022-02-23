@@ -118,7 +118,7 @@ target_link_libraries(iter_test
 if(${CMAKE_VERSION} VERSION_GREATER "3.16.0")
   target_precompile_headers(iter PUBLIC
     include/iter/macros/dollar/define.hpp
-    include/iter/wrap.hpp
+    include/iter/iter.hpp
     )
 
   target_precompile_headers(iter_example REUSE_FROM iter)

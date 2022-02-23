@@ -63,11 +63,11 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
     auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
 
     if constexpr (iter::concepts::random_access_iter<I>) {
-        std::size_t size = iter::detail::impl::size(iter) / N;
+        std::size_t size = iter::traits::random_access::size(iter) / N;
         apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
 
-    while (auto val = iter::detail::impl::next(iter)) {
+    while (auto val = iter::traits::next(iter)) {
         auto slot = std::invoke(FWD(func), iter::as_const(*val));
         std::size_t index;
         if constexpr (std::is_same_v<bool, part_t>) {

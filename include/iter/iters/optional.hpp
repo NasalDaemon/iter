@@ -18,7 +18,7 @@ namespace iter {
             return std::exchange(self, noitem);
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return detail::impl::next(self);
+            return traits::next(self);
         }
     };
 

@@ -27,22 +27,22 @@ namespace iter {
 
         using this_t = wrap;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return iter::detail::impl::next(self.i);
+            return iter::traits::next(self.i);
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
             requires concepts::double_ended_iter<I>
         {
-            return iter::detail::impl::next_back(self.i);
+            return iter::traits::double_ended::next_back(self.i);
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
-            return iter::detail::impl::get(self.i, index);
+            return iter::traits::random_access::get(self.i, index);
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
             requires concepts::random_access_iter<I>
         {
-            return iter::detail::impl::size(self.i);
+            return iter::traits::random_access::size(self.i);
         }
 
 #define ITER_X(fun) \

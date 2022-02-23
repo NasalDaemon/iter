@@ -135,7 +135,7 @@ namespace iter {
         // The outer function takes by universal reference to observe constness
         return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
             while (true)
-                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::detail::impl::next(it);)
+                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::traits::next(it);)
                     co_yield *next;
         }(FWD(make_iter), FWD(args)...);
     }
@@ -144,7 +144,7 @@ namespace iter {
     constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
         return [](auto make_iter) -> std::invoke_result_t<F> {
             while (true)
-                for (auto it = std::invoke(make_iter); auto next = iter::detail::impl::next(it);)
+                for (auto it = std::invoke(make_iter); auto next = iter::traits::next(it);)
                     co_yield *next;
         }(FWD(make_iter));
     }
