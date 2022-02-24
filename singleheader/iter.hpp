@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220223
+#  define ITER_LIBRARY_VERSION 20220224
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -522,6 +522,62 @@ namespace xtd::detail {
 #include <memory>
 #include <utility>
 
+#ifndef ITER_CORE_MACROS_HPP
+#define ITER_CORE_MACROS_HPP
+
+#ifndef ITER_GLOBAL_INVOKER
+#  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
+#  define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
+#  define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
+#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
+#  define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
+#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
+#else
+#  warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
+           Any failing invocations may return an endless list of candidates.
+#  define ITER_INVOKER(name)
+#  define ITER_FUNCTION(fun)          XTD_FUNCTION fun
+#  define ITER_IMPL(name)             XTD_IMPL(iter::name)
+#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
+#  define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
+#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
+#endif
+
+#define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
+#define ITER_IMPL_NEXT_BACK ITER_DETAIL_IMPL_THIS(next_back)
+#define ITER_IMPL_GET       ITER_DETAIL_IMPL_THIS(get)
+#define ITER_IMPL_SIZE      ITER_DETAIL_IMPL_THIS(size)
+
+#define ITER_DECLARE(fun) \
+    ITER_INVOKER(fun)\
+    namespace iter {\
+        ITER_FUNCTION(fun);\
+    }
+
+#define ITER_ALIAS(alias, ... /*of*/) \
+    namespace iter {\
+        static constexpr auto& alias = __VA_ARGS__;\
+    }
+
+#if defined(__clang__)
+#  define ITER_COMPILER_CLANG
+#  define ITER_ASSUME(condition) __builtin_assume(!!(condition))
+#  define ITER_UNREACHABLE() __builtin_unreachable()
+#elif defined(__GNUC__) || defined (__GNUG__)
+#  define ITER_COMPILER_GCC
+#  define ITER_ASSUME(condition) do { if(!(condition)) __builtin_unreachable(); } while(0)
+#  define ITER_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+#  define ITER_COMPILER_MSVC
+#  define ITER_ASSUME(condition) __assume(!!(condition))
+#  define ITER_UNREACHABLE() __assume(0)
+#else
+#  define ITER_ASSUME(condition) do { } while(0)
+#  define ITER_UNREACHABLE() do { } while(0)
+#endif
+
+#endif /* ITER_CORE_MACROS_HPP */
+
 #ifndef INCLUDE_ITER_EMPLACE_NEW_HPP
 #define INCLUDE_ITER_EMPLACE_NEW_HPP
 
@@ -548,13 +604,12 @@ namespace iter::detail {
     requires (!std::is_const_v<T>)
     static constexpr T& emplace_new_impl(T& current, F&& ctor) {
         current.~T();
-        // if constexpr (std::constructible_from<T, T>) {
-        //     if (std::is_constant_evaluated()) {
-        //         // placement new not strictly speaking constexpr although GCC allows it
-        //         return std::construct_at(std::addressof(current), FWD(ctor).template operator()<T>());
-        //     }
-        // }
-        new (std::addressof(current), constexpr_new_tag{}) T(FWD(ctor).template operator()<T>());
+        if (std::is_constant_evaluated()) {
+            // placement new not strictly speaking constexpr although GCC allows it
+            std::construct_at(std::addressof(current), FWD(ctor).template operator()<T>());
+        } else {
+            new (std::addressof(current), constexpr_new_tag{}) T(FWD(ctor).template operator()<T>());
+        }
         return current;
     }
 }
@@ -714,8 +769,37 @@ private:
 };
 
 namespace detail {
-auto* addressof(auto&& ref) { return std::addressof(ref); }
+    constexpr auto* addressof(auto&& ref) { return std::addressof(ref); }
 }
+
+// GCC can't do constexpr comparison with nullptr
+// and it can't do much in constexpr before 12 anyway
+#if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
+    namespace detail {
+        static constexpr struct item_nullptr_t {
+            template<class T>
+            constexpr operator T*() const {
+                return const_cast<T*>(&null<T>.f.v);
+            }
+
+        private:
+            template<class T>
+            struct null_t {
+                [[no_unique_address]]
+                union u {
+                    [[no_unique_address]] void_t _{};
+                    [[no_unique_address]] T v;
+                    constexpr ~u() {}
+                } f;
+            };
+            template<class T>
+            static constexpr null_t<T> null{};
+        } item_nullptr_v;
+    }
+#  define ITER_ITEM_NULLPTR ::iter::detail::item_nullptr_v
+#else
+#  define ITER_ITEM_NULLPTR nullptr
+#endif
 
 template<class T>
 requires std::is_reference_v<T>
@@ -731,12 +815,11 @@ struct item<T> {
 
     item() = default;
     constexpr item(noitem_t) : item() {}
-    constexpr item(std::nullptr_t) : item() {}
 
     item(item const&) = default;
     item& operator=(item const&) = default;
 
-    constexpr bool has_value() const { return ptr != nullptr; }
+    constexpr bool has_value() const { return ptr != ITER_ITEM_NULLPTR; }
     constexpr operator bool() const { return has_value(); }
     bool operator==(item const&) const = default;
     auto operator<=>(item const&) const = delete;
@@ -758,12 +841,10 @@ struct item<T> {
 
     constexpr T&& consume() const { return value(); }
 
-    constexpr void reset() { ptr = nullptr; }
+    constexpr void reset() { ptr = ITER_ITEM_NULLPTR; }
 
 private:
-    pointer ptr = nullptr;
-    template<class TT>
-    friend constexpr item<TT&> item_from_pointer(TT*);
+    pointer ptr = ITER_ITEM_NULLPTR;
     constexpr explicit item(pointer p) : ptr(p) {}
 };
 
@@ -773,12 +854,8 @@ template<std::invocable F>
 item(F) -> item<std::invoke_result_t<F>>;
 
 template<class T>
-static constexpr item<T&&> forward_as_item(T&& value) {
+static constexpr item<T&&> item_ref(T&& value) {
     return item<T&&>{FWD(value)};
-}
-template<class T>
-static constexpr item<T&> item_from_pointer(T* ptr) {
-    return item<T&>(ptr);
 }
 
 template<class T>
@@ -927,54 +1004,6 @@ struct std::tuple_size<iter::tuple<Ts...>> {
 };
 
 #endif /* ITER_CORE_TUPLE_HPP */
-
-#ifndef ITER_GLOBAL_INVOKER
-#  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
-#  define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
-#else
-#  warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
-           Any failing invocations may return an endless list of candidates.
-#  define ITER_INVOKER(name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION fun
-#  define ITER_IMPL(name)             XTD_IMPL(iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
-#endif
-
-#define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
-#define ITER_IMPL_NEXT_BACK ITER_DETAIL_IMPL_THIS(next_back)
-#define ITER_IMPL_GET       ITER_DETAIL_IMPL_THIS(get)
-#define ITER_IMPL_SIZE      ITER_DETAIL_IMPL_THIS(size)
-
-#define ITER_DECLARE(fun) \
-    ITER_INVOKER(fun)\
-    namespace iter {\
-        ITER_FUNCTION(fun);\
-    }
-
-#define ITER_ALIAS(alias, ... /*of*/) \
-    namespace iter {\
-        static constexpr auto& alias = __VA_ARGS__;\
-    }
-
-#if defined(__clang__)
-#  define ITER_ASSUME(condition) __builtin_assume(!!(condition))
-#  define ITER_UNREACHABLE() __builtin_unreachable()
-#elif defined(__GNUC__) || defined (__GNUG__)
-#  define ITER_ASSUME(condition) do { if(!(condition)) __builtin_unreachable(); } while(0)
-#  define ITER_UNREACHABLE() __builtin_unreachable()
-#elif defined(_MSC_VER)
-#  define ITER_ASSUME(condition) __assume(!!(condition))
-#  define ITER_UNREACHABLE() __assume(0)
-#else
-#  define ITER_ASSUME(condition) do { } while(0)
-#  define ITER_UNREACHABLE() do { } while(0)
-#endif
 
 ITER_DECLARE(to_iter)
 ITER_DECLARE(cycle)
@@ -1376,16 +1405,16 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(self.pos != std::size(*self.container)
-                ? std::addressof((*self.container)[self.pos++])
-                : nullptr);
+            return self.pos != std::size(*self.container)
+                ? item_ref((*self.container)[self.pos++])
+                : noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
-            return item_from_pointer(self.pos != size
-                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
-                : nullptr);
+            return self.pos != size
+                ? item_ref((*self.container)[(size - 1 - self.pos++)])
+                : noitem;
         }
 
         struct cycle;
@@ -1413,13 +1442,13 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
-            return forward_as_item((*self.container)[self.pos++]);
+            return item_ref((*self.container)[self.pos++]);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             const auto size = std::size(*self.container);
             self.pos = self.pos == size ? 0 : self.pos;
-            return forward_as_item((*self.container)[(size - 1 - self.pos++)]);
+            return item_ref((*self.container)[(size - 1 - self.pos++)]);
         }
      };
 }
@@ -1456,13 +1485,13 @@ namespace iter {
         T* ptr;
 
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.ptr ? 1 : 0;
+            return self.ptr != ITER_ITEM_NULLPTR ? 1 : 0;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
             return *self.ptr;
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(std::exchange(self.ptr, nullptr));
+            return item_ref(*std::exchange(self.ptr, ITER_ITEM_NULLPTR));
         }
     };
 
@@ -1471,6 +1500,77 @@ namespace iter {
 }
 
 #endif /* INCLUDE_ITER_TO_ITER_HPP */
+
+#ifndef ITER_ITERS_TO_ITER_CONSTEVAL_HPP
+#define ITER_ITERS_TO_ITER_CONSTEVAL_HPP
+
+#ifndef ITER_CORE_ASSERT_CONSTEVAL_HPP
+#define ITER_CORE_ASSERT_CONSTEVAL_HPP
+
+namespace iter::detail {
+    class unconstructible { unconstructible(); };
+    template<class...>
+    struct fail_compile_at_linker {
+        // Impossible to define anywhere, so will always fail to link
+        static unconstructible undefinable();
+    };
+    struct consteval_function_used_at_runtime;
+    template<class T = void, class... Ts>
+    static constexpr void assert_consteval() {
+        // Fail to compile at linker stage if this is called at runtime.
+        // Cannot fail any earlier, as it will prevent genuine constexpr calls.
+        if (!std::is_constant_evaluated())
+            fail_compile_at_linker<consteval_function_used_at_runtime, T, Ts...>::undefinable();
+    }
+}
+
+#endif /* ITER_CORE_ASSERT_CONSTEVAL_HPP */
+
+namespace iter {
+    // Owning iter that is expensive to use at runtime,
+    // but is a necessary compile-time equivalent.
+    // Therefore it is prevented from being used at runtime,
+    // and will fail to compile at the linker stage.
+    template<class T>
+    struct to_iter_consteval;
+
+    template<concepts::random_access_container T>
+    struct to_iter_consteval<T> {
+        using this_t = to_iter_consteval;
+
+        T container;
+        std::size_t pos = 0;
+
+        constexpr auto ITER_IMPL_NEXT(this_t& self) {
+            detail::assert_consteval<this_t, struct unused>();
+            return self.pos < std::size(self.container)
+                ? iter::item_ref(self.container[self.pos++])
+                : iter::noitem;
+        }
+
+        constexpr auto ITER_IMPL_NEXT_BACK(this_t& self) {
+            detail::assert_consteval<this_t, struct unused>();
+            const auto size = std::size(self.container);
+            return self.pos < size
+                ? iter::item_ref(size - 1 - self.container[self.pos++])
+                : iter::noitem;
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index) {
+            detail::assert_consteval<this_t, struct unused>();
+            return self.container[index];
+        }
+        constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self) {
+            detail::assert_consteval<this_t, struct unused>();
+            return std::size(self.container);
+        }
+    };
+
+    template<class T>
+    to_iter_consteval(T) -> to_iter_consteval<T>;
+}
+
+#endif /* ITER_ITERS_TO_ITER_CONSTEVAL_HPP */
 
 #ifndef ITER_ITERS_ONCE_HPP
 #define ITER_ITERS_ONCE_HPP
@@ -1513,7 +1613,7 @@ namespace iter {
             return (self.value);
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(std::exchange(self.on, false) ? std::addressof(self.value) : nullptr);
+            return std::exchange(self.on, false) ? item_ref(self.value) : noitem;
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};
@@ -1539,7 +1639,7 @@ namespace iter {
             return *self.value;
         }
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(std::exchange(self.value, nullptr));
+            return item_ref(*std::exchange(self.value, ITER_ITEM_NULLPTR));
         }
         constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {
             return repeat<T const&>{*self.value};
@@ -1807,7 +1907,7 @@ namespace iter {
                 return noitem;
             }
 
-            return item_from_pointer(m_coroutine.promise().value());
+            return item_ref(*m_coroutine.promise().value());
         }
 
         friend class detail::generator_promise<T>;
@@ -2167,7 +2267,7 @@ namespace iter::detail {
                 if (self.current.optional_iter) [[likely]]
                     if (emplace_next(val, *self.current.optional_iter)) [[likely]]
                         return val;
-            } while (EMPLACE_NEW(self.current, get_current(self.i)).optional_iter);
+            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
             return val;
         }
     };
@@ -2708,10 +2808,10 @@ namespace iter {
         constexpr span(T* p, std::size_t n) : begin{p}, end{p + n} {}
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(self.begin < self.end ? self.begin++ : nullptr);
+            return self.begin < self.end ? item_ref(*self.begin++) : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return item_from_pointer(self.begin < self.end ? self.end-- : nullptr);
+            return self.begin < self.end ? item_ref(*self.end--) : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.end - self.begin;
@@ -3010,7 +3110,7 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             emplace_next(self.store, self.i);
-            return item_from_pointer(self.store ? std::addressof(*self.store) : nullptr);
+            return self.store ? item_ref(*self.store) : noitem;
         }
     };
 

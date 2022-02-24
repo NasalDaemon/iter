@@ -30,16 +30,16 @@ namespace iter::detail {
         }
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(self.pos != std::size(*self.container)
-                ? std::addressof((*self.container)[self.pos++])
-                : nullptr);
+            return self.pos != std::size(*self.container)
+                ? item_ref((*self.container)[self.pos++])
+                : noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
-            return item_from_pointer(self.pos != size
-                ? std::addressof((*self.container)[(size - 1 - self.pos++)])
-                : nullptr);
+            return self.pos != size
+                ? item_ref((*self.container)[(size - 1 - self.pos++)])
+                : noitem;
         }
 
         struct cycle;
@@ -67,13 +67,13 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
-            return forward_as_item((*self.container)[self.pos++]);
+            return item_ref((*self.container)[self.pos++]);
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             const auto size = std::size(*self.container);
             self.pos = self.pos == size ? 0 : self.pos;
-            return forward_as_item((*self.container)[(size - 1 - self.pos++)]);
+            return item_ref((*self.container)[(size - 1 - self.pos++)]);
         }
      };
 }
@@ -110,13 +110,13 @@ namespace iter {
         T* ptr;
 
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.ptr ? 1 : 0;
+            return self.ptr != ITER_ITEM_NULLPTR ? 1 : 0;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
             return *self.ptr;
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_from_pointer(std::exchange(self.ptr, nullptr));
+            return item_ref(*std::exchange(self.ptr, ITER_ITEM_NULLPTR));
         }
     };
 

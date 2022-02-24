@@ -25,7 +25,7 @@ namespace iter::detail {
                 if (self.current.optional_iter) [[likely]]
                     if (emplace_next(val, *self.current.optional_iter)) [[likely]]
                         return val;
-            } while (EMPLACE_NEW(self.current, get_current(self.i)).optional_iter);
+            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
             return val;
         }
     };

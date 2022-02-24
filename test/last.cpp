@@ -1,7 +1,7 @@
 #include "test.hpp"
 
 TEST(TestLast, empty) {
-    ASSERT_EQ(nullptr, empty<int> | last());
+    ASSERT_EQ(noitem, empty<int> | last());
     std::vector<int> v;
     ASSERT_EQ(noitem, v | last());
     ASSERT_EQ(noitem, indices | take | 0 | last());

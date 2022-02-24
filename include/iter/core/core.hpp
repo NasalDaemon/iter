@@ -10,57 +10,10 @@
 #include <memory>
 #include <utility>
 
+#include "iter/core/macros.hpp"
 #include "iter/core/emplace_new.hpp"
 #include "iter/core/item.hpp"
 #include "iter/core/tuple.hpp"
-
-#ifndef ITER_GLOBAL_INVOKER
-#  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
-#  define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
-#else
-#  warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
-           Any failing invocations may return an endless list of candidates.
-#  define ITER_INVOKER(name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION fun
-#  define ITER_IMPL(name)             XTD_IMPL(iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
-#endif
-
-#define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
-#define ITER_IMPL_NEXT_BACK ITER_DETAIL_IMPL_THIS(next_back)
-#define ITER_IMPL_GET       ITER_DETAIL_IMPL_THIS(get)
-#define ITER_IMPL_SIZE      ITER_DETAIL_IMPL_THIS(size)
-
-#define ITER_DECLARE(fun) \
-    ITER_INVOKER(fun)\
-    namespace iter {\
-        ITER_FUNCTION(fun);\
-    }
-
-#define ITER_ALIAS(alias, ... /*of*/) \
-    namespace iter {\
-        static constexpr auto& alias = __VA_ARGS__;\
-    }
-
-#if defined(__clang__)
-#  define ITER_ASSUME(condition) __builtin_assume(!!(condition))
-#  define ITER_UNREACHABLE() __builtin_unreachable()
-#elif defined(__GNUC__) || defined (__GNUG__)
-#  define ITER_ASSUME(condition) do { if(!(condition)) __builtin_unreachable(); } while(0)
-#  define ITER_UNREACHABLE() __builtin_unreachable()
-#elif defined(_MSC_VER)
-#  define ITER_ASSUME(condition) __assume(!!(condition))
-#  define ITER_UNREACHABLE() __assume(0)
-#else
-#  define ITER_ASSUME(condition) do { } while(0)
-#  define ITER_UNREACHABLE() do { } while(0)
-#endif
 
 ITER_DECLARE(to_iter)
 ITER_DECLARE(cycle)

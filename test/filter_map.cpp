@@ -24,7 +24,7 @@ TEST(FilterMapTest, pointer) {
         | take | 20
         | filter_map | [x = 0](auto i) mutable {
             x = -i;
-            return item_from_pointer(i % 2 == 0 ? &x : nullptr); }
+            return i % 2 == 0 ? item_ref(x) : noitem; }
         | inspect | [](auto i) {
             ASSERT_TRUE(i % 2 == 0);
             ASSERT_TRUE(i <= 0); }

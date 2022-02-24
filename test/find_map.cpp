@@ -41,10 +41,9 @@ TEST(TestFindMap, find_first_pointer) {
             ASSERT_EQ(i.copies, 0);
             ++iterated; }
         | find_map | [c = std::aligned_storage_t<sizeof(ctor_count<int>)>{}](auto const& i) mutable {
-            return item_from_pointer(
-                i.value == 99
-                    ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
-                    : nullptr); };
+            return i.value == 99
+                ? item_ref(*new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i))
+                : noitem; };
 
     ASSERT_EQ(iterated, 79);
     ASSERT_TRUE(r.has_value());
@@ -66,10 +65,9 @@ TEST(TestFindMap, find_first_pointer_move) {
             ++iterated; }
         | find_map | [c = std::aligned_storage_t<sizeof(ctor_count<int>)>{}](auto const& i) mutable {
             return move_item {
-                item_from_pointer(
-                    i.value == 99
-                        ? new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i)
-                        : nullptr) }; };
+                i.value == 99
+                    ? item_ref(*new (reinterpret_cast<ctor_count<int>*>(&c)) ctor_count<int>(i))
+                    : noitem }; };
 
     ASSERT_EQ(iterated, 79);
     ASSERT_TRUE(r.has_value());

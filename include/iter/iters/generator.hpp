@@ -110,7 +110,7 @@ namespace iter {
                 return noitem;
             }
 
-            return item_from_pointer(m_coroutine.promise().value());
+            return item_ref(*m_coroutine.promise().value());
         }
 
         friend class detail::generator_promise<T>;

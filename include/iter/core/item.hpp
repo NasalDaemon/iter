@@ -151,8 +151,37 @@ private:
 };
 
 namespace detail {
-auto* addressof(auto&& ref) { return std::addressof(ref); }
+    constexpr auto* addressof(auto&& ref) { return std::addressof(ref); }
 }
+
+// GCC can't do constexpr comparison with nullptr
+// and it can't do much in constexpr before 12 anyway
+#if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
+    namespace detail {
+        static constexpr struct item_nullptr_t {
+            template<class T>
+            constexpr operator T*() const {
+                return const_cast<T*>(&null<T>.f.v);
+            }
+
+        private:
+            template<class T>
+            struct null_t {
+                [[no_unique_address]]
+                union u {
+                    [[no_unique_address]] void_t _{};
+                    [[no_unique_address]] T v;
+                    constexpr ~u() {}
+                } f;
+            };
+            template<class T>
+            static constexpr null_t<T> null{};
+        } item_nullptr_v;
+    }
+#  define ITER_ITEM_NULLPTR ::iter::detail::item_nullptr_v
+#else
+#  define ITER_ITEM_NULLPTR nullptr
+#endif
 
 template<class T>
 requires std::is_reference_v<T>
@@ -168,12 +197,11 @@ struct item<T> {
 
     item() = default;
     constexpr item(noitem_t) : item() {}
-    constexpr item(std::nullptr_t) : item() {}
 
     item(item const&) = default;
     item& operator=(item const&) = default;
 
-    constexpr bool has_value() const { return ptr != nullptr; }
+    constexpr bool has_value() const { return ptr != ITER_ITEM_NULLPTR; }
     constexpr operator bool() const { return has_value(); }
     bool operator==(item const&) const = default;
     auto operator<=>(item const&) const = delete;
@@ -195,12 +223,10 @@ struct item<T> {
 
     constexpr T&& consume() const { return value(); }
 
-    constexpr void reset() { ptr = nullptr; }
+    constexpr void reset() { ptr = ITER_ITEM_NULLPTR; }
 
 private:
-    pointer ptr = nullptr;
-    template<class TT>
-    friend constexpr item<TT&> item_from_pointer(TT*);
+    pointer ptr = ITER_ITEM_NULLPTR;
     constexpr explicit item(pointer p) : ptr(p) {}
 };
 
@@ -210,12 +236,8 @@ template<std::invocable F>
 item(F) -> item<std::invoke_result_t<F>>;
 
 template<class T>
-static constexpr item<T&&> forward_as_item(T&& value) {
+static constexpr item<T&&> item_ref(T&& value) {
     return item<T&&>{FWD(value)};
-}
-template<class T>
-static constexpr item<T&> item_from_pointer(T* ptr) {
-    return item<T&>(ptr);
 }
 
 template<class T>
