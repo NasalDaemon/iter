@@ -16,10 +16,10 @@ TEST(TestPartition, mod3) {
 TEST(TestPartition, returnDeduction) {
     auto [zero, one, two] = range{0, 10} | partition | [](auto i) {
         int mod = i % 3;
-        return mod == 0
-            ? part<0>
-            : mod == 1
-                ? part<1>
+        return mod == 1
+            ? part<1>
+            : mod == 0
+                ? part<0>
                 : part<2>; };
     ASSERT_EQ(zero, (std::vector{0, 3, 6, 9}));
     ASSERT_EQ(one, (std::vector{1, 4, 7}));

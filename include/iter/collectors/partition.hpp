@@ -8,9 +8,6 @@ ITER_DECLARE(partition)
 namespace iter {
     template<std::size_t I>
     struct part_t : part_t<I+1> {
-        template<std::size_t J>
-        requires (J < I)
-        constexpr part_t(part_t<J>) : part_t<I+1>{J} {}
         constexpr part_t() : part_t<I+1>{I} {}
     protected:
         constexpr part_t(size_t i) : part_t<I+1>{i} {}
