@@ -8,12 +8,12 @@
 XTD_INVOKER(iter_window)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<std::size_t N>
         struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
     }
     template<std::size_t N = 2>
-    static constexpr tag::window<N> window;
+    static constexpr detail::tag::window<N> window;
 }
 
 namespace iter::detail {
@@ -48,7 +48,7 @@ namespace iter::detail {
 }
 
 template<std::size_t N, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_window, iter::tag::window<N>) (I&& iterable) {
+constexpr auto XTD_IMPL_TAG_(iter_window, iter::detail::tag::window<N>) (I&& iterable) {
     return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }
 

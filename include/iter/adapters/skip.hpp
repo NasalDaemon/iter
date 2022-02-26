@@ -7,7 +7,7 @@ ITER_DECLARE(skip)
 
 namespace iter::detail {
     template<assert_iter I>
-    struct skip_iter : enable_random_access<skip_iter<I>, I> {
+    struct [[nodiscard]] skip_iter : enable_random_access<skip_iter<I>, I> {
         [[no_unique_address]] I i;
         std::size_t n;
 

@@ -42,11 +42,6 @@ namespace iter {
 
 template<iter::assert_iterable I, class F>
 constexpr decltype(auto) ITER_IMPL(partition) (I&& iterable, F&& func) {
-    return iter::partition(iter::to_iter(FWD(iterable)), FWD(func));
-}
-
-template<iter::iter I, class F>
-constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
     using part_t = std::invoke_result_t<F, iter::consume_t<I>>;
     constexpr std::size_t N = []{
         if constexpr (std::is_same_v<bool, part_t>)
@@ -57,9 +52,11 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
         }
     }();
     static_assert(N > 1, "Must partition at least 2 ways");
-    auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
+    auto out = std::array<std::vector<iter::value_t<I>>, N>{};
 
-    if constexpr (iter::concepts::random_access_iter<I>) {
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
+
+    if constexpr (iter::concepts::random_access_iter<decltype(iter)>) {
         std::size_t size = iter::traits::random_access::size(iter) / N;
         apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }

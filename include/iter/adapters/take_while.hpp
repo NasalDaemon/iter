@@ -7,7 +7,7 @@ ITER_DECLARE(take_while)
 
 namespace iter::detail {
     template<assert_iter I, std::predicate<ref_t<I>> P>
-    struct take_while_iter {
+    struct [[nodiscard]] take_while_iter {
         using this_t = take_while_iter;
 
         [[no_unique_address]] I i;

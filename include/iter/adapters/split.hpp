@@ -8,7 +8,7 @@ ITER_DECLARE(split)
 
 namespace iter::detail {
     template<assert_iter I>
-    struct [[nodiscard]] split_iter_inner {
+    struct split_iter_inner {
         [[no_unique_address]] I i;
         value_t<I> delimiter;
         bool end = false;

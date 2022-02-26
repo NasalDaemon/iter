@@ -33,11 +33,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef INCLUDE_ITER_ITER_HPP
 #define INCLUDE_ITER_ITER_HPP
 
+#ifndef ITER_ITERS_ITERS_HPP
+#define ITER_ITERS_ITERS_HPP
+
+#ifndef ITER_ITERS_TO_ITER_HPP
+#define ITER_ITERS_TO_ITER_HPP
+
 #ifndef INCLUDE_ITER_CORE_HPP
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220224
+#  define ITER_LIBRARY_VERSION 20220226
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -1359,10 +1365,6 @@ void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
 #endif /* INCLUDE_ITER_CORE_HPP */
 
-// Iters
-#ifndef INCLUDE_ITER_TO_ITER_HPP
-#define INCLUDE_ITER_TO_ITER_HPP
-
 #ifndef INCLUDE_ITER_STD_FWD_HPP
 #define INCLUDE_ITER_STD_FWD_HPP
 
@@ -1499,10 +1501,11 @@ namespace iter {
     pointer_to_iter(T*) -> pointer_to_iter<T>;
 }
 
-#endif /* INCLUDE_ITER_TO_ITER_HPP */
+#endif /* ITER_ITERS_TO_ITER_HPP */
 
-#ifndef ITER_ITERS_TO_ITER_CONSTEVAL_HPP
-#define ITER_ITERS_TO_ITER_CONSTEVAL_HPP
+namespace iter::iters { using iter::to_iter; }
+#ifndef ITER_ITERS_OWNING_ITER_HPP
+#define ITER_ITERS_OWNING_ITER_HPP
 
 #ifndef ITER_CORE_ASSERT_CONSTEVAL_HPP
 #define ITER_CORE_ASSERT_CONSTEVAL_HPP
@@ -1514,42 +1517,112 @@ namespace iter::detail {
         // Impossible to define anywhere, so will always fail to link
         static unconstructible undefinable();
     };
-    struct consteval_function_used_at_runtime;
+    struct consteval_function_invoked_at_runtime;
     template<class T = void, class... Ts>
     static constexpr void assert_consteval() {
-        // Fail to compile at linker stage if this is called at runtime.
+        // Fail to compile at linker stage if this will be called at runtime.
         // Cannot fail any earlier, as it will prevent genuine constexpr calls.
         if (!std::is_constant_evaluated())
-            fail_compile_at_linker<consteval_function_used_at_runtime, T, Ts...>::undefinable();
+            fail_compile_at_linker<consteval_function_invoked_at_runtime, T, Ts...>::undefinable();
     }
 }
 
 #endif /* ITER_CORE_ASSERT_CONSTEVAL_HPP */
 
-namespace iter {
-    // Owning iter that is expensive to use at runtime,
-    // but is a necessary compile-time equivalent.
-    // Therefore it is prevented from being used at runtime,
-    // and will fail to compile at the linker stage.
-    template<class T>
-    struct to_iter_consteval;
+#ifndef ITER_CORE_RELOCATION_HPP
+#define ITER_CORE_RELOCATION_HPP
 
-    template<concepts::random_access_container T>
-    struct to_iter_consteval<T> {
-        using this_t = to_iter_consteval;
+// Disable relocation (copying/moving) unless it is completely elided
+// or executed in a constexpr context
+namespace iter {
+    namespace detail {
+        template<class>
+        struct non_copiable;
+        template<class>
+        struct non_movable;
+        template<class>
+        struct non_relocatable;
+    }
+    namespace tag {
+        static constexpr struct non_copiable_t {
+            template<class T>
+            using type = detail::non_copiable<T>;
+        } non_copiable;
+        static constexpr struct non_movable_t {
+            template<class T>
+            using type = detail::non_movable<T>;
+        } non_movable;
+        static constexpr struct non_relocatable_t {
+            template<class T>
+            using type = detail::non_relocatable<T>;
+        } non_relocatable;
+        static constexpr struct relocatable_t {
+            template<class T>
+            using type = void_t;
+        } relocatable;
+        namespace detail {
+            template<class T>
+            static constexpr bool is_relocation = false;
+            template<>
+            constexpr bool is_relocation<tag::non_copiable_t> = true;
+            template<>
+            constexpr bool is_relocation<tag::non_movable_t> = true;
+            template<>
+            constexpr bool is_relocation<tag::non_relocatable_t> = true;
+            template<>
+            constexpr bool is_relocation<tag::relocatable_t> = true;
+        }
+        namespace concepts {
+            template<class T>
+            concept relocation = detail::is_relocation<std::remove_cvref_t<T>>;
+        }
+    }
+    namespace detail {
+        template<class>
+        struct non_copiable {
+            constexpr non_copiable(tag::non_copiable_t){}
+            non_copiable() = default;
+            constexpr non_copiable(non_copiable const&) { detail::assert_consteval<non_copiable>(); }
+            non_copiable(non_copiable&&) = default;
+        };
+        template<class>
+        struct non_movable {
+            constexpr non_movable(tag::non_movable_t){}
+            non_movable() = default;
+            non_movable(non_movable const&) = default;
+            constexpr non_movable(non_movable&&) { detail::assert_consteval<non_movable>(); }
+        };
+        template<class T>
+        struct non_relocatable : non_copiable<T>, non_movable<T> {
+            constexpr non_relocatable(tag::non_relocatable_t){}
+            non_relocatable() = default;
+        };
+    }
+}
+
+#endif /* ITER_CORE_RELOCATION_HPP */
+
+namespace iter {
+    // Owning iter that is disallowed from being relocated (copied/moved)
+    // unless the relocation is elided or in a constant expression
+    template<class T, tag::concepts::relocation Tag = tag::non_relocatable_t>
+    struct owning_iter;
+
+    template<concepts::random_access_container T, tag::concepts::relocation Tag>
+    struct owning_iter<T, Tag> {
+        using this_t = owning_iter;
 
         T container;
+        [[no_unique_address]] typename Tag::template type<this_t> _relocation_enforcement{};
         std::size_t pos = 0;
 
         constexpr auto ITER_IMPL_NEXT(this_t& self) {
-            detail::assert_consteval<this_t, struct unused>();
             return self.pos < std::size(self.container)
                 ? iter::item_ref(self.container[self.pos++])
                 : iter::noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK(this_t& self) {
-            detail::assert_consteval<this_t, struct unused>();
             const auto size = std::size(self.container);
             return self.pos < size
                 ? iter::item_ref(size - 1 - self.container[self.pos++])
@@ -1557,21 +1630,22 @@ namespace iter {
         }
 
         constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index) {
-            detail::assert_consteval<this_t, struct unused>();
             return self.container[index];
         }
         constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self) {
-            detail::assert_consteval<this_t, struct unused>();
             return std::size(self.container);
         }
     };
 
     template<class T>
-    to_iter_consteval(T) -> to_iter_consteval<T>;
+    owning_iter(T) -> owning_iter<T>;
+    template<class T, class Tag>
+    owning_iter(T, Tag) -> owning_iter<T, Tag>;
 }
 
-#endif /* ITER_ITERS_TO_ITER_CONSTEVAL_HPP */
+#endif /* ITER_ITERS_OWNING_ITER_HPP */
 
+namespace iter::iters { using iter::owning_iter; }
 #ifndef ITER_ITERS_ONCE_HPP
 #define ITER_ITERS_ONCE_HPP
 
@@ -1652,6 +1726,7 @@ namespace iter {
 
 #endif /* ITER_ITERS_ONCE_HPP */
 
+namespace iter::iters { using iter::once; }
 #ifndef INCLUDE_ITER_OPTIONAL_HPP
 #define INCLUDE_ITER_OPTIONAL_HPP
 
@@ -1689,6 +1764,7 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_OPTIONAL_HPP */
 
+namespace iter::iters { using iter::optional; }
 #ifndef INCLUDE_ITER_RANGE_HPP
 #define INCLUDE_ITER_RANGE_HPP
 
@@ -1778,13 +1854,14 @@ constexpr auto ITER_IMPL(until) (T begin, T end) {
 
 #endif /* INCLUDE_ITER_RANGE_HPP */
 
+namespace iter::iters { using iter::range; }
 #ifndef ITER_ITERS_GENERATE_HPP
 #define ITER_ITERS_GENERATE_HPP
 
 namespace iter {
     template<std::invocable<> F>
     requires concepts::item<std::invoke_result_t<F>>
-    struct generate : F {
+    struct [[nodiscard]] generate : F {
         using this_t = generate;
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
             return self();
@@ -1797,6 +1874,7 @@ namespace iter {
 
 #endif /* ITER_ITERS_GENERATE_HPP */
 
+namespace iter::iters { using iter::generate; }
 #if __cpp_impl_coroutine >= 201902L && !defined(INCLUDE_ITER_GENERATOR_HPP)
 #define INCLUDE_ITER_GENERATOR_HPP
 
@@ -1949,6 +2027,7 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_GENERATOR_HPP */
 
+namespace iter::iters { using iter::generator; }
 #ifndef INCLUDE_ITER_COMPOUND_HPP
 #define INCLUDE_ITER_COMPOUND_HPP
 
@@ -1975,6 +2054,9 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_COMPOUND_HPP */
 
+namespace iter::iters { using iter::compound; }
+
+namespace iter::iters { using iter::repeat; }
 #ifndef INCLUDE_ITER_EMPTY_HPP
 #define INCLUDE_ITER_EMPTY_HPP
 
@@ -2002,728 +2084,136 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_EMPTY_HPP */
 
-// Adapters
-#ifndef INCLUDE_ITER_FILTER_HPP
-#define INCLUDE_ITER_FILTER_HPP
+namespace iter::iters { using iter::empty; }
 
-ITER_DECLARE(filter)
+#endif /* ITER_ITERS_ITERS_HPP */
 
-namespace iter::detail {
-    template<assert_iter I, std::predicate<ref_t<I>> P>
-    struct [[nodiscard]] filter_iter {
-        using this_t = filter_iter;
+#ifndef ITER_ADAPTERS_ADAPTERS_HPP
+#define ITER_ADAPTERS_ADAPTERS_HPP
 
-        [[no_unique_address]] I i;
-        [[no_unique_address]] P pred;
+#ifndef INCLUDE_ITER_BOX_HPP
+#define INCLUDE_ITER_BOX_HPP
 
-        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
-            auto val = no_next<I>();
-            while (emplace_next(val, self.i)) [[unlikely]] {
-                if (self.pred(*val)) {
-                    return val;
-                }
+ITER_DECLARE(box)
+
+namespace iter {
+    template<class ItemType, class GetType = void>
+    struct virtual_iter : virtual_iter<ItemType, void> {
+        virtual std::size_t size() const = 0;
+        virtual GetType get(std::size_t index) = 0;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) { return self.get(index); }
+        constexpr auto ITER_IMPL_SIZE (this_t const& self) { return self.size(); }
+    };
+    template<class ItemType>
+    struct virtual_iter<ItemType, void> {
+        virtual item<ItemType> next() = 0;
+        virtual ~virtual_iter() = default;
+    private:
+        using this_t = virtual_iter;
+        constexpr auto ITER_IMPL_NEXT (this_t& self) { return self.next(); }
+    };
+
+    namespace detail {
+        template<iter I>
+        struct virtual_iter_impl final : I, virtual_iter<item_t<I>> {
+            template<class... Ts>
+            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
+            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
+        };
+        template<concepts::random_access_iter I>
+        struct virtual_iter_impl<I> final : I, virtual_iter<item_t<I>, get_t<I>> {
+            template<class... Ts>
+            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
+            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
+            std::size_t size() const final {
+                return impl::size(static_cast<I const&>(*this));
             }
-
-            return val;
-        }
-    };
-
-    template<class I, class P>
-    filter_iter(I, P) -> filter_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
-constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
-    return iter::detail::filter_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
-}
-
-#endif /* INCLUDE_ITER_FILTER_HPP */
-
-#ifndef ITER_ADAPTERS_TAKE_HPP
-#define ITER_ADAPTERS_TAKE_HPP
-
-ITER_DECLARE(take)
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct take_iter : enable_random_access<take_iter<I>, I> {
-        [[no_unique_address]] I i;
-        std::size_t n;
-
-        using this_t = take_iter;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return self.n-- > 0 ? impl::next(self.i) : noitem;
-        }
-
-        constexpr auto ITER_IMPL_SIZE (this_t const& self)
-            requires this_t::random_access
-        {
-            return std::min(self.n, impl::size(self.i));
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return impl::get(self.i, index);
-        }
-    };
-
-    template<class I>
-    take_iter(I, std::size_t) -> take_iter<I>;
-}
-
-template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
-    return iter::detail::take_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
-}
-
-#endif /* ITER_ADAPTERS_TAKE_HPP */
-
-#ifndef INCLUDE_ITER_TAKE_WHILE_HPP
-#define INCLUDE_ITER_TAKE_WHILE_HPP
-
-ITER_DECLARE(take_while)
-
-namespace iter::detail {
-    template<assert_iter I, std::predicate<ref_t<I>> P>
-    struct take_while_iter {
-        using this_t = take_while_iter;
-
-        [[no_unique_address]] I i;
-        [[no_unique_address]] P pred;
-
-        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
-            auto val = impl::next(self.i);
-            return val && self.pred(*val) ? val : no_next<I>(); // TODO test RVO
-        }
-    };
-
-    template<class I, class P>
-    take_while_iter(I, P) -> take_while_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
-constexpr auto ITER_IMPL(take_while) (I&& iterable, P&& predicate) {
-    return iter::detail::take_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(predicate)};
-}
-
-#endif /* INCLUDE_ITER_TAKE_WHILE_HPP */
-
-#ifndef INCLUDE_ITER_SKIP_HPP
-#define INCLUDE_ITER_SKIP_HPP
-
-ITER_DECLARE(skip)
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct skip_iter : enable_random_access<skip_iter<I>, I> {
-        [[no_unique_address]] I i;
-        std::size_t n;
-
-        using this_t = skip_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            auto next = no_next<I>();
-            while (emplace_next(next, self.i)) {
-                if (self.n) [[unlikely]] {
-                    --self.n;
-                    continue;
-                }
-                return next;
+            get_t<I> get(std::size_t index) final {
+                return impl::get(static_cast<I&>(*this), index);
             }
-            return next;
-        }
+        };
 
-        constexpr auto ITER_IMPL_SIZE (this_t const& self)
-            requires this_t::random_access
-        {
-            std::size_t size = impl::size(self.i);
-            return size > self.n ? size - self.n : 0;
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return impl::get(self.i, index + self.n);
-        }
-    };
-
-    template<class I>
-    skip_iter(I, std::size_t) -> skip_iter<I>;
-}
-
-template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
-    return iter::detail::skip_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
-}
-
-#endif /* INCLUDE_ITER_SKIP_HPP */
-
-#ifndef INCLUDE_ITER_SKIP_WHILE_HPP
-#define INCLUDE_ITER_SKIP_WHILE_HPP
-
-ITER_DECLARE(skip_while)
-
-namespace iter::detail {
-    template<assert_iter I, std::predicate<cref_t<I>> P>
-    struct skip_while_iter {
-        using this_t = skip_while_iter;
-
-        [[no_unique_address]] I i;
-        item<P> pred;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            auto next = no_next<I>();
-            while (emplace_next(next, self.i)) {
-                if (self.pred) [[unlikely]] {
-                    if (std::invoke(*self.pred, as_const(*next))) {
-                        continue;
-                    }
-                    self.pred.reset();
-                }
-                return next;
+        struct deleter {
+            bool heap = true;
+            template<class T>
+            void operator()(T* ptr) const {
+                if (heap) delete ptr;
+                else ptr->~T();
             }
-            return next;
+        };
+    }
+
+    template<std::size_t Size, std::size_t Align = 8>
+    struct scratch {
+        template<class T, class... Ts>
+        requires (sizeof(T) <= Size) && (alignof(T) <= Align) && (Align % alignof(T) == 0)
+        T* make(Ts&&... ins) { return std::launder(new (std::addressof(storage)) T(FWD(ins)...)); }
+    private:
+        [[no_unique_address]] std::aligned_storage_t<Size, Align> storage;
+    };
+
+    template<class ItemType, class Get = void>
+    struct [[nodiscard]] boxed {
+        using this_t = boxed;
+        using Next = item<ItemType>;
+        static constexpr bool random_access = !std::same_as<Get, void>;
+
+        template<iter I>
+        requires std::same_as<Next, next_t<I>>
+             && (!random_access || std::same_as<Get, detail::get_t<I>>)
+        constexpr boxed(I&& to_box)
+            : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
+        {}
+
+        template<iter I, std::size_t Size, std::size_t Align>
+        requires std::same_as<Next, next_t<I>>
+             && (!random_access || std::same_as<Get, detail::get_t<I>>)
+        constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
+            : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
+        {}
+
+        template<class OU> requires (!random_access)
+        constexpr boxed(boxed<ItemType, OU>&& other) : it{std::move(other.it)} {}
+
+    private:
+        template<class, class> friend struct boxed;
+        constexpr Next ITER_IMPL_NEXT (this_t& self) { return self.it->next(); }
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) requires random_access {
+            return self.it->size();
         }
+        constexpr Get ITER_IMPL_GET (this_t& self, std::size_t index) requires random_access {
+            return self.it->get(index);
+        }
+
+        std::unique_ptr<virtual_iter<ItemType, Get>, detail::deleter> it;
     };
 
-    template<class I, class P>
-    skip_while_iter(I, P) -> skip_while_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::predicate<iter::cref_t<I>> P>
-constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
-    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
-}
-
-#endif /* INCLUDE_ITER_SKIP_WHILE_HPP */
-
-#ifndef INCLUDE_ITER_MAP_HPP
-#define INCLUDE_ITER_MAP_HPP
-
-#ifndef INCLUDE_ITER_FLATTEN_HPP
-#define INCLUDE_ITER_FLATTEN_HPP
-
-#ifndef INCLUDE_ITER_ITER_WRAPPER_HPP
-#define INCLUDE_ITER_ITER_WRAPPER_HPP
-
-namespace iter::detail {
-    template<class I>
-    struct iter_wrapper {
-        static_assert(iterable<I&>);
-        I iterable;
-        using iter_t = iter::iter_t<I&>;
-        iter_t iter = to_iter(iterable);
-    };
     template<iter I>
-    struct iter_wrapper<I> {
-        using iter_t = I;
-        I iter;
-    };
-    template<class I>
-    iter_wrapper(I) -> iter_wrapper<I>;
+    boxed(I) -> boxed<item_t<I>, detail::get_t<I>>;
+    template<iter I, std::size_t Size, std::size_t Align>
+    boxed(I, scratch<Size, Align>&) -> boxed<item_t<I>, detail::get_t<I>>;
 
-    template<class T>
-    struct optional_iter_wrapper {
-        static_assert(iterable<typename T::value_type&>);
-        T optional_iterable;
-        using iter_t = iter::iter_t<decltype(*optional_iterable)>;
-        item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
-    };
-    template<class T>
-    requires iter<typename T::value_type>
-    struct optional_iter_wrapper<T> {
-        using iter_t = typename T::value_type;
-        T optional_iter;
-    };
-    template<class T>
-    optional_iter_wrapper(T) -> optional_iter_wrapper<T>;
+    template<iter I>
+    using virtual_t = virtual_iter<item_t<I>, detail::get_t<I>>;
+    template<iter I>
+    using boxed_t = boxed<item_t<I>, detail::get_t<I>>;
 }
 
-#endif /* INCLUDE_ITER_ITER_WRAPPER_HPP */
-
-ITER_DECLARE(flatten)
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct [[nodiscard]] flatten_iter {
-        using this_t = flatten_iter;
-
-        constexpr static auto get_current(I& i) {
-            return optional_iter_wrapper{impl::next(i)};
-        }
-
-        [[no_unique_address]] I i;
-        decltype(this_t::get_current(std::declval<I&>())) current{};
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            using inner_iter_t = typename decltype(current)::iter_t;
-            auto val = no_next<inner_iter_t>();
-            do {
-                if (self.current.optional_iter) [[likely]]
-                    if (emplace_next(val, *self.current.optional_iter)) [[likely]]
-                        return val;
-            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
-            return val;
-        }
-    };
-
-    template<class I>
-    flatten_iter(I) -> flatten_iter<I>;
+template<iter::assert_iter I>
+constexpr auto ITER_IMPL(box) (I&& iter) {
+    return iter::boxed(FWD(iter));
 }
 
-template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(flatten) (I&& iterable) {
-    return iter::detail::flatten_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+template<iter::assert_iter I, std::size_t Size, std::size_t Align>
+constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
+    return iter::boxed(FWD(iter), scratch);
 }
 
-#endif /* INCLUDE_ITER_FLATTEN_HPP */
+#endif /* INCLUDE_ITER_BOX_HPP */
 
-#ifndef INCLUDE_ITER_FLATMAP_HPP
-#define INCLUDE_ITER_FLATMAP_HPP
-
-ITER_DECLARE(flatmap)
-ITER_ALIAS(flat_map, flatmap)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] flatmap_iter {
-        using this_t = flatmap_iter;
-        using invoke_result = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(!concepts::iter_of_optional<invoke_result>,
-            "Do not return iter::optional in iter::flatmap, instead return iter::item (preferrably in iter::filter_map).");
-        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
-        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
-
-        item<wrapped_inner_iter_t> current{};
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-        constexpr auto get_current() {
-            auto next = impl::next(i);
-            return next
-                ? MAKE_ITEM(iter_wrapper{func(consume(next))})
-                : noitem;
-        }
-
-        constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
-            auto val = no_next<inner_iter_t>();
-            do {
-                if (self.current) [[likely]]
-                    if (emplace_next(val, self.current->iter)) [[likely]]
-                        return val;
-            } while (EMPLACE_NEW(self.current, self.get_current()));
-            return val;
-        }
-    };
-
-    template<class I, class F>
-    flatmap_iter(I, F) -> flatmap_iter<I, F>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
-#define ITER_ADAPTERS_FILTER_MAP_HPP
-
-ITER_DECLARE(filter_map)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] filter_map_iter {
-        using this_t = filter_map_iter;
-        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(concepts::item<mapped_t>);
-
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
-            mapped_t mapped;
-            while (auto val = impl::next(self.i)) {
-                if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
-                    return mapped;
-                }
-            }
-            return mapped;
-        }
-    };
-
-    template<class I, class P>
-    filter_map_iter(I, P) -> filter_map_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
-    return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */
-
-// flatmap on iter::item is equivalent to the specially optimised filter_map
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-requires iter::concepts::item<std::invoke_result_t<F, iter::consume_t<I>>>
-constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::filter_map(FWD(iterable), FWD(func));
-}
-
-#endif /* INCLUDE_ITER_FLATMAP_HPP */
-
-ITER_DECLARE(map)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-    private:
-        using this_t = map_iter;
-        using result_t = std::invoke_result_t<F, consume_t<I>>;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            auto val = impl::next(self.i);
-            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return self.func(impl::get(self.i, index));
-        }
-
-        constexpr auto ITER_IMPL_THIS(flatten) (this_t&& self) {
-            return iter::flatmap(std::move(self.i), std::move(self.func));
-        }
-        constexpr auto ITER_IMPL_THIS(flatten) (this_t const& self) {
-            return iter::flatmap(self.i, self.func);
-        }
-    };
-
-    template<class I, class F>
-    map_iter(I, F) -> map_iter<I, F>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
-    return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#endif /* INCLUDE_ITER_MAP_HPP */
-
-#ifndef INCLUDE_ITER_MAP_WHILE_HPP
-#define INCLUDE_ITER_MAP_WHILE_HPP
-
-ITER_DECLARE(map_while)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] map_while_iter {
-        using this_t = map_while_iter;
-        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(concepts::item<mapped_t>);
-
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
-            auto val = impl::next(self.i);
-            return val ? self.func(consume(val)) : noitem;
-        }
-    };
-
-    template<class I, class P>
-    map_while_iter(I, P) -> map_while_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
-    return iter::detail::map_while_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#endif /* INCLUDE_ITER_MAP_WHILE_HPP */
-
-#ifndef INCLUDE_ITER_ZIP_HPP
-#define INCLUDE_ITER_ZIP_HPP
-
-ITER_DECLARE(zip)
-
-namespace iter::detail {
-    template<class T>
-    static constexpr auto lazy_unwrap_item(T&& in) {
-        if constexpr (concepts::owned_item<T>)
-            return [&] { return in.consume(); };
-        else
-            return [&]() -> auto&& { return in.consume(); };
-    }
-
-    template<assert_iter... I>
-    requires (sizeof...(I) > 1)
-    struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
-        using this_t = zip_iter;
-
-        [[no_unique_address]] tuple<I...> i;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return apply([](auto&... iters) {
-                return [](auto... items) {
-                    return (... & items.has_value())
-                        ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
-                        : noitem;
-                }(impl::next(iters)...);
-            }, self.i);
-        }
-
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return apply([=](auto&... iters) {
-                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(iters, index); }...);
-            }, self.i);
-        }
-    };
-
-    template<class T> static constexpr bool is_zip = false;
-    template<class... Ts> constexpr bool is_zip<zip_iter<Ts...>> = true;
-    template<class T>
-    concept decays_to_zip = is_zip<std::remove_cvref_t<T>>;
-}
-
-template<iter::assert_iterable... I>
-constexpr auto ITER_IMPL(zip) (I&&... iterables) {
-    auto zip = iter::detail::zip_iter<iter::iter_t<I>...>{.i = {iter::to_iter(FWD(iterables))...}};
-    if constexpr(decltype(zip)::random_access) {
-        zip.size = apply([](auto&... iters) {
-            return std::min({iter::traits::random_access::size(iters)...});
-        }, zip.i);
-    }
-    return zip;
-}
-
-template<iter::detail::decays_to_zip I, iter::assert_iterable... Is>
-constexpr auto ITER_IMPL(zip) (I&& zip_iter, Is&&... iterables) {
-    return apply([&](auto&&... zip_iters) {
-        return iter::zip(FWD(zip_iters)..., FWD(iterables)...);
-    }, FWD(zip_iter).i);
-}
-
-#endif /* INCLUDE_ITER_ZIP_HPP */
-
-#ifndef INCLUDE_ITER_ZIP_MAP_HPP
-#define INCLUDE_ITER_ZIP_MAP_HPP
-
-ITER_DECLARE(zip_map)
-
-namespace iter::detail {
-    template<class F, assert_iter... I>
-    requires (sizeof...(I) > 1) && std::invocable<F, consume_t<I>...>
-    struct [[nodiscard]] zip_map_iter : enable_random_access<zip_map_iter<F, I...>, I...> {
-        using this_t = zip_map_iter;
-
-        [[no_unique_address]] F func;
-        [[no_unique_address]] tuple<I...> i;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return apply([&](auto&... iters) {
-                return [&](auto... items) {
-                    return (... & items.has_value())
-                        ? MAKE_ITEM_AUTO(self.func(consume(items)...))
-                        : noitem;
-                }(impl::next(iters)...);
-            }, self.i);
-        }
-
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return apply([=](auto&... iters) {
-                return self.func(impl::get(iters, index)...);
-            }, self.i);
-        }
-    };
-
-    template<assert_iterable... Is, class F>
-    constexpr decltype(auto) make_zip_map_iter(Is&&... iterables, F&& func)
-    {
-        return zip_map_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
-            .func{FWD(func)}, .i{to_iter(FWD(iterables))...}};
-    }
-}
-
-// First args are iterables, last arg is function
-template<class... Ts>
-constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
-    auto zip = [&]<std::size_t... I>(std::index_sequence<I...>) {
-        // TODO: Avoid std::tuple_element_t
-        return iter::detail::make_zip_map_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
-    }(std::make_index_sequence<sizeof...(Ts) - 1>{});
-    if constexpr(decltype(zip)::random_access) {
-        zip.size = apply([](auto&... iters) {
-            return std::min({iter::traits::random_access::size(iters)...});
-        }, zip.i);
-    }
-    return zip;
-}
-
-#endif /* INCLUDE_ITER_ZIP_MAP_HPP */
-
-#ifndef ITER_ADAPTERS_ENUMERATE_HPP
-#define ITER_ADAPTERS_ENUMERATE_HPP
-
-XTD_INVOKER(iter_enumerate)
-
-namespace iter {
-    namespace tag {
-        template<class T = std::size_t>
-        struct enumerate_ : xtd::tagged_bindable<enumerate_<T>, xtd::invokers::iter_enumerate> {};
-    }
-
-    template<class T = std::size_t>
-    static constexpr tag::enumerate_<T> enumerate_;
-}
-
-ITER_ALIAS(enumerate, enumerate_<>)
-
-template<class T, iter::assert_iterable I>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::tag::enumerate_<T>) (I&& iterable) {
-    return iter::zip(FWD(iterable), iter::indices_<T>);
-}
-
-#endif /* ITER_ADAPTERS_ENUMERATE_HPP */
-
-#ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
-#define INCLUDE_ITER_ENUMERATE_MAP_HPP
-
-XTD_INVOKER(iter_enumerate_map)
-
-namespace iter {
-    namespace tag {
-        template<class T = std::size_t>
-        struct enumerate_map_ : xtd::tagged_bindable<enumerate_map_<T>, xtd::invokers::iter_enumerate_map> {};
-    }
-
-    template<class T = std::size_t>
-    static constexpr tag::enumerate_map_<T> enumerate_map_;
-}
-
-ITER_ALIAS(enumerate_map, enumerate_map_<>)
-
-template<class T, iter::assert_iterable I, class F>
-constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate_map, iter::tag::enumerate_map_<T>) (I&& iterable, F&& func) {
-    return iter::zip_map(FWD(iterable), iter::indices_<T>, FWD(func));
-}
-
-#endif /* INCLUDE_ITER_ENUMERATE_MAP_HPP */
-
-#ifndef INCLUDE_ITER_CYCLE_HPP
-#define INCLUDE_ITER_CYCLE_HPP
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct cycle_iter : enable_random_access<cycle_iter<I>, I> {
-        using this_t = cycle_iter;
-        [[no_unique_address]] I i;
-        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;
-
-    private:
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
-            requires this_t::random_access
-        {
-            return std::numeric_limits<std::size_t>::max();
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return impl::get(self.i, index % impl::size(self.i));
-        }
-
-        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            auto val = impl::next(self.i);
-            if (val) [[likely]] {
-                return val;
-            }
-            // assume we are at the end of the underlying, so reinitialise
-            EMPLACE_NEW(self.i, self.i_orig);
-            emplace_next(val, self.i);
-            return val; // if first value is empty, then this prevents an infinite loop
-        }
-    };
-
-    template<class T>
-    cycle_iter(T) -> cycle_iter<T>;
-}
-
-template<iter::iter I>
-constexpr auto ITER_IMPL(cycle) (I&& iter) {
-    return iter::detail::cycle_iter<std::remove_cvref_t<I>>{.i = FWD(iter)};
-}
-
-template<class I>
-constexpr auto ITER_IMPL(cycle) (I&& iterable) {
-    static_assert(iter::iterable<I>);
-    return iter::cycle(iter::to_iter(FWD(iterable)));
-}
-
-#endif /* INCLUDE_ITER_CYCLE_HPP */
-
-#ifndef INCLUDE_ITER_REVERSE_HPP
-#define INCLUDE_ITER_REVERSE_HPP
-
-ITER_DECLARE(reverse)
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct reverse_iter : enable_random_access<reverse_iter<I>, I> {
-        static_assert(concepts::double_ended_iter<I>);
-        [[no_unique_address]] I i;
-
-        using this_t = reverse_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return impl::next_back(self.i);
-        }
-        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return impl::next(self.i);
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return impl::get(self.i, impl::size(self.i) - index - 1);
-        }
-
-        constexpr auto ITER_IMPL_THIS(reverse) (this_t&& self) { return std::move(self.i); }
-        constexpr auto ITER_IMPL_THIS(reverse) (this_t const& self) { return self.i; }
-    };
-}
-
-template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(reverse) (I&& iterable) {
-    static_assert(iter::concepts::double_ended_iter<iter::iter_t<I>>);
-    return iter::detail::reverse_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
-}
-
-#endif /* INCLUDE_ITER_REVERSE_HPP */
-
+namespace iter::adapters { using iter::box; }
 #ifndef ITER_ADAPTERS_CHAIN_HPP
 #define ITER_ADAPTERS_CHAIN_HPP
 
@@ -2795,8 +2285,52 @@ constexpr auto ITER_IMPL(chain) (I1&& iterable1, I2&& iterable2) {
 
 #endif /* ITER_ADAPTERS_CHAIN_HPP */
 
-#ifndef INCLUDE_ITER_CHUNKS_HPP
-#define INCLUDE_ITER_CHUNKS_HPP
+namespace iter::adapters { using iter::chain; }
+#ifndef ITER_ADAPTERS_CHUNKS_HPP
+#define ITER_ADAPTERS_CHUNKS_HPP
+
+#ifndef ITER_ADAPTERS_TAKE_HPP
+#define ITER_ADAPTERS_TAKE_HPP
+
+ITER_DECLARE(take)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct [[nodiscard]] take_iter : enable_random_access<take_iter<I>, I> {
+        [[no_unique_address]] I i;
+        std::size_t n;
+
+        using this_t = take_iter;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return self.n-- > 0 ? impl::next(self.i) : noitem;
+        }
+
+        constexpr auto ITER_IMPL_SIZE (this_t const& self)
+            requires this_t::random_access
+        {
+            return std::min(self.n, impl::size(self.i));
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return impl::get(self.i, index);
+        }
+    };
+
+    template<class I>
+    take_iter(I, std::size_t) -> take_iter<I>;
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
+    return iter::detail::take_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
+}
+
+#endif /* ITER_ADAPTERS_TAKE_HPP */
 
 #ifndef INCLUDE_ITER_SPAN_HPP
 #define INCLUDE_ITER_SPAN_HPP
@@ -2833,12 +2367,12 @@ namespace iter {
 XTD_INVOKER(iter_chunks)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<std::size_t N>
         struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
     }
     template<std::size_t N = 0>
-    static constexpr tag::chunks_<N> chunks_;
+    static constexpr detail::tag::chunks_<N> chunks_;
 }
 
 ITER_ALIAS(chunks, chunks_<>)
@@ -2946,114 +2480,513 @@ namespace iter::detail {
 }
 
 template<iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{
         {.size = size, .remaining = size, .i = FWD(iterable)}};
 }
 
 template<std::size_t N, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<N>) (I&& iterable) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, FWD(iterable)};
 }
 
-#endif /* INCLUDE_ITER_CHUNKS_HPP */
+#endif /* ITER_ADAPTERS_CHUNKS_HPP */
 
-#ifndef INCLUDE_ITER_SPLIT_HPP
-#define INCLUDE_ITER_SPLIT_HPP
+namespace iter::adapters { using iter::chunks; using iter::chunks_; }
+#ifndef ITER_ADAPTERS_CONSTEVAL_ONLY_HPP
+#define ITER_ADAPTERS_CONSTEVAL_ONLY_HPP
 
-ITER_DECLARE(split)
+ITER_DECLARE(consteval_only)
 
 namespace iter::detail {
-    template<assert_iter I>
-    struct [[nodiscard]] split_iter_inner {
+    template<iter I>
+    struct [[nodiscard]] consteval_only_iter {
+        using this_t = consteval_only_iter;
         [[no_unique_address]] I i;
-        value_t<I> delimiter;
-        bool end = false;
 
-        using this_t = split_iter_inner;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            auto next = iter::no_next<I>();
-            if (!emplace_next(next, self.i)) [[unlikely]] {
-                self.end = true;
-            } else if (*next == self.delimiter) [[unlikely]] {
-                next.reset();
-            }
-            return next;
+        constexpr decltype(auto) ITER_IMPL_NEXT(this_t& self) {
+            assert_consteval<this_t, struct next>();
+            return impl::next(self.i);
+        }
+
+        constexpr decltype(auto) ITER_IMPL_NEXT_BACK(this_t& self)
+            requires concepts::double_ended_iter<I>
+        {
+            assert_consteval<this_t, struct next_back>();
+            return impl::next_back(self.i);
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index)
+            requires concepts::random_access_iter<I>
+        {
+            assert_consteval<this_t, struct get>();
+            return impl::get(self.i, index);
+        }
+
+        constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self)
+            requires concepts::random_access_iter<I>
+        {
+            assert_consteval<this_t, struct size>();
+            return impl::size(self.i);
         }
     };
 
-    template<assert_iter I>
-    struct [[nodiscard]] split_iter : split_iter_inner<I> {
-        using this_t = split_iter;
-        constexpr item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
-            if (!self.end) [[likely]] {
-                return self;
-            }
-            return noitem;
-        }
-    };
+    template<class I>
+    consteval_only_iter(I) -> consteval_only_iter<I>;
 }
 
 template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(split) (I&& iterable, iter::value_t<I> delimiter) {
-    return iter::detail::split_iter<iter::iter_t<I>>{
-        {.i = iter::to_iter(FWD(iterable)), .delimiter = delimiter}};
+constexpr auto ITER_IMPL(consteval_only) (I&& iterable) {
+    return iter::detail::consteval_only_iter{iter::to_iter(FWD(iterable))};
 }
 
-#endif /* INCLUDE_ITER_SPLIT_HPP */
+#endif /* ITER_ADAPTERS_CONSTEVAL_ONLY_HPP */
 
-#ifndef INCLUDE_ITER_WINDOW_HPP
-#define INCLUDE_ITER_WINDOW_HPP
-
-XTD_INVOKER(iter_window)
-
-namespace iter {
-    namespace tag {
-        template<std::size_t N>
-        struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
-    }
-    template<std::size_t N = 2>
-    static constexpr tag::window<N> window;
-}
+namespace iter::adapters { using iter::consteval_only; }
+#ifndef INCLUDE_ITER_CYCLE_HPP
+#define INCLUDE_ITER_CYCLE_HPP
 
 namespace iter::detail {
-    template<class T, std::size_t N>
-    struct window_iter_storage {
-        std::array<T, N> buffer = {};
-        std::size_t size = 0;
-        std::size_t end = 0;
-        constexpr auto to_iter() {
-            using namespace xtd::literals;
-            return cycle(buffer) | skip(_, end) | take(_, size--);
-        }
-    };
-
-    template<assert_iter I, std::size_t N>
-    struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
-        static_assert(N > 1, "Window must be of at least size 2");
+    template<assert_iter I>
+    struct [[nodiscard]] cycle_iter : enable_random_access<cycle_iter<I>, I> {
+        using this_t = cycle_iter;
         [[no_unique_address]] I i;
+        [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;
 
-        using this_t = window_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            while (self.size < N) [[likely]] {
-                if (auto next = impl::next(self.i)) [[likely]] {
-                    self.buffer[self.end] = consume(next);
-                    ++self.size;
-                    self.end = (self.end + 1) % N;
-                } else break;
+    private:
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self)
+            requires this_t::random_access
+        {
+            return std::numeric_limits<std::size_t>::max();
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return impl::get(self.i, index % impl::size(self.i));
+        }
+
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            auto val = impl::next(self.i);
+            if (val) [[likely]] {
+                return val;
             }
-            return self.size == N ? MAKE_ITEM(self.to_iter()) : noitem;
+            // assume we are at the end of the underlying, so reinitialise
+            EMPLACE_NEW(self.i, self.i_orig);
+            emplace_next(val, self.i);
+            return val; // if first value is empty, then this prevents an infinite loop
         }
     };
+
+    template<class T>
+    cycle_iter(T) -> cycle_iter<T>;
 }
 
-template<std::size_t N, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_window, iter::tag::window<N>) (I&& iterable) {
-    return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
+template<iter::iter I>
+constexpr auto ITER_IMPL(cycle) (I&& iter) {
+    return iter::detail::cycle_iter<std::remove_cvref_t<I>>{.i = FWD(iter)};
 }
 
-#endif /* INCLUDE_ITER_WINDOW_HPP */
+template<class I>
+constexpr auto ITER_IMPL(cycle) (I&& iterable) {
+    static_assert(iter::iterable<I>);
+    return iter::cycle(iter::to_iter(FWD(iterable)));
+}
 
+#endif /* INCLUDE_ITER_CYCLE_HPP */
+
+namespace iter::adapters { using iter::cycle; }
+#ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
+#define INCLUDE_ITER_ENUMERATE_MAP_HPP
+
+#ifndef INCLUDE_ITER_ZIP_MAP_HPP
+#define INCLUDE_ITER_ZIP_MAP_HPP
+
+ITER_DECLARE(zip_map)
+
+namespace iter::detail {
+    template<class F, assert_iter... I>
+    requires (sizeof...(I) > 1) && std::invocable<F, consume_t<I>...>
+    struct [[nodiscard]] zip_map_iter : enable_random_access<zip_map_iter<F, I...>, I...> {
+        using this_t = zip_map_iter;
+
+        [[no_unique_address]] F func;
+        [[no_unique_address]] tuple<I...> i;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return apply([&](auto&... iters) {
+                return [&](auto... items) {
+                    return (... & items.has_value())
+                        ? MAKE_ITEM_AUTO(self.func(consume(items)...))
+                        : noitem;
+                }(impl::next(iters)...);
+            }, self.i);
+        }
+
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return apply([=](auto&... iters) {
+                return self.func(impl::get(iters, index)...);
+            }, self.i);
+        }
+    };
+
+    template<assert_iterable... Is, class F>
+    constexpr decltype(auto) make_zip_map_iter(Is&&... iterables, F&& func)
+    {
+        return zip_map_iter<std::remove_cvref_t<F>, iter_t<Is>...>{
+            .func{FWD(func)}, .i{to_iter(FWD(iterables))...}};
+    }
+}
+
+// First args are iterables, last arg is function
+template<class... Ts>
+constexpr auto ITER_IMPL(zip_map) (Ts&&... args) {
+    auto zip = [&]<std::size_t... I>(std::index_sequence<I...>) {
+        // TODO: Avoid std::tuple_element_t
+        return iter::detail::make_zip_map_iter<std::tuple_element_t<I, iter::tuple<Ts...>>...>(FWD(args)...);
+    }(std::make_index_sequence<sizeof...(Ts) - 1>{});
+    if constexpr(decltype(zip)::random_access) {
+        zip.size = apply([](auto&... iters) {
+            return std::min({iter::traits::random_access::size(iters)...});
+        }, zip.i);
+    }
+    return zip;
+}
+
+#endif /* INCLUDE_ITER_ZIP_MAP_HPP */
+
+XTD_INVOKER(iter_enumerate_map)
+
+namespace iter {
+    namespace detail::tag {
+        template<class T = std::size_t>
+        struct enumerate_map_ : xtd::tagged_bindable<enumerate_map_<T>, xtd::invokers::iter_enumerate_map> {};
+    }
+
+    template<class T = std::size_t>
+    static constexpr detail::tag::enumerate_map_<T> enumerate_map_;
+}
+
+ITER_ALIAS(enumerate_map, enumerate_map_<>)
+
+template<class T, iter::assert_iterable I, class F>
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate_map, iter::detail::tag::enumerate_map_<T>) (I&& iterable, F&& func) {
+    return iter::zip_map(FWD(iterable), iter::indices_<T>, FWD(func));
+}
+
+#endif /* INCLUDE_ITER_ENUMERATE_MAP_HPP */
+
+namespace iter::adapters { using iter::enumerate_map; using iter::enumerate_map_; }
+#ifndef ITER_ADAPTERS_ENUMERATE_HPP
+#define ITER_ADAPTERS_ENUMERATE_HPP
+
+#ifndef INCLUDE_ITER_ZIP_HPP
+#define INCLUDE_ITER_ZIP_HPP
+
+ITER_DECLARE(zip)
+
+namespace iter::detail {
+    template<class T>
+    static constexpr auto lazy_unwrap_item(T&& in) {
+        if constexpr (concepts::owned_item<T>)
+            return [&] { return in.consume(); };
+        else
+            return [&]() -> auto&& { return in.consume(); };
+    }
+
+    template<assert_iter... I>
+    requires (sizeof...(I) > 1)
+    struct [[nodiscard]] zip_iter : enable_random_access<zip_iter<I...>, I...> {
+        using this_t = zip_iter;
+
+        [[no_unique_address]] tuple<I...> i;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return apply([](auto&... iters) {
+                return [](auto... items) {
+                    return (... & items.has_value())
+                        ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
+                        : noitem;
+                }(impl::next(iters)...);
+            }, self.i);
+        }
+
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return apply([=](auto&... iters) {
+                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(iters, index); }...);
+            }, self.i);
+        }
+    };
+
+    template<class T> static constexpr bool is_zip = false;
+    template<class... Ts> constexpr bool is_zip<zip_iter<Ts...>> = true;
+    template<class T>
+    concept decays_to_zip = is_zip<std::remove_cvref_t<T>>;
+}
+
+template<iter::assert_iterable... I>
+constexpr auto ITER_IMPL(zip) (I&&... iterables) {
+    auto zip = iter::detail::zip_iter<iter::iter_t<I>...>{.i = {iter::to_iter(FWD(iterables))...}};
+    if constexpr(decltype(zip)::random_access) {
+        zip.size = apply([](auto&... iters) {
+            return std::min({iter::traits::random_access::size(iters)...});
+        }, zip.i);
+    }
+    return zip;
+}
+
+template<iter::detail::decays_to_zip I, iter::assert_iterable... Is>
+constexpr auto ITER_IMPL(zip) (I&& zip_iter, Is&&... iterables) {
+    return apply([&](auto&&... zip_iters) {
+        return iter::zip(FWD(zip_iters)..., FWD(iterables)...);
+    }, FWD(zip_iter).i);
+}
+
+#endif /* INCLUDE_ITER_ZIP_HPP */
+
+XTD_INVOKER(iter_enumerate)
+
+namespace iter {
+    namespace detail::tag {
+        template<class T = std::size_t>
+        struct enumerate_ : xtd::tagged_bindable<enumerate_<T>, xtd::invokers::iter_enumerate> {};
+    }
+
+    template<class T = std::size_t>
+    static constexpr detail::tag::enumerate_<T> enumerate_;
+}
+
+ITER_ALIAS(enumerate, enumerate_<>)
+
+template<class T, iter::assert_iterable I>
+constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::detail::tag::enumerate_<T>) (I&& iterable) {
+    return iter::zip(FWD(iterable), iter::indices_<T>);
+}
+
+#endif /* ITER_ADAPTERS_ENUMERATE_HPP */
+
+namespace iter::adapters { using iter::enumerate; using iter::enumerate_; }
+#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
+#define ITER_ADAPTERS_FILTER_MAP_HPP
+
+ITER_DECLARE(filter_map)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] filter_map_iter {
+        using this_t = filter_map_iter;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
+        static_assert(concepts::item<mapped_t>);
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
+            mapped_t mapped;
+            while (auto val = impl::next(self.i)) {
+                if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
+                    return mapped;
+                }
+            }
+            return mapped;
+        }
+    };
+
+    template<class I, class P>
+    filter_map_iter(I, P) -> filter_map_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
+    return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */
+
+namespace iter::adapters { using iter::filter_map; }
+#ifndef INCLUDE_ITER_FILTER_HPP
+#define INCLUDE_ITER_FILTER_HPP
+
+ITER_DECLARE(filter)
+
+namespace iter::detail {
+    template<assert_iter I, std::predicate<ref_t<I>> P>
+    struct [[nodiscard]] filter_iter {
+        using this_t = filter_iter;
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] P pred;
+
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
+            auto val = no_next<I>();
+            while (emplace_next(val, self.i)) [[unlikely]] {
+                if (self.pred(*val)) {
+                    return val;
+                }
+            }
+
+            return val;
+        }
+    };
+
+    template<class I, class P>
+    filter_iter(I, P) -> filter_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
+constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
+    return iter::detail::filter_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
+}
+
+#endif /* INCLUDE_ITER_FILTER_HPP */
+
+namespace iter::adapters { using iter::filter; }
+#ifndef INCLUDE_ITER_FLATMAP_HPP
+#define INCLUDE_ITER_FLATMAP_HPP
+
+#ifndef INCLUDE_ITER_ITER_WRAPPER_HPP
+#define INCLUDE_ITER_ITER_WRAPPER_HPP
+
+namespace iter::detail {
+    template<class I>
+    struct iter_wrapper {
+        static_assert(iterable<I&>);
+        I iterable;
+        using iter_t = iter::iter_t<I&>;
+        iter_t iter = to_iter(iterable);
+    };
+    template<iter I>
+    struct iter_wrapper<I> {
+        using iter_t = I;
+        I iter;
+    };
+    template<class I>
+    iter_wrapper(I) -> iter_wrapper<I>;
+
+    template<class T>
+    struct optional_iter_wrapper {
+        static_assert(iterable<typename T::value_type&>);
+        T optional_iterable;
+        using iter_t = iter::iter_t<decltype(*optional_iterable)>;
+        item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
+    };
+    template<class T>
+    requires iter<typename T::value_type>
+    struct optional_iter_wrapper<T> {
+        using iter_t = typename T::value_type;
+        T optional_iter;
+    };
+    template<class T>
+    optional_iter_wrapper(T) -> optional_iter_wrapper<T>;
+}
+
+#endif /* INCLUDE_ITER_ITER_WRAPPER_HPP */
+
+ITER_DECLARE(flatmap)
+ITER_ALIAS(flat_map, flatmap)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] flatmap_iter {
+        using this_t = flatmap_iter;
+        using invoke_result = std::invoke_result_t<F, consume_t<I>>;
+        static_assert(!concepts::iter_of_optional<invoke_result>,
+            "Do not return iter::optional in iter::flatmap, instead return iter::item (preferrably in iter::filter_map).");
+        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
+        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
+
+        item<wrapped_inner_iter_t> current{};
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr auto get_current() {
+            auto next = impl::next(i);
+            return next
+                ? MAKE_ITEM(iter_wrapper{func(consume(next))})
+                : noitem;
+        }
+
+        constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
+            auto val = no_next<inner_iter_t>();
+            do {
+                if (self.current) [[likely]]
+                    if (emplace_next(val, self.current->iter)) [[likely]]
+                        return val;
+            } while (EMPLACE_NEW(self.current, self.get_current()));
+            return val;
+        }
+    };
+
+    template<class I, class F>
+    flatmap_iter(I, F) -> flatmap_iter<I, F>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
+    return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+// flatmap on iter::item is equivalent to the specially optimised filter_map
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+requires iter::concepts::item<std::invoke_result_t<F, iter::consume_t<I>>>
+constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
+    return iter::filter_map(FWD(iterable), FWD(func));
+}
+
+#endif /* INCLUDE_ITER_FLATMAP_HPP */
+
+namespace iter::adapters { using iter::flatmap; }
+#ifndef INCLUDE_ITER_FLATTEN_HPP
+#define INCLUDE_ITER_FLATTEN_HPP
+
+ITER_DECLARE(flatten)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct [[nodiscard]] flatten_iter {
+        using this_t = flatten_iter;
+
+        constexpr static auto get_current(I& i) {
+            return optional_iter_wrapper{impl::next(i)};
+        }
+
+        [[no_unique_address]] I i;
+        decltype(this_t::get_current(std::declval<I&>())) current{};
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            using inner_iter_t = typename decltype(current)::iter_t;
+            auto val = no_next<inner_iter_t>();
+            do {
+                if (self.current.optional_iter) [[likely]]
+                    if (emplace_next(val, *self.current.optional_iter)) [[likely]]
+                        return val;
+            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
+            return val;
+        }
+    };
+
+    template<class I>
+    flatten_iter(I) -> flatten_iter<I>;
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(flatten) (I&& iterable) {
+    return iter::detail::flatten_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+}
+
+#endif /* INCLUDE_ITER_FLATTEN_HPP */
+
+namespace iter::adapters { using iter::flatten; }
 #ifndef INCLUDE_ITER_INSPECT_HPP
 #define INCLUDE_ITER_INSPECT_HPP
 
@@ -3095,6 +3028,345 @@ constexpr auto ITER_IMPL(inspect) (I&& iterable, F func) {
 
 #endif /* INCLUDE_ITER_INSPECT_HPP */
 
+namespace iter::adapters { using iter::inspect; }
+#ifndef INCLUDE_ITER_MAP_WHILE_HPP
+#define INCLUDE_ITER_MAP_WHILE_HPP
+
+ITER_DECLARE(map_while)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] map_while_iter {
+        using this_t = map_while_iter;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
+        static_assert(concepts::item<mapped_t>);
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
+            auto val = impl::next(self.i);
+            return val ? self.func(consume(val)) : noitem;
+        }
+    };
+
+    template<class I, class P>
+    map_while_iter(I, P) -> map_while_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
+    return iter::detail::map_while_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#endif /* INCLUDE_ITER_MAP_WHILE_HPP */
+
+namespace iter::adapters { using iter::map_while; }
+#ifndef INCLUDE_ITER_MAP_HPP
+#define INCLUDE_ITER_MAP_HPP
+
+ITER_DECLARE(map)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+    private:
+        using this_t = map_iter;
+        using result_t = std::invoke_result_t<F, consume_t<I>>;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            auto val = impl::next(self.i);
+            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return self.func(impl::get(self.i, index));
+        }
+
+        constexpr auto ITER_IMPL_THIS(flatten) (this_t&& self) {
+            return iter::flatmap(std::move(self.i), std::move(self.func));
+        }
+        constexpr auto ITER_IMPL_THIS(flatten) (this_t const& self) {
+            return iter::flatmap(self.i, self.func);
+        }
+    };
+
+    template<class I, class F>
+    map_iter(I, F) -> map_iter<I, F>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
+    return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#endif /* INCLUDE_ITER_MAP_HPP */
+
+namespace iter::adapters { using iter::map; }
+#ifndef ITER_ADAPTERS_MOVE_HPP
+#define ITER_ADAPTERS_MOVE_HPP
+
+ITER_DECLARE(move)
+
+namespace iter::detail {
+    template<iter::assert_iter I>
+    struct [[nodiscard]] move_iter : enable_random_access<move_iter<I>, I> {
+        [[no_unique_address]] I i;
+
+        using this_t = move_iter;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return move_item{impl::next(self.i)};
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            decltype(auto) item = impl::get(self.i, index);
+            if constexpr (std::is_reference_v<decltype(item)>)
+                return std::move(item);
+            else
+                return item;
+        }
+    };
+
+    template<class T>
+    move_iter(T) -> move_iter<T>;
+}
+
+template<iter::assert_iterable I>
+constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
+    if constexpr (iter::concepts::move_item<iter::next_t<I>>)
+        return FWD(iterable);
+    else
+        return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+}
+
+#endif /* ITER_ADAPTERS_MOVE_HPP */
+
+namespace iter::adapters { using iter::move; }
+#ifndef INCLUDE_ITER_REVERSE_HPP
+#define INCLUDE_ITER_REVERSE_HPP
+
+ITER_DECLARE(reverse)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct [[nodiscard]] reverse_iter : enable_random_access<reverse_iter<I>, I> {
+        static_assert(concepts::double_ended_iter<I>);
+        [[no_unique_address]] I i;
+
+        using this_t = reverse_iter;
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return impl::next_back(self.i);
+        }
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self)
+            requires (!this_t::random_access)
+        {
+            return impl::next(self.i);
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return impl::get(self.i, impl::size(self.i) - index - 1);
+        }
+
+        constexpr auto ITER_IMPL_THIS(reverse) (this_t&& self) { return std::move(self.i); }
+        constexpr auto ITER_IMPL_THIS(reverse) (this_t const& self) { return self.i; }
+    };
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(reverse) (I&& iterable) {
+    static_assert(iter::concepts::double_ended_iter<iter::iter_t<I>>);
+    return iter::detail::reverse_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+}
+
+#endif /* INCLUDE_ITER_REVERSE_HPP */
+
+namespace iter::adapters { using iter::reverse; }
+#ifndef INCLUDE_ITER_SKIP_WHILE_HPP
+#define INCLUDE_ITER_SKIP_WHILE_HPP
+
+ITER_DECLARE(skip_while)
+
+namespace iter::detail {
+    template<assert_iter I, std::predicate<cref_t<I>> P>
+    struct [[nodiscard]] skip_while_iter {
+        using this_t = skip_while_iter;
+
+        [[no_unique_address]] I i;
+        item<P> pred;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            auto next = no_next<I>();
+            while (emplace_next(next, self.i)) {
+                if (self.pred) [[unlikely]] {
+                    if (std::invoke(*self.pred, as_const(*next))) {
+                        continue;
+                    }
+                    self.pred.reset();
+                }
+                return next;
+            }
+            return next;
+        }
+    };
+
+    template<class I, class P>
+    skip_while_iter(I, P) -> skip_while_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::predicate<iter::cref_t<I>> P>
+constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
+    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
+}
+
+#endif /* INCLUDE_ITER_SKIP_WHILE_HPP */
+
+namespace iter::adapters { using iter::skip_while; }
+#ifndef INCLUDE_ITER_SKIP_HPP
+#define INCLUDE_ITER_SKIP_HPP
+
+ITER_DECLARE(skip)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct [[nodiscard]] skip_iter : enable_random_access<skip_iter<I>, I> {
+        [[no_unique_address]] I i;
+        std::size_t n;
+
+        using this_t = skip_iter;
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            auto next = no_next<I>();
+            while (emplace_next(next, self.i)) {
+                if (self.n) [[unlikely]] {
+                    --self.n;
+                    continue;
+                }
+                return next;
+            }
+            return next;
+        }
+
+        constexpr auto ITER_IMPL_SIZE (this_t const& self)
+            requires this_t::random_access
+        {
+            std::size_t size = impl::size(self.i);
+            return size > self.n ? size - self.n : 0;
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return impl::get(self.i, index + self.n);
+        }
+    };
+
+    template<class I>
+    skip_iter(I, std::size_t) -> skip_iter<I>;
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
+    return iter::detail::skip_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable)), .n = n};
+}
+
+#endif /* INCLUDE_ITER_SKIP_HPP */
+
+namespace iter::adapters { using iter::skip; }
+#ifndef INCLUDE_ITER_SPLIT_HPP
+#define INCLUDE_ITER_SPLIT_HPP
+
+ITER_DECLARE(split)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct split_iter_inner {
+        [[no_unique_address]] I i;
+        value_t<I> delimiter;
+        bool end = false;
+
+        using this_t = split_iter_inner;
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            auto next = iter::no_next<I>();
+            if (!emplace_next(next, self.i)) [[unlikely]] {
+                self.end = true;
+            } else if (*next == self.delimiter) [[unlikely]] {
+                next.reset();
+            }
+            return next;
+        }
+    };
+
+    template<assert_iter I>
+    struct [[nodiscard]] split_iter : split_iter_inner<I> {
+        using this_t = split_iter;
+        constexpr item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
+            if (!self.end) [[likely]] {
+                return self;
+            }
+            return noitem;
+        }
+    };
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(split) (I&& iterable, iter::value_t<I> delimiter) {
+    return iter::detail::split_iter<iter::iter_t<I>>{
+        {.i = iter::to_iter(FWD(iterable)), .delimiter = delimiter}};
+}
+
+#endif /* INCLUDE_ITER_SPLIT_HPP */
+
+namespace iter::adapters { using iter::split; }
+#ifndef INCLUDE_ITER_TAKE_WHILE_HPP
+#define INCLUDE_ITER_TAKE_WHILE_HPP
+
+ITER_DECLARE(take_while)
+
+namespace iter::detail {
+    template<assert_iter I, std::predicate<ref_t<I>> P>
+    struct [[nodiscard]] take_while_iter {
+        using this_t = take_while_iter;
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] P pred;
+
+        constexpr next_t<I> ITER_IMPL_NEXT (this_t& self) {
+            auto val = impl::next(self.i);
+            return val && self.pred(*val) ? val : no_next<I>(); // TODO test RVO
+        }
+    };
+
+    template<class I, class P>
+    take_while_iter(I, P) -> take_while_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::predicate<iter::ref_t<I>> P>
+constexpr auto ITER_IMPL(take_while) (I&& iterable, P&& predicate) {
+    return iter::detail::take_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(predicate)};
+}
+
+#endif /* INCLUDE_ITER_TAKE_WHILE_HPP */
+
+namespace iter::adapters { using iter::take_while; }
+
+namespace iter::adapters { using iter::take; }
 #ifndef ITER_ITERS_TO_POINTER_ITER_HPP
 #define ITER_ITERS_TO_POINTER_ITER_HPP
 
@@ -3148,172 +3420,71 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
 
 #endif /* ITER_ITERS_TO_POINTER_ITER_HPP */
 
-#ifndef ITER_ADAPTERS_MOVE_HPP
-#define ITER_ADAPTERS_MOVE_HPP
+namespace iter::adapters { using iter::to_pointer_iter; }
+#ifndef INCLUDE_ITER_WINDOW_HPP
+#define INCLUDE_ITER_WINDOW_HPP
 
-ITER_DECLARE(move)
-
-namespace iter::detail {
-    template<iter::assert_iter I>
-    struct move_iter : enable_random_access<move_iter<I>, I> {
-        [[no_unique_address]] I i;
-
-        using this_t = move_iter;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            return move_item{impl::next(self.i)};
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            decltype(auto) item = impl::get(self.i, index);
-            if constexpr (std::is_reference_v<decltype(item)>)
-                return std::move(item);
-            else
-                return item;
-        }
-    };
-
-    template<class T>
-    move_iter(T) -> move_iter<T>;
-}
-
-template<iter::assert_iterable I>
-constexpr decltype(auto) ITER_IMPL(move) (I&& iterable) {
-    if constexpr (iter::concepts::move_item<iter::next_t<I>>)
-        return FWD(iterable);
-    else
-        return iter::detail::move_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
-}
-
-#endif /* ITER_ADAPTERS_MOVE_HPP */
-
-#ifndef INCLUDE_ITER_BOX_HPP
-#define INCLUDE_ITER_BOX_HPP
-
-ITER_DECLARE(box)
+XTD_INVOKER(iter_window)
 
 namespace iter {
-    template<class ItemType, class GetType = void>
-    struct virtual_iter : virtual_iter<ItemType, void> {
-        virtual std::size_t size() const = 0;
-        virtual GetType get(std::size_t index) = 0;
-    private:
-        using this_t = virtual_iter;
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) { return self.get(index); }
-        constexpr auto ITER_IMPL_SIZE (this_t const& self) { return self.size(); }
-    };
-    template<class ItemType>
-    struct virtual_iter<ItemType, void> {
-        virtual item<ItemType> next() = 0;
-        virtual ~virtual_iter() = default;
-    private:
-        using this_t = virtual_iter;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) { return self.next(); }
-    };
-
-    namespace detail {
-        template<iter I>
-        struct virtual_iter_impl final : I, virtual_iter<item_t<I>> {
-            template<class... Ts>
-            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
-        };
-        template<concepts::random_access_iter I>
-        struct virtual_iter_impl<I> final : I, virtual_iter<item_t<I>, get_t<I>> {
-            template<class... Ts>
-            constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
-            std::size_t size() const final {
-                return impl::size(static_cast<I const&>(*this));
-            }
-            get_t<I> get(std::size_t index) final {
-                return impl::get(static_cast<I&>(*this), index);
-            }
-        };
-
-        struct deleter {
-            bool heap = true;
-            template<class T>
-            void operator()(T* ptr) const {
-                if (heap) delete ptr;
-                else ptr->~T();
-            }
-        };
+    namespace detail::tag {
+        template<std::size_t N>
+        struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
     }
+    template<std::size_t N = 2>
+    static constexpr detail::tag::window<N> window;
+}
 
-    template<std::size_t Size, std::size_t Align = 8>
-    struct scratch {
-        template<class T, class... Ts>
-        requires (sizeof(T) <= Size) && (alignof(T) <= Align) && (Align % alignof(T) == 0)
-        T* make(Ts&&... ins) { return std::launder(new (std::addressof(storage)) T(FWD(ins)...)); }
-    private:
-        [[no_unique_address]] std::aligned_storage_t<Size, Align> storage;
+namespace iter::detail {
+    template<class T, std::size_t N>
+    struct window_iter_storage {
+        std::array<T, N> buffer = {};
+        std::size_t size = 0;
+        std::size_t end = 0;
+        constexpr auto to_iter() {
+            using namespace xtd::literals;
+            return cycle(buffer) | skip(_, end) | take(_, size--);
+        }
     };
 
-    template<class ItemType, class Get = void>
-    struct boxed {
-        using this_t = boxed;
-        using Next = item<ItemType>;
-        static constexpr bool random_access = !std::same_as<Get, void>;
+    template<assert_iter I, std::size_t N>
+    struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
+        static_assert(N > 1, "Window must be of at least size 2");
+        [[no_unique_address]] I i;
 
-        template<iter I>
-        requires std::same_as<Next, next_t<I>>
-             && (!random_access || std::same_as<Get, detail::get_t<I>>)
-        constexpr boxed(I&& to_box)
-            : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
-        {}
-
-        template<iter I, std::size_t Size, std::size_t Align>
-        requires std::same_as<Next, next_t<I>>
-             && (!random_access || std::same_as<Get, detail::get_t<I>>)
-        constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
-            : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
-        {}
-
-        template<class OU> requires (!random_access)
-        constexpr boxed(boxed<ItemType, OU>&& other) : it{std::move(other.it)} {}
-
-    private:
-        template<class, class> friend struct boxed;
-        constexpr Next ITER_IMPL_NEXT (this_t& self) { return self.it->next(); }
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) requires random_access {
-            return self.it->size();
+        using this_t = window_iter;
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            while (self.size < N) [[likely]] {
+                if (auto next = impl::next(self.i)) [[likely]] {
+                    self.buffer[self.end] = consume(next);
+                    ++self.size;
+                    self.end = (self.end + 1) % N;
+                } else break;
+            }
+            return self.size == N ? MAKE_ITEM(self.to_iter()) : noitem;
         }
-        constexpr Get ITER_IMPL_GET (this_t& self, std::size_t index) requires random_access {
-            return self.it->get(index);
-        }
-
-        std::unique_ptr<virtual_iter<ItemType, Get>, detail::deleter> it;
     };
-
-    template<iter I>
-    boxed(I) -> boxed<item_t<I>, detail::get_t<I>>;
-    template<iter I, std::size_t Size, std::size_t Align>
-    boxed(I, scratch<Size, Align>&) -> boxed<item_t<I>, detail::get_t<I>>;
-
-    template<iter I>
-    using virtual_t = virtual_iter<item_t<I>, detail::get_t<I>>;
-    template<iter I>
-    using boxed_t = boxed<item_t<I>, detail::get_t<I>>;
 }
 
-template<iter::assert_iter I>
-constexpr auto ITER_IMPL(box) (I&& iter) {
-    return iter::boxed(FWD(iter));
+template<std::size_t N, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_window, iter::detail::tag::window<N>) (I&& iterable) {
+    return iter::detail::window_iter<std::remove_reference_t<I>, N>{{}, {FWD(iterable)}};
 }
 
-template<iter::assert_iter I, std::size_t Size, std::size_t Align>
-constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
-    return iter::boxed(FWD(iter), scratch);
-}
+#endif /* INCLUDE_ITER_WINDOW_HPP */
 
-#endif /* INCLUDE_ITER_BOX_HPP */
+namespace iter::adapters { using iter::window; }
 
-// Consumers
+namespace iter::adapters { using iter::zip_map; }
+
+namespace iter::adapters { using iter::zip; }
+
+#endif /* ITER_ADAPTERS_ADAPTERS_HPP */
+
+#ifndef ITER_CONSUMERS_CONSUMERS_HPP
+#define ITER_CONSUMERS_CONSUMERS_HPP
+
+// Reducing
 #ifndef INCLUDE_ITER_FOREACH_HPP
 #define INCLUDE_ITER_FOREACH_HPP
 
@@ -3336,6 +3507,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable) {
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */
 
+namespace iter::consumers { using iter::foreach; }
 #ifndef ITER_COLLECTORS_FOLD_HPP
 #define ITER_COLLECTORS_FOLD_HPP
 
@@ -3354,6 +3526,7 @@ constexpr auto ITER_IMPL(fold) (I&& iterable, T&& init, F func) {
 
 #endif /* ITER_COLLECTORS_FOLD_HPP */
 
+namespace iter::consumers { using iter::fold; }
 #ifndef ITER_CONSUMERS_REDUCE_HPP
 #define ITER_CONSUMERS_REDUCE_HPP
 
@@ -3370,6 +3543,7 @@ constexpr iter::item<iter::value_t<I>> ITER_IMPL(reduce) (I&& iterable, F&& func
 
 #endif /* ITER_CONSUMERS_REDUCE_HPP */
 
+namespace iter::consumers { using iter::reduce; }
 #ifndef INCLUDE_ITER_SUM_HPP
 #define INCLUDE_ITER_SUM_HPP
 
@@ -3388,6 +3562,7 @@ constexpr auto ITER_IMPL(sum) (I&& iterable) {
 
 #endif /* INCLUDE_ITER_SUM_HPP */
 
+namespace iter::consumers { using iter::sum; }
 #ifndef ITER_CONSUMERS_PRODUCT_HPP
 #define ITER_CONSUMERS_PRODUCT_HPP
 
@@ -3406,6 +3581,9 @@ constexpr auto ITER_IMPL(product) (I&& iterable) {
 
 #endif /* ITER_CONSUMERS_PRODUCT_HPP */
 
+namespace iter::consumers { using iter::product; }
+
+// Finding
 #ifndef ITER_CONSUMERS_LAST_HPP
 #define ITER_CONSUMERS_LAST_HPP
 
@@ -3485,6 +3663,7 @@ constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
 
 #endif /* ITER_CONSUMERS_LAST_HPP */
 
+namespace iter::consumers { using iter::last; }
 #ifndef INCLUDE_ITER_NTH_HPP
 #define INCLUDE_ITER_NTH_HPP
 
@@ -3529,6 +3708,7 @@ constexpr auto ITER_IMPL(nth) (I&& iterable, std::size_t n, T&& fallback) {
 
 #endif /* INCLUDE_ITER_NTH_HPP */
 
+namespace iter::consumers { using iter::nth; }
 #ifndef INCLUDE_ITER_MAX_HPP
 #define INCLUDE_ITER_MAX_HPP
 
@@ -3647,6 +3827,9 @@ constexpr auto ITER_IMPL(max_by) (I&& iterable, F&& func) {
 
 #endif /* INCLUDE_ITER_MAX_HPP */
 
+namespace iter::consumers { using iter::max; }
+
+namespace iter::consumers { using iter::min; }
 #ifndef INCLUDE_ITER_FIND_LINEAR_HPP
 #define INCLUDE_ITER_FIND_LINEAR_HPP
 
@@ -3669,6 +3852,7 @@ constexpr auto ITER_IMPL(find_linear) (I&& iterable, P&& predicate) {
 
 #endif /* INCLUDE_ITER_FIND_LINEAR_HPP */
 
+namespace iter::consumers { using iter::find_linear; }
 #ifndef INCLUDE_ITER_FIND_MAP_HPP
 #define INCLUDE_ITER_FIND_MAP_HPP
 
@@ -3687,6 +3871,9 @@ constexpr auto ITER_IMPL(find_map) (I&& iterable, F&& func) {
 
 #endif /* INCLUDE_ITER_FIND_MAP_HPP */
 
+namespace iter::consumers { using iter::find_map; }
+
+// Predicates
 #ifndef INCLUDE_ITER_ANY_HPP
 #define INCLUDE_ITER_ANY_HPP
 
@@ -3706,6 +3893,7 @@ constexpr auto ITER_IMPL(any) (I&& iterable, P&& predicate) {
 
 #endif /* INCLUDE_ITER_ANY_HPP */
 
+namespace iter::consumers { using iter::any; }
 #ifndef ITER_CONSUMERS_ALL_HPP
 #define ITER_CONSUMERS_ALL_HPP
 
@@ -3725,20 +3913,26 @@ constexpr auto ITER_IMPL(all) (I&& iterable, P&& predicate) {
 
 #endif /* ITER_CONSUMERS_ALL_HPP */
 
-// Collectors
+namespace iter::consumers { using iter::all; }
+
+#endif /* ITER_CONSUMERS_CONSUMERS_HPP */
+
+#ifndef ITER_COLLECTORS_COLLECTORS_HPP
+#define ITER_COLLECTORS_COLLECTORS_HPP
+
 #ifndef ITER_COLLECTORS_COLLECT_HPP
 #define ITER_COLLECTORS_COLLECT_HPP
 
 XTD_INVOKER(iter_collect)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
         struct collect : xtd::tagged_bindable<collect<C, A, Traits...>, xtd::invokers::iter_collect> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
-    static constexpr tag::collect<C, A, Traits...> collect;
+    static constexpr detail::tag::collect<C, A, Traits...> collect;
 }
 
 ITER_ALIAS(to_vector, collect<std::vector>)
@@ -3746,7 +3940,7 @@ ITER_ALIAS(to_map, collect<std::map>)
 ITER_ALIAS(to_string, collect<std::basic_string, std::allocator, std::char_traits>)
 
 template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<CT, AT, Traits...>)(I&& iter) {
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
@@ -3759,7 +3953,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
 }
 
 template<template<class...> class CT, template<class> class AT, template<class> class... Traits, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>)(I&& iter, std::size_t reserve) {
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<CT, AT, Traits...>)(I&& iter, std::size_t reserve) {
     using T = iter::value_t<I>;
     CT<T, Traits<T>..., AT<T>> container;
     if constexpr (iter::concepts::random_access_iter<I>) {
@@ -3773,7 +3967,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<CT, AT, Traits...>
 }
 
 template<template<class> class AT, iter::assert_iter I, class Comp>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&& iter, Comp&& compare) {
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<std::map, AT>)(I&& iter, Comp&& compare) {
     using KV = iter::value_t<I>;
     using K = std::tuple_element_t<0, KV>;
     using V = std::tuple_element_t<1, KV>;
@@ -3786,7 +3980,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
 }
 
 template<template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<std::map, AT>)(I&& iter) {
     using KV = iter::value_t<I>;
     using K = std::tuple_element_t<0, KV>;
     return iter::collect<std::map, AT>(FWD(iter), std::less<K>{});
@@ -3794,6 +3988,7 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::tag::collect<std::map, AT>)(I&&
 
 #endif /* ITER_COLLECTORS_COLLECT_HPP */
 
+namespace iter::collectors { using iter::collect; }
 #ifndef ITER_COLLECTORS_PARTITION_HPP
 #define ITER_COLLECTORS_PARTITION_HPP
 
@@ -3836,11 +4031,6 @@ namespace iter {
 
 template<iter::assert_iterable I, class F>
 constexpr decltype(auto) ITER_IMPL(partition) (I&& iterable, F&& func) {
-    return iter::partition(iter::to_iter(FWD(iterable)), FWD(func));
-}
-
-template<iter::iter I, class F>
-constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
     using part_t = std::invoke_result_t<F, iter::consume_t<I>>;
     constexpr std::size_t N = []{
         if constexpr (std::is_same_v<bool, part_t>)
@@ -3851,9 +4041,11 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
         }
     }();
     static_assert(N > 1, "Must partition at least 2 ways");
-    auto out = std::array<std::vector<iter::value_t<std::decay_t<I>>>, N>{};
+    auto out = std::array<std::vector<iter::value_t<I>>, N>{};
 
-    if constexpr (iter::concepts::random_access_iter<I>) {
+    decltype(auto) iter = iter::to_iter(FWD(iterable));
+
+    if constexpr (iter::concepts::random_access_iter<decltype(iter)>) {
         std::size_t size = iter::traits::random_access::size(iter) / N;
         apply([=](auto&&... outs) { (outs.reserve(size), ...); }, out);
     }
@@ -3874,19 +4066,20 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iter, F&& func) {
 
 #endif /* ITER_COLLECTORS_PARTITION_HPP */
 
+namespace iter::collectors { using iter::partition; }
 #ifndef INCLUDE_ITER_UNZIP_HPP
 #define INCLUDE_ITER_UNZIP_HPP
 
 XTD_INVOKER(iter_unzip)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator>
         struct unzip_ : xtd::tagged_bindable<unzip_<C, A>, xtd::invokers::iter_unzip> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::unzip_<C, A> unzip_;
+    static constexpr detail::tag::unzip_<C, A> unzip_;
 
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
@@ -3913,7 +4106,7 @@ namespace iter {
 ITER_ALIAS(unzip, unzip_<>)
 
 template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::detail::tag::unzip_<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 
@@ -3931,7 +4124,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
 }
 
 template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::detail::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 
@@ -3953,39 +4146,44 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, st
 
 #endif /* INCLUDE_ITER_UNZIP_HPP */
 
+namespace iter::collectors { using iter::unzip; using iter::unzip_; }
 #ifndef ITER_COLLECTORS_SORTED_HPP
 #define ITER_COLLECTORS_SORTED_HPP
 
 XTD_INVOKER(iter_sorted)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator>
         struct sorted_ : xtd::tagged_bindable<sorted_<C, A>, xtd::invokers::iter_sorted> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::sorted_<C, A> sorted_;
+    static constexpr detail::tag::sorted_<C, A> sorted_;
 }
 
 ITER_ALIAS(sorted, sorted_<>)
 
 template<template<class...> class CT, template<class> class AT,
          iter::assert_iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
     auto container = iter::collect<CT, AT>(FWD(iter));
     std::sort(std::begin(container), std::end(container), FWD(predicate));
     return container;
 }
 
 template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::tag::sorted_<CT, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter) {
     auto container = iter::collect<CT, AT>(FWD(iter));
     std::sort(std::begin(container), std::end(container));
     return container;
 }
 
 #endif /* ITER_COLLECTORS_SORTED_HPP */
+
+namespace iter::collectors { using iter::sorted; using iter::sorted_; }
+
+#endif /* ITER_COLLECTORS_COLLECTORS_HPP */
 
 // Misc
 #ifndef INCLUDE_ITER_COMPARISON_HPP
@@ -4091,50 +4289,52 @@ namespace iter {
 
 // Invoke iter::cycle on this iter
 ITER_X(cycle)
-// Invoke iter::filter on this iter
-ITER_X(filter)
+// Invoke iter::box on this iter
+ITER_X(box)
+// Invoke iter::chain on this iter
+ITER_X(chain)
 // Invoke iter::take on this iter
 ITER_X(take)
-// Invoke iter::take_while on this iter
-ITER_X(take_while)
-// Invoke iter::skip on this iter
-ITER_X(skip)
-// Invoke iter::skip_while on this iter
-ITER_X(skip_while)
-// Invoke iter::flatten on this iter
-ITER_X(flatten)
+// Invoke iter::chunks (aka iter::chunks_<>) on this iter
+ITER_X(chunks)
+// Invoke iter::consteval_only on this iter
+ITER_X(consteval_only)
+// Invoke iter::zip_map on this iter
+ITER_X(zip_map)
+// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
+ITER_X(enumerate_map)
+// Invoke iter::zip on this iter
+ITER_X(zip)
+// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
+ITER_X(enumerate)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::filter on this iter
+ITER_X(filter)
 // Invoke iter::flatmap on this iter
 ITER_X(flatmap)
 // Invoke iter::flat_map (aka iter::flatmap) on this iter
 ITER_X(flat_map)
-// Invoke iter::filter_map on this iter
-ITER_X(filter_map)
-// Invoke iter::map on this iter
-ITER_X(map)
-// Invoke iter::map_while on this iter
-ITER_X(map_while)
-// Invoke iter::zip on this iter
-ITER_X(zip)
-// Invoke iter::zip_map on this iter
-ITER_X(zip_map)
-// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
-ITER_X(enumerate)
-// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
-ITER_X(enumerate_map)
-// Invoke iter::reverse on this iter
-ITER_X(reverse)
-// Invoke iter::chain on this iter
-ITER_X(chain)
-// Invoke iter::chunks (aka iter::chunks_<>) on this iter
-ITER_X(chunks)
-// Invoke iter::split on this iter
-ITER_X(split)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
+// Invoke iter::map_while on this iter
+ITER_X(map_while)
+// Invoke iter::map on this iter
+ITER_X(map)
 // Invoke iter::move on this iter
 ITER_X(move)
-// Invoke iter::box on this iter
-ITER_X(box)
+// Invoke iter::reverse on this iter
+ITER_X(reverse)
+// Invoke iter::skip_while on this iter
+ITER_X(skip_while)
+// Invoke iter::skip on this iter
+ITER_X(skip)
+// Invoke iter::split on this iter
+ITER_X(split)
+// Invoke iter::take_while on this iter
+ITER_X(take_while)
 // Invoke iter::foreach on this iter
 ITER_X(foreach)
 // Invoke iter::for_each (aka iter::foreach) on this iter
@@ -4196,12 +4396,12 @@ ITER_X(sorted)
         }
 /* Do not modify, generated by scripts/update_x_macros.sh */
 
-// Invoke iter::enumerate_ on this iter
-ITER_X(enumerate_, (class T = std::size_t), (T))
-// Invoke iter::enumerate_map_ on this iter
-ITER_X(enumerate_map_, (class T = std::size_t), (T))
 // Invoke iter::chunks_ on this iter
 ITER_X(chunks_, (std::size_t N = 0), (N))
+// Invoke iter::enumerate_map_ on this iter
+ITER_X(enumerate_map_, (class T = std::size_t), (T))
+// Invoke iter::enumerate_ on this iter
+ITER_X(enumerate_, (class T = std::size_t), (T))
 // Invoke iter::window on this iter
 ITER_X(window, (std::size_t N = 2), (N))
 // Invoke iter::collect on this iter

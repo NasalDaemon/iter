@@ -7,7 +7,7 @@ ITER_DECLARE(take)
 
 namespace iter::detail {
     template<assert_iter I>
-    struct take_iter : enable_random_access<take_iter<I>, I> {
+    struct [[nodiscard]] take_iter : enable_random_access<take_iter<I>, I> {
         [[no_unique_address]] I i;
         std::size_t n;
 

@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_TO_ITER_HPP
-#define INCLUDE_ITER_TO_ITER_HPP
+#ifndef ITER_ITERS_TO_ITER_HPP
+#define ITER_ITERS_TO_ITER_HPP
 
 #include "iter/core/core.hpp"
 #include "iter/core/std_fwd.hpp"
@@ -124,4 +124,4 @@ namespace iter {
     pointer_to_iter(T*) -> pointer_to_iter<T>;
 }
 
-#endif /* INCLUDE_ITER_TO_ITER_HPP */
+#endif /* ITER_ITERS_TO_ITER_HPP */

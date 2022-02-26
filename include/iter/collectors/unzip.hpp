@@ -7,13 +7,13 @@
 XTD_INVOKER(iter_unzip)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<template<class...> class C = std::vector, template<class> class A = std::allocator>
         struct unzip_ : xtd::tagged_bindable<unzip_<C, A>, xtd::invokers::iter_unzip> {};
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr tag::unzip_<C, A> unzip_;
+    static constexpr detail::tag::unzip_<C, A> unzip_;
 
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
@@ -40,7 +40,7 @@ namespace iter {
 ITER_ALIAS(unzip, unzip_<>)
 
 template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::detail::tag::unzip_<CT, AT>)(I&& iter) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 
@@ -58,7 +58,7 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter) {
 }
 
 template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
+constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::detail::tag::unzip_<CT, AT>)(I&& iter, std::size_t reserve) {
     using traits = iter::detail::unzipped<CT, AT, iter::value_t<I>>;
     typename traits::type containers{};
 

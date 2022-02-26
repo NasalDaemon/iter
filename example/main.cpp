@@ -187,14 +187,9 @@ int main() {
 static constexpr auto sum_0_to_9 = iter::wrap{iter::indices}
     .take(10)
     .flatmap([](auto i) {
-        // return iter::once{i};
-        return iter::to_iter_consteval(std::array{i, i + 1, i + 2});
-        // return iter::generate{[array = std::array{i, i + 1, i + 2}, i = 0]() mutable {
-        //     return i < array.size() ? iter::item_ref(array[i++]) : iter::noitem;
-        // }};
-
-    })
-    // .chunks(2).flatten()
+        return iter::owning_iter{std::array{i, i + 1, i + 2}}; })
+    .chunks(2).flatten()
+    .window<2>().flatten()
     .sum();
 
 static_assert(sum_0_to_9 == 165);

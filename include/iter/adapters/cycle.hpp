@@ -5,7 +5,7 @@
 
 namespace iter::detail {
     template<assert_iter I>
-    struct cycle_iter : enable_random_access<cycle_iter<I>, I> {
+    struct [[nodiscard]] cycle_iter : enable_random_access<cycle_iter<I>, I> {
         using this_t = cycle_iter;
         [[no_unique_address]] I i;
         [[no_unique_address]] std::conditional_t<this_t::random_access, void_t, I> i_orig = i;

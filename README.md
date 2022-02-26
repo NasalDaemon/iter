@@ -92,12 +92,13 @@ An `iter` is anything that can be passed as the only argument to `iter::traits::
 
 An `iterable` is anything that can be passed to `iter::to_iter(...)` and returns an `iter`. Anything that is an `iter` is also an `iterable` (since there is a default implementation of `iter::to_iter` for `iter` arguments which simply returns the argument back).
 
-All adaptors and consumers operate on `iterable` or `iter`.
+All adaptors, collectors, and consumers operate on `iterable` or `iter`.
 
-Informally, an `iter` should be cheap to copy -- at least before any iteration has started. This is not enforced at compile-time due to the unstarted iteration caveat. For example:
+Informally, an `iter` should be cheap to copy -- at least before any iteration has started. For example:
 1. The `iter` for `std::vector` contains only a pointer to the source vector and the current position. This is always cheap to copy.
 1. The `iter` adaptor for a `flatmap` callable returning a `std::vector<std::string>` by value stores a `iter::item<std::vector<std::string>>` of the latest vector returned by the callable. The item is only populated once iteration has started, making copying cheap until then.
 1. All `iter` adaptors with callables are to be as cheap to copy as their respective callables are. It is up to the user code to ensure that the callables are cheap to copy if the iter is expected to be copied around.
+1. There is an `iter::owning_iter` which owns a container, but disables copies and moves at runtime. This is enforced at the linker stage, so that if the compiler can optimise away all the copies/moves then the code is allowed to compile. This class can always be used in constexpr contexts, as any potential copies/moves are done only at compile-time.
 
 To make any type an `iter`, you simply define the relevant `iter::traits::next` implementation for it using the helper macro `ITER_IMPL_NEXT`.
 
@@ -116,6 +117,7 @@ struct enumerate_until {
 To make any type an `iterable`, you simply define the relevant `iter::to_iter` implementation for it using the helper macro `ITER_IMPL(to_iter)`.
 
 ```c++
+// { global namespace }
 // Makes all ints "iterable" via enumerate_until (probably not a good idea)
 constexpr auto ITER_IMPL(to_iter) (int max) {
   return enumerate_until{max};

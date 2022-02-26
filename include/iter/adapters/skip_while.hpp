@@ -7,7 +7,7 @@ ITER_DECLARE(skip_while)
 
 namespace iter::detail {
     template<assert_iter I, std::predicate<cref_t<I>> P>
-    struct skip_while_iter {
+    struct [[nodiscard]] skip_while_iter {
         using this_t = skip_while_iter;
 
         [[no_unique_address]] I i;

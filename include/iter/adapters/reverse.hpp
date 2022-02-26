@@ -7,7 +7,7 @@ ITER_DECLARE(reverse)
 
 namespace iter::detail {
     template<assert_iter I>
-    struct reverse_iter : enable_random_access<reverse_iter<I>, I> {
+    struct [[nodiscard]] reverse_iter : enable_random_access<reverse_iter<I>, I> {
         static_assert(concepts::double_ended_iter<I>);
         [[no_unique_address]] I i;
 

@@ -8,13 +8,13 @@ namespace iter::detail {
         // Impossible to define anywhere, so will always fail to link
         static unconstructible undefinable();
     };
-    struct consteval_function_used_at_runtime;
+    struct consteval_function_invoked_at_runtime;
     template<class T = void, class... Ts>
     static constexpr void assert_consteval() {
-        // Fail to compile at linker stage if this is called at runtime.
+        // Fail to compile at linker stage if this will be called at runtime.
         // Cannot fail any earlier, as it will prevent genuine constexpr calls.
         if (!std::is_constant_evaluated())
-            fail_compile_at_linker<consteval_function_used_at_runtime, T, Ts...>::undefinable();
+            fail_compile_at_linker<consteval_function_invoked_at_runtime, T, Ts...>::undefinable();
     }
 }
 

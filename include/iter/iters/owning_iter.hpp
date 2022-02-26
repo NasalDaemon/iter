@@ -1,33 +1,31 @@
-#ifndef ITER_ITERS_TO_ITER_CONSTEVAL_HPP
-#define ITER_ITERS_TO_ITER_CONSTEVAL_HPP
+#ifndef ITER_ITERS_OWNING_ITER_HPP
+#define ITER_ITERS_OWNING_ITER_HPP
 
 #include "iter/core/assert_consteval.hpp"
+#include "iter/core/relocation.hpp"
 #include "iter/iters/to_iter.hpp"
 
 namespace iter {
-    // Owning iter that is expensive to use at runtime,
-    // but is a necessary compile-time equivalent.
-    // Therefore it is prevented from being used at runtime,
-    // and will fail to compile at the linker stage.
-    template<class T>
-    struct to_iter_consteval;
+    // Owning iter that is disallowed from being relocated (copied/moved)
+    // unless the relocation is elided or in a constant expression
+    template<class T, tag::concepts::relocation Tag = tag::non_relocatable_t>
+    struct owning_iter;
 
-    template<concepts::random_access_container T>
-    struct to_iter_consteval<T> {
-        using this_t = to_iter_consteval;
+    template<concepts::random_access_container T, tag::concepts::relocation Tag>
+    struct owning_iter<T, Tag> {
+        using this_t = owning_iter;
 
         T container;
+        [[no_unique_address]] typename Tag::template type<this_t> _relocation_enforcement{};
         std::size_t pos = 0;
 
         constexpr auto ITER_IMPL_NEXT(this_t& self) {
-            detail::assert_consteval<this_t, struct unused>();
             return self.pos < std::size(self.container)
                 ? iter::item_ref(self.container[self.pos++])
                 : iter::noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK(this_t& self) {
-            detail::assert_consteval<this_t, struct unused>();
             const auto size = std::size(self.container);
             return self.pos < size
                 ? iter::item_ref(size - 1 - self.container[self.pos++])
@@ -35,17 +33,17 @@ namespace iter {
         }
 
         constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index) {
-            detail::assert_consteval<this_t, struct unused>();
             return self.container[index];
         }
         constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self) {
-            detail::assert_consteval<this_t, struct unused>();
             return std::size(self.container);
         }
     };
 
     template<class T>
-    to_iter_consteval(T) -> to_iter_consteval<T>;
+    owning_iter(T) -> owning_iter<T>;
+    template<class T, class Tag>
+    owning_iter(T, Tag) -> owning_iter<T, Tag>;
 }
 
-#endif /* ITER_ITERS_TO_ITER_CONSTEVAL_HPP */
+#endif /* ITER_ITERS_OWNING_ITER_HPP */

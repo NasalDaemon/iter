@@ -2,50 +2,52 @@
 
 // Invoke iter::cycle on this iter
 ITER_X(cycle)
-// Invoke iter::filter on this iter
-ITER_X(filter)
+// Invoke iter::box on this iter
+ITER_X(box)
+// Invoke iter::chain on this iter
+ITER_X(chain)
 // Invoke iter::take on this iter
 ITER_X(take)
-// Invoke iter::take_while on this iter
-ITER_X(take_while)
-// Invoke iter::skip on this iter
-ITER_X(skip)
-// Invoke iter::skip_while on this iter
-ITER_X(skip_while)
-// Invoke iter::flatten on this iter
-ITER_X(flatten)
+// Invoke iter::chunks (aka iter::chunks_<>) on this iter
+ITER_X(chunks)
+// Invoke iter::consteval_only on this iter
+ITER_X(consteval_only)
+// Invoke iter::zip_map on this iter
+ITER_X(zip_map)
+// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
+ITER_X(enumerate_map)
+// Invoke iter::zip on this iter
+ITER_X(zip)
+// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
+ITER_X(enumerate)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::filter on this iter
+ITER_X(filter)
 // Invoke iter::flatmap on this iter
 ITER_X(flatmap)
 // Invoke iter::flat_map (aka iter::flatmap) on this iter
 ITER_X(flat_map)
-// Invoke iter::filter_map on this iter
-ITER_X(filter_map)
-// Invoke iter::map on this iter
-ITER_X(map)
-// Invoke iter::map_while on this iter
-ITER_X(map_while)
-// Invoke iter::zip on this iter
-ITER_X(zip)
-// Invoke iter::zip_map on this iter
-ITER_X(zip_map)
-// Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
-ITER_X(enumerate)
-// Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
-ITER_X(enumerate_map)
-// Invoke iter::reverse on this iter
-ITER_X(reverse)
-// Invoke iter::chain on this iter
-ITER_X(chain)
-// Invoke iter::chunks (aka iter::chunks_<>) on this iter
-ITER_X(chunks)
-// Invoke iter::split on this iter
-ITER_X(split)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
+// Invoke iter::map_while on this iter
+ITER_X(map_while)
+// Invoke iter::map on this iter
+ITER_X(map)
 // Invoke iter::move on this iter
 ITER_X(move)
-// Invoke iter::box on this iter
-ITER_X(box)
+// Invoke iter::reverse on this iter
+ITER_X(reverse)
+// Invoke iter::skip_while on this iter
+ITER_X(skip_while)
+// Invoke iter::skip on this iter
+ITER_X(skip)
+// Invoke iter::split on this iter
+ITER_X(split)
+// Invoke iter::take_while on this iter
+ITER_X(take_while)
 // Invoke iter::foreach on this iter
 ITER_X(foreach)
 // Invoke iter::for_each (aka iter::foreach) on this iter

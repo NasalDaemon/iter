@@ -7,7 +7,7 @@ ITER_DECLARE(move)
 
 namespace iter::detail {
     template<iter::assert_iter I>
-    struct move_iter : enable_random_access<move_iter<I>, I> {
+    struct [[nodiscard]] move_iter : enable_random_access<move_iter<I>, I> {
         [[no_unique_address]] I i;
 
         using this_t = move_iter;

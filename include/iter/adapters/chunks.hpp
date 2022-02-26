@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_CHUNKS_HPP
-#define INCLUDE_ITER_CHUNKS_HPP
+#ifndef ITER_ADAPTERS_CHUNKS_HPP
+#define ITER_ADAPTERS_CHUNKS_HPP
 
 #include "iter/adapters/take.hpp"
 #include "iter/iters/span.hpp"
@@ -7,12 +7,12 @@
 XTD_INVOKER(iter_chunks)
 
 namespace iter {
-    namespace tag {
+    namespace detail::tag {
         template<std::size_t N>
         struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
     }
     template<std::size_t N = 0>
-    static constexpr tag::chunks_<N> chunks_;
+    static constexpr detail::tag::chunks_<N> chunks_;
 }
 
 ITER_ALIAS(chunks, chunks_<>)
@@ -120,14 +120,14 @@ namespace iter::detail {
 }
 
 template<iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{
         {.size = size, .remaining = size, .i = FWD(iterable)}};
 }
 
 template<std::size_t N, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::tag::chunks_<N>) (I&& iterable) {
+constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<N>) (I&& iterable) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, N>{{}, FWD(iterable)};
 }
 
-#endif /* INCLUDE_ITER_CHUNKS_HPP */
+#endif /* ITER_ADAPTERS_CHUNKS_HPP */

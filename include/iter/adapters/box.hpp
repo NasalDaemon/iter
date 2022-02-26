@@ -64,7 +64,7 @@ namespace iter {
     };
 
     template<class ItemType, class Get = void>
-    struct boxed {
+    struct [[nodiscard]] boxed {
         using this_t = boxed;
         using Next = item<ItemType>;
         static constexpr bool random_access = !std::same_as<Get, void>;
