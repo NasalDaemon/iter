@@ -2,7 +2,9 @@
 #include "iter/iter.hpp"
 
 #include <random>
+#ifndef ITER_COMPILER_CLANG
 #include <ranges>
+#endif
 
 namespace {
 std::random_device rnd;
@@ -77,7 +79,7 @@ void bench_iter_min_int_optional2(benchmark::State& state) {
 BENCHMARK(bench_iter_min_int_optional1);
 BENCHMARK(bench_iter_min_int_optional2)->Arg(1000);
 
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 
 void bench_std_min_int_optional1(benchmark::State& state) {
     for (auto s : state) {

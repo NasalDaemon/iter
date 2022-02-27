@@ -1,5 +1,5 @@
-#ifndef ITER_ITERS_TO_ITER_HPP
-#define ITER_ITERS_TO_ITER_HPP
+#ifndef ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP
+#define ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP
 
 #include "iter/core/core.hpp"
 #include "iter/core/std_fwd.hpp"
@@ -21,7 +21,7 @@ namespace iter::detail {
         random_access_container_iter(const random_access_container_iter& other) = default;
         random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t index) {
             return (*self.container)[index];
         }
 
@@ -83,13 +83,13 @@ namespace iter::concepts {
     static constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
-    constexpr bool is_random_access_container<T[N]> = true;
+    inline constexpr bool is_random_access_container<T[N]> = true;
     template<class T, std::size_t N>
-    constexpr bool is_random_access_container<std::array<T, N>> = true;
+    inline constexpr bool is_random_access_container<std::array<T, N>> = true;
     template<class T, class A>
-    constexpr bool is_random_access_container<std::vector<T, A>> = true;
+    inline constexpr bool is_random_access_container<std::vector<T, A>> = true;
     template<class T, class U, class A>
-    constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
+    inline constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
 
     template<class T>
     concept random_access_container = is_random_access_container<std::remove_cvref_t<T>>;
@@ -98,30 +98,10 @@ namespace iter::concepts {
     concept container = random_access_container<T>;
 }
 
+// Could also use iter::span, but GCC performs better with random_access_container_iter
 template<iter::concepts::random_access_container T>
 constexpr auto ITER_IMPL(to_iter) (T& container) {
     return iter::detail::random_access_container_iter{container};
 }
 
-namespace iter {
-    template<class T>
-    struct pointer_to_iter {
-        using this_t = pointer_to_iter;
-        T* ptr;
-
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.ptr != ITER_ITEM_NULLPTR ? 1 : 0;
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self.ptr;
-        }
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_ref(*std::exchange(self.ptr, ITER_ITEM_NULLPTR));
-        }
-    };
-
-    template<class T>
-    pointer_to_iter(T*) -> pointer_to_iter<T>;
-}
-
-#endif /* ITER_ITERS_TO_ITER_HPP */
+#endif /* ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP */

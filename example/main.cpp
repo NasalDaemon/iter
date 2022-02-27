@@ -1,6 +1,8 @@
 #include "iter/wrap.hpp"
 #include "iter/macros/dollar/define.hpp"
+#ifndef ITER_COMPILER_CLANG
 #include "iter/enable_ranges.hpp"
+#endif
 
 #include <algorithm>
 #include <string>
@@ -76,7 +78,9 @@ consteval auto get2(size_t max) {
     return *iter::wrap{fib(max)}.last();
 }
 
+#ifndef ITER_COMPILER_CLANG
 #include <ranges>
+#endif
 
 int main() {
 
@@ -175,12 +179,14 @@ int main() {
         | foreach | [](int i) {
             std::cout << "made it: " << i << "\n"; };
 
+#ifndef ITER_COMPILER_CLANG
     for (auto i : range{0, 10}
             | map(_, [](auto i) { return i*i; })
             | std::views::transform(std::identity{})
             | std::views::drop(2)
         )
         std::cout << "range i: " << i << "\n";
+#endif
 }
 
 #if !defined(ITER_COMPILER_GCC) || __GNUC__ >= 12
@@ -189,7 +195,7 @@ static constexpr auto sum_0_to_9 = iter::wrap{iter::indices}
     .flatmap([](auto i) {
         return iter::owning_iter{std::array{i, i + 1, i + 2}}; })
     .chunks(2).flatten()
-    .window<2>().flatten()
+    // .window<2>().flatten()
     .sum();
 
 static_assert(sum_0_to_9 == 165);

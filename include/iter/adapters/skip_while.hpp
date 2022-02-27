@@ -34,7 +34,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::predicate<iter::cref_t<I>> P>
 constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
-    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
+    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i{iter::to_iter(FWD(iterable))}, .pred{FWD(pred)}};
 }
 
 #endif /* INCLUDE_ITER_SKIP_WHILE_HPP */

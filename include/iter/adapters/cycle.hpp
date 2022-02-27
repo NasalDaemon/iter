@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_CYCLE_HPP
-#define INCLUDE_ITER_CYCLE_HPP
+#ifndef ITER_ADAPTERS_CYCLE_HPP
+#define ITER_ADAPTERS_CYCLE_HPP
 
 #include "iter/core/core.hpp"
 
@@ -52,4 +52,4 @@ constexpr auto ITER_IMPL(cycle) (I&& iterable) {
     return iter::cycle(iter::to_iter(FWD(iterable)));
 }
 
-#endif /* INCLUDE_ITER_CYCLE_HPP */
+#endif /* ITER_ADAPTERS_CYCLE_HPP */

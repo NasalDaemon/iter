@@ -8,7 +8,7 @@
  * Where explicit return types don't make code too ugly, use them.
  * Otherwise, if it makes the code unreadible, let clang fail the test.
  * I have absolutely no intention of sullying this library with clang workarounds. */
-#ifdef __clang__
+#ifdef ITER_COMPILER_CLANG
 #  define NO_CLANG(...) void()
 #else
 #  define NO_CLANG(...) __VA_ARGS__

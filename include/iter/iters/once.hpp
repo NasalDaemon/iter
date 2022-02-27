@@ -33,9 +33,9 @@ namespace iter {
     template<class T>
     struct once_ref {
         using this_t = once_ref;
-        constexpr once_ref(T& in) : value{&in} {}
+        constexpr once_ref(T& in) : value{in} {}
     private:
-        T* value;
+        item<T&> value;
         constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
             return 1;
         }
@@ -43,7 +43,7 @@ namespace iter {
             return *self.value;
         }
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
-            return item_ref(*std::exchange(self.value, ITER_ITEM_NULLPTR));
+            return std::exchange(self.value, noitem);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {
             return repeat<T const&>{*self.value};

@@ -1,33 +1,43 @@
-#ifndef INCLUDE_ITER_SPAN_HPP
-#define INCLUDE_ITER_SPAN_HPP
+#ifndef ITER_ITERS_SPAN_HPP
+#define ITER_ITERS_SPAN_HPP
 
 #include "iter/core/core.hpp"
+#include "iter/iters/random_access_container_iter.hpp"
 
 namespace iter {
     template<class T>
     struct span {
         using this_t = span;
-        constexpr span(T* p, std::size_t n) : begin{p}, end{p + n} {}
+        constexpr span(T* data, std::size_t size) : data{data}, remaining{size} {}
+
+        template<iter::concepts::random_access_container C>
+        constexpr explicit span(C& container) : span{std::addressof(container[0]), std::size(container)} {}
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.begin < self.end ? item_ref(*self.begin++) : noitem;
+            return self.remaining
+                ? (--self.remaining, item_ref(*self.data++))
+                : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return self.begin < self.end ? item_ref(*self.end--) : noitem;
+            return self.remaining
+                ? item_ref(self.data[--self.remaining])
+                : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.end - self.begin;
+            return self.remaining;
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t n) {
-            return self.begin[n];
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
+            return self.data[n];
         }
     private:
-        T* begin;
-        T* end;
+        T* data;
+        std::size_t remaining;
     };
 
     template<class T>
-    span(T*) -> span<T>;
+    span(T*, std::size_t) -> span<T>;
+    template<iter::concepts::random_access_container C>
+    span(C&) -> span<std::remove_reference_t<decltype(std::declval<C&>()[0])>>;
 }
 
-#endif /* INCLUDE_ITER_SPAN_HPP */
+#endif /* ITER_ITERS_SPAN_HPP */

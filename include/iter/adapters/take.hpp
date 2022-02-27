@@ -16,7 +16,7 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return self.n-- > 0 ? impl::next(self.i) : noitem;
+            return self.n > 0 ? (--self.n, impl::next(self.i)) : noitem;
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self)

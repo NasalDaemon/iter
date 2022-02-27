@@ -36,14 +36,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ITER_ITERS_ITERS_HPP
 #define ITER_ITERS_ITERS_HPP
 
-#ifndef ITER_ITERS_TO_ITER_HPP
-#define ITER_ITERS_TO_ITER_HPP
+#ifndef ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP
+#define ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP
 
 #ifndef INCLUDE_ITER_CORE_HPP
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220226
+#  define ITER_LIBRARY_VERSION 20220227
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -637,8 +637,8 @@ struct item {
     using pointer = T*;
     static constexpr bool owner = true;
 
-    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{.value{std::invoke(FWD(f))}} {}
-    constexpr item(auto&&... args) : engaged{true}, payload{.value{FWD(args)...}} {}
+    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{make_payload(FWD(f))} {}
+    constexpr item(auto&&... args) : engaged{true}, payload{make_payload(FWD(args)...)} {}
 
     constexpr item() = default;
     constexpr item(noitem_t) : item() {}
@@ -767,6 +767,15 @@ private:
         [[no_unique_address]] T value;
         constexpr ~payload_t() {}
     } payload{};
+
+    template<std::invocable F>
+    requires std::constructible_from<std::invoke_result_t<F>, T>
+    static constexpr payload_t make_payload(F&& f) {
+        return {.value{std::invoke(FWD(f))}};
+    }
+    static constexpr payload_t make_payload(auto&&... args) {
+        return {.value{FWD(args)...}};
+    }
 
     constexpr void destroy() {
         if (engaged)
@@ -1256,8 +1265,7 @@ namespace iter {
         using get_t = decltype(get_type<I>());
 
         template<class I>
-        [[nodiscard]] constexpr auto get_item(I&& iter, std::size_t index) {
-            std::size_t size = impl::size(iter);
+        [[nodiscard]] constexpr auto get_item(I& iter, std::size_t index, std::size_t size) {
             return (index < size) ? MAKE_ITEM_AUTO(impl::get(iter, index)) : noitem;
         }
 
@@ -1287,14 +1295,16 @@ namespace iter {
                 return impl::size(static_cast<Self const&>(base).i);
             }
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, index, size);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, impl::size(self) - 1 - index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, size - 1 - index, size);
             }
         };
 
@@ -1323,14 +1333,16 @@ namespace iter {
                 return base.size;
             }
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, index, size);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, impl::size(self) - 1 - index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, size - 1 - index, size);
             }
         };
     }
@@ -1398,7 +1410,7 @@ namespace iter::detail {
         random_access_container_iter(const random_access_container_iter& other) = default;
         random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t index) {
             return (*self.container)[index];
         }
 
@@ -1460,13 +1472,13 @@ namespace iter::concepts {
     static constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
-    constexpr bool is_random_access_container<T[N]> = true;
+    inline constexpr bool is_random_access_container<T[N]> = true;
     template<class T, std::size_t N>
-    constexpr bool is_random_access_container<std::array<T, N>> = true;
+    inline constexpr bool is_random_access_container<std::array<T, N>> = true;
     template<class T, class A>
-    constexpr bool is_random_access_container<std::vector<T, A>> = true;
+    inline constexpr bool is_random_access_container<std::vector<T, A>> = true;
     template<class T, class U, class A>
-    constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
+    inline constexpr bool is_random_access_container<std::basic_string<T, U, A>> = true;
 
     template<class T>
     concept random_access_container = is_random_access_container<std::remove_cvref_t<T>>;
@@ -1475,35 +1487,56 @@ namespace iter::concepts {
     concept container = random_access_container<T>;
 }
 
+// Could also use iter::span, but GCC performs better with random_access_container_iter
 template<iter::concepts::random_access_container T>
 constexpr auto ITER_IMPL(to_iter) (T& container) {
     return iter::detail::random_access_container_iter{container};
 }
 
+#endif /* ITER_ITERS_RANDOM_ACCESS_CONTAINER_ITER_HPP */
+
+#ifndef ITER_ITERS_SPAN_HPP
+#define ITER_ITERS_SPAN_HPP
+
 namespace iter {
     template<class T>
-    struct pointer_to_iter {
-        using this_t = pointer_to_iter;
-        T* ptr;
+    struct span {
+        using this_t = span;
+        constexpr span(T* data, std::size_t size) : data{data}, remaining{size} {}
 
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.ptr != ITER_ITEM_NULLPTR ? 1 : 0;
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self.ptr;
-        }
+        template<iter::concepts::random_access_container C>
+        constexpr explicit span(C& container) : span{std::addressof(container[0]), std::size(container)} {}
+
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_ref(*std::exchange(self.ptr, ITER_ITEM_NULLPTR));
+            return self.remaining
+                ? (--self.remaining, item_ref(*self.data++))
+                : noitem;
         }
+        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
+            return self.remaining
+                ? item_ref(self.data[--self.remaining])
+                : noitem;
+        }
+        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
+            return self.remaining;
+        }
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
+            return self.data[n];
+        }
+    private:
+        T* data;
+        std::size_t remaining;
     };
 
     template<class T>
-    pointer_to_iter(T*) -> pointer_to_iter<T>;
+    span(T*, std::size_t) -> span<T>;
+    template<iter::concepts::random_access_container C>
+    span(C&) -> span<std::remove_reference_t<decltype(std::declval<C&>()[0])>>;
 }
 
-#endif /* ITER_ITERS_TO_ITER_HPP */
+#endif /* ITER_ITERS_SPAN_HPP */
 
-namespace iter::iters { using iter::to_iter; }
+namespace iter::iters { using iter::span; }
 #ifndef ITER_ITERS_OWNING_ITER_HPP
 #define ITER_ITERS_OWNING_ITER_HPP
 
@@ -1518,12 +1551,12 @@ namespace iter::detail {
         static unconstructible undefinable();
     };
     struct consteval_function_invoked_at_runtime;
-    template<class T = void, class... Ts>
+    template<class... Ts>
     static constexpr void assert_consteval() {
         // Fail to compile at linker stage if this will be called at runtime.
         // Cannot fail any earlier, as it will prevent genuine constexpr calls.
         if (!std::is_constant_evaluated())
-            fail_compile_at_linker<consteval_function_invoked_at_runtime, T, Ts...>::undefinable();
+            fail_compile_at_linker<consteval_function_invoked_at_runtime, Ts...>::undefinable();
     }
 }
 
@@ -1564,13 +1597,13 @@ namespace iter {
             template<class T>
             static constexpr bool is_relocation = false;
             template<>
-            constexpr bool is_relocation<tag::non_copiable_t> = true;
+            inline constexpr bool is_relocation<tag::non_copiable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::non_movable_t> = true;
+            inline constexpr bool is_relocation<tag::non_movable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::non_relocatable_t> = true;
+            inline constexpr bool is_relocation<tag::non_relocatable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::relocatable_t> = true;
+            inline constexpr bool is_relocation<tag::relocatable_t> = true;
         }
         namespace concepts {
             template<class T>
@@ -1658,7 +1691,7 @@ namespace iter {
         using this_t = repeat;
         T value;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item<T const&>(std::as_const(self.value));
+            return item_ref(std::as_const(self.value));
         }
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
@@ -1703,9 +1736,9 @@ namespace iter {
     template<class T>
     struct once_ref {
         using this_t = once_ref;
-        constexpr once_ref(T& in) : value{&in} {}
+        constexpr once_ref(T& in) : value{in} {}
     private:
-        T* value;
+        item<T&> value;
         constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
             return 1;
         }
@@ -1713,7 +1746,7 @@ namespace iter {
             return *self.value;
         }
         constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
-            return item_ref(*std::exchange(self.value, ITER_ITEM_NULLPTR));
+            return std::exchange(self.value, noitem);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {
             return repeat<T const&>{*self.value};
@@ -1727,8 +1760,8 @@ namespace iter {
 #endif /* ITER_ITERS_ONCE_HPP */
 
 namespace iter::iters { using iter::once; }
-#ifndef INCLUDE_ITER_OPTIONAL_HPP
-#define INCLUDE_ITER_OPTIONAL_HPP
+#ifndef ITER_ITERS_OPTIONAL_HPP
+#define ITER_ITERS_OPTIONAL_HPP
 
 namespace iter {
     template<class T>
@@ -1762,7 +1795,7 @@ namespace iter {
     }
 }
 
-#endif /* INCLUDE_ITER_OPTIONAL_HPP */
+#endif /* ITER_ITERS_OPTIONAL_HPP */
 
 namespace iter::iters { using iter::optional; }
 #ifndef INCLUDE_ITER_RANGE_HPP
@@ -2027,7 +2060,9 @@ namespace iter {
 
 #endif /* INCLUDE_ITER_GENERATOR_HPP */
 
+#ifdef INCLUDE_ITER_GENERATOR_HPP
 namespace iter::iters { using iter::generator; }
+#endif
 #ifndef INCLUDE_ITER_COMPOUND_HPP
 #define INCLUDE_ITER_COMPOUND_HPP
 
@@ -2305,7 +2340,7 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
-            return self.n-- > 0 ? impl::next(self.i) : noitem;
+            return self.n > 0 ? (--self.n, impl::next(self.i)) : noitem;
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self)
@@ -2331,38 +2366,6 @@ constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
 }
 
 #endif /* ITER_ADAPTERS_TAKE_HPP */
-
-#ifndef INCLUDE_ITER_SPAN_HPP
-#define INCLUDE_ITER_SPAN_HPP
-
-namespace iter {
-    template<class T>
-    struct span {
-        using this_t = span;
-        constexpr span(T* p, std::size_t n) : begin{p}, end{p + n} {}
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return self.begin < self.end ? item_ref(*self.begin++) : noitem;
-        }
-        constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
-            return self.begin < self.end ? item_ref(*self.end--) : noitem;
-        }
-        constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
-            return self.end - self.begin;
-        }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t n) {
-            return self.begin[n];
-        }
-    private:
-        T* begin;
-        T* end;
-    };
-
-    template<class T>
-    span(T*) -> span<T>;
-}
-
-#endif /* INCLUDE_ITER_SPAN_HPP */
 
 XTD_INVOKER(iter_chunks)
 
@@ -2543,8 +2546,8 @@ constexpr auto ITER_IMPL(consteval_only) (I&& iterable) {
 #endif /* ITER_ADAPTERS_CONSTEVAL_ONLY_HPP */
 
 namespace iter::adapters { using iter::consteval_only; }
-#ifndef INCLUDE_ITER_CYCLE_HPP
-#define INCLUDE_ITER_CYCLE_HPP
+#ifndef ITER_ADAPTERS_CYCLE_HPP
+#define ITER_ADAPTERS_CYCLE_HPP
 
 namespace iter::detail {
     template<assert_iter I>
@@ -2595,7 +2598,7 @@ constexpr auto ITER_IMPL(cycle) (I&& iterable) {
     return iter::cycle(iter::to_iter(FWD(iterable)));
 }
 
-#endif /* INCLUDE_ITER_CYCLE_HPP */
+#endif /* ITER_ADAPTERS_CYCLE_HPP */
 
 namespace iter::adapters { using iter::cycle; }
 #ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
@@ -3231,7 +3234,7 @@ namespace iter::detail {
 
 template<iter::assert_iterable I, std::predicate<iter::cref_t<I>> P>
 constexpr auto ITER_IMPL(skip_while) (I&& iterable, P&& pred) {
-    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i = iter::to_iter(FWD(iterable)), .pred = FWD(pred)};
+    return iter::detail::skip_while_iter<iter::iter_t<I>, std::remove_cvref_t<P>>{.i{iter::to_iter(FWD(iterable))}, .pred{FWD(pred)}};
 }
 
 #endif /* INCLUDE_ITER_SKIP_WHILE_HPP */

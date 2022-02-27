@@ -13,8 +13,8 @@ struct item {
     using pointer = T*;
     static constexpr bool owner = true;
 
-    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{.value{std::invoke(FWD(f))}} {}
-    constexpr item(auto&&... args) : engaged{true}, payload{.value{FWD(args)...}} {}
+    constexpr explicit item(std::invocable auto&& f) : engaged{true}, payload{make_payload(FWD(f))} {}
+    constexpr item(auto&&... args) : engaged{true}, payload{make_payload(FWD(args)...)} {}
 
     constexpr item() = default;
     constexpr item(noitem_t) : item() {}
@@ -143,6 +143,15 @@ private:
         [[no_unique_address]] T value;
         constexpr ~payload_t() {}
     } payload{};
+
+    template<std::invocable F>
+    requires std::constructible_from<std::invoke_result_t<F>, T>
+    static constexpr payload_t make_payload(F&& f) {
+        return {.value{std::invoke(FWD(f))}};
+    }
+    static constexpr payload_t make_payload(auto&&... args) {
+        return {.value{FWD(args)...}};
+    }
 
     constexpr void destroy() {
         if (engaged)

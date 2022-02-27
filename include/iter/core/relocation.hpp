@@ -33,13 +33,13 @@ namespace iter {
             template<class T>
             static constexpr bool is_relocation = false;
             template<>
-            constexpr bool is_relocation<tag::non_copiable_t> = true;
+            inline constexpr bool is_relocation<tag::non_copiable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::non_movable_t> = true;
+            inline constexpr bool is_relocation<tag::non_movable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::non_relocatable_t> = true;
+            inline constexpr bool is_relocation<tag::non_relocatable_t> = true;
             template<>
-            constexpr bool is_relocation<tag::relocatable_t> = true;
+            inline constexpr bool is_relocation<tag::relocatable_t> = true;
         }
         namespace concepts {
             template<class T>

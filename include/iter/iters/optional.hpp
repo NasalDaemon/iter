@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_OPTIONAL_HPP
-#define INCLUDE_ITER_OPTIONAL_HPP
+#ifndef ITER_ITERS_OPTIONAL_HPP
+#define ITER_ITERS_OPTIONAL_HPP
 
 #include "iter/core/core.hpp"
 
@@ -35,4 +35,4 @@ namespace iter {
     }
 }
 
-#endif /* INCLUDE_ITER_OPTIONAL_HPP */
+#endif /* ITER_ITERS_OPTIONAL_HPP */

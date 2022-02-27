@@ -9,12 +9,12 @@ namespace iter::detail {
         static unconstructible undefinable();
     };
     struct consteval_function_invoked_at_runtime;
-    template<class T = void, class... Ts>
+    template<class... Ts>
     static constexpr void assert_consteval() {
         // Fail to compile at linker stage if this will be called at runtime.
         // Cannot fail any earlier, as it will prevent genuine constexpr calls.
         if (!std::is_constant_evaluated())
-            fail_compile_at_linker<consteval_function_invoked_at_runtime, T, Ts...>::undefinable();
+            fail_compile_at_linker<consteval_function_invoked_at_runtime, Ts...>::undefinable();
     }
 }
 

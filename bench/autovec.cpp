@@ -4,7 +4,6 @@
 #include "extend/dollar_macros/define.hpp"
 
 #include <numeric>
-#include <ranges>
 
 using namespace xtd::literals;
 

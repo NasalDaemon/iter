@@ -1,7 +1,7 @@
 #include "benchmark/benchmark.h"
 #include "iter/iter.hpp"
 
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 #include <ranges>
 #endif
 #include <numeric>
@@ -56,7 +56,7 @@ void bench_iter_map_flatten(benchmark::State& state)
     }
 }
 
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 void bench_std_map_filter(benchmark::State& state)
 {
     std::vector<int> a(2048);
@@ -75,7 +75,7 @@ void bench_std_map_filter(benchmark::State& state)
 BENCHMARK(bench_iter_filtermap_mapfirst);
 BENCHMARK(bench_iter_map_flatten);
 BENCHMARK(bench_iter_map_filter);
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 BENCHMARK(bench_std_map_filter);
 #endif
 
@@ -107,7 +107,7 @@ void bench_iter_filtermap_filterfirst(benchmark::State& state)
     }
 }
 
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 void bench_std_filter_map(benchmark::State& state)
 {
     std::vector<int> a(2048);
@@ -127,13 +127,13 @@ BENCHMARK(bench_iter_filtermap_filterfirst);
 BENCHMARK(bench_iter_filtermap_filterfirst);
 BENCHMARK(bench_iter_filter_map);
 BENCHMARK(bench_iter_filter_map);
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 BENCHMARK(bench_std_filter_map);
 BENCHMARK(bench_std_filter_map);
 #endif
 
 BENCHMARK(bench_iter_filtermap_filterfirst);
 BENCHMARK(bench_iter_filter_map);
-#ifndef __clang__
+#ifndef ITER_COMPILER_CLANG
 BENCHMARK(bench_std_filter_map);
 #endif

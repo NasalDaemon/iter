@@ -260,8 +260,7 @@ namespace iter {
         using get_t = decltype(get_type<I>());
 
         template<class I>
-        [[nodiscard]] constexpr auto get_item(I&& iter, std::size_t index) {
-            std::size_t size = impl::size(iter);
+        [[nodiscard]] constexpr auto get_item(I& iter, std::size_t index, std::size_t size) {
             return (index < size) ? MAKE_ITEM_AUTO(impl::get(iter, index)) : noitem;
         }
 
@@ -291,14 +290,16 @@ namespace iter {
                 return impl::size(static_cast<Self const&>(base).i);
             }
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, index, size);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, impl::size(self) - 1 - index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, size - 1 - index, size);
             }
         };
 
@@ -327,14 +328,16 @@ namespace iter {
                 return base.size;
             }
             constexpr auto ITER_IMPL_NEXT (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, index, size);
             }
             constexpr auto ITER_IMPL_NEXT_BACK (this_t& base) {
-                auto index = base.index++;
                 auto& self = static_cast<Self&>(base);
-                return get_item(self, impl::size(self) - 1 - index);
+                auto size = impl::size(self);
+                auto index = base.index++;
+                return get_item(self, size - 1 - index, size);
             }
         };
     }
