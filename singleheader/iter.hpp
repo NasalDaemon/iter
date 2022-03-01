@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define INCLUDE_ITER_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220227
+#  define ITER_LIBRARY_VERSION 20220301
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -761,13 +761,17 @@ struct item {
 
 private:
     bool engaged = false;
+    // GCC cannot deal with empty payloads in debug
+#if defined(NDEBUG) || !defined(ITER_COMPILER_GCC)
     [[no_unique_address]]
+#endif
     union payload_t {
         [[no_unique_address]] void_t dummy{};
         [[no_unique_address]] T value;
         constexpr ~payload_t() {}
     } payload{};
 
+    // Workaround for GCC not dealing well with empty payloads
     template<std::invocable F>
     requires std::constructible_from<std::invoke_result_t<F>, T>
     static constexpr payload_t make_payload(F&& f) {
@@ -1504,33 +1508,52 @@ namespace iter {
         using this_t = span;
         constexpr span(T* data, std::size_t size) : data{data}, remaining{size} {}
 
-        template<iter::concepts::random_access_container C>
+        template<concepts::random_access_container C>
         constexpr explicit span(C& container) : span{std::addressof(container[0]), std::size(container)} {}
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.remaining
-                ? (--self.remaining, item_ref(*self.data++))
+                ? (--self.remaining, item_ref(self++))
                 : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return self.remaining
-                ? item_ref(self.data[--self.remaining])
+                ? item_ref(self[--self.remaining])
                 : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.remaining;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
-            return self.data[n];
+            return self[n];
         }
     private:
-        T* data;
+        union {
+            T* data; // active member
+            T (*data_as_array)[]; // used for reading data to help optimiser
+        };
         std::size_t remaining;
+
+        constexpr T& operator++(int) {
+            if (std::is_constant_evaluated()) {
+                return *data++; // avoid type punning in consteval
+            } else {
+                auto& ret = (*data_as_array)[0];
+                ++data;
+                return ret;
+            }
+        }
+        constexpr T& operator[](std::size_t i) const {
+            if (std::is_constant_evaluated())
+                return data[i]; // avoid type punning in consteval
+            else
+                return (*data_as_array)[i];
+        }
     };
 
     template<class T>
     span(T*, std::size_t) -> span<T>;
-    template<iter::concepts::random_access_container C>
+    template<concepts::random_access_container C>
     span(C&) -> span<std::remove_reference_t<decltype(std::declval<C&>()[0])>>;
 }
 
@@ -1892,7 +1915,7 @@ namespace iter::iters { using iter::range; }
 #define ITER_ITERS_GENERATE_HPP
 
 namespace iter {
-    template<std::invocable<> F>
+    template<std::invocable F>
     requires concepts::item<std::invoke_result_t<F>>
     struct [[nodiscard]] generate : F {
         using this_t = generate;
@@ -1954,9 +1977,7 @@ namespace iter {
                 return {};
             }
 
-            constexpr void unhandled_exception() {
-                m_exception = std::current_exception();
-            }
+            void unhandled_exception() { throw; }
 
             constexpr void return_void() {}
 
@@ -1965,17 +1986,10 @@ namespace iter {
             }
 
             // Disallow co_await
-            template<class U>
-            std::suspend_never await_transform(U&& value) = delete;
-
-            void rethrow_if_exception() {
-                if (m_exception)
-                    std::rethrow_exception(m_exception);
-            }
+            std::suspend_never await_transform(auto&& value) = delete;
 
         private:
             pointer_type m_value;
-            std::exception_ptr m_exception;
         };
     }
 
@@ -2013,10 +2027,8 @@ namespace iter {
                 return noitem;
 
             m_coroutine.resume();
-            if (m_coroutine.done()) [[unlikely]] {
-                m_coroutine.promise().rethrow_if_exception();
+            if (m_coroutine.done()) [[unlikely]]
                 return noitem;
-            }
 
             return item_ref(*m_coroutine.promise().value());
         }
@@ -2035,27 +2047,109 @@ namespace iter {
         using coroutine_handle = std::coroutine_handle<generator_promise<T>>;
         return generator<T>{coroutine_handle::from_promise(*this)};
     }
+} // namespace iter
 
-    template<class... Ts, std::invocable<Ts&...> F>
-    requires concepts::generator<std::invoke_result_t<F, Ts&...>>
-    constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
-        // "Capture" args by value with an inner coroutine taking them by value
-        // The outer function takes by universal reference to observe constness
-        return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
-            while (true)
-                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::traits::next(it);)
-                    co_yield *next;
-        }(FWD(make_iter), FWD(args)...);
-    }
-    template<std::invocable<> F>
-    requires concepts::generator<std::invoke_result_t<F>>
-    constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
-        return [](auto make_iter) -> std::invoke_result_t<F> {
-            while (true)
-                for (auto it = std::invoke(make_iter); auto next = iter::traits::next(it);)
-                    co_yield *next;
-        }(FWD(make_iter));
-    }
+#ifndef INCLUDE_ITER_FLATTEN_HPP
+#define INCLUDE_ITER_FLATTEN_HPP
+
+#ifndef INCLUDE_ITER_ITER_WRAPPER_HPP
+#define INCLUDE_ITER_ITER_WRAPPER_HPP
+
+namespace iter::detail {
+    template<class I>
+    struct iter_wrapper {
+        static_assert(iterable<I&>);
+        I iterable;
+        using iter_t = iter::iter_t<I&>;
+        iter_t iter = to_iter(iterable);
+    };
+    template<iter I>
+    struct iter_wrapper<I> {
+        using iter_t = I;
+        I iter;
+    };
+    template<class I>
+    iter_wrapper(I) -> iter_wrapper<I>;
+
+    template<class T>
+    struct optional_iter_wrapper {
+        static_assert(iterable<typename T::value_type&>);
+        T optional_iterable;
+        using iter_t = iter::iter_t<decltype(*optional_iterable)>;
+        item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
+    };
+    template<class T>
+    requires iter<typename T::value_type>
+    struct optional_iter_wrapper<T> {
+        using iter_t = typename T::value_type;
+        T optional_iter;
+    };
+    template<class T>
+    optional_iter_wrapper(T) -> optional_iter_wrapper<T>;
+}
+
+#endif /* INCLUDE_ITER_ITER_WRAPPER_HPP */
+
+ITER_DECLARE(flatten)
+
+namespace iter::detail {
+    template<assert_iter I>
+    struct [[nodiscard]] flatten_iter {
+        using this_t = flatten_iter;
+
+        constexpr static auto get_current(I& i) {
+            return optional_iter_wrapper{impl::next(i)};
+        }
+
+        [[no_unique_address]] I i;
+        decltype(this_t::get_current(std::declval<I&>())) current{};
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
+            using inner_iter_t = typename decltype(current)::iter_t;
+            auto val = no_next<inner_iter_t>();
+            do {
+                if (self.current.optional_iter) [[likely]]
+                    if (emplace_next(val, *self.current.optional_iter)) [[likely]]
+                        return val;
+            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
+            return val;
+        }
+    };
+
+    template<class I>
+    flatten_iter(I) -> flatten_iter<I>;
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(flatten) (I&& iterable) {
+    return iter::detail::flatten_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
+}
+
+#endif /* INCLUDE_ITER_FLATTEN_HPP */
+
+// Utilities to cycle iter::generator coroutine
+template<class... Ts, std::invocable<Ts&...> F>
+requires iter::concepts::generator<std::invoke_result_t<F, Ts&...>>
+constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
+    return iter::detail::flatten_iter {
+        iter::generate {
+            [make_iter = FWD(make_iter), ...args = FWD(args)]() mutable {
+                return MAKE_ITEM(make_iter(static_cast<Ts&>(args)...));
+            }
+        }
+    };
+}
+
+template<std::invocable F>
+requires iter::concepts::generator<std::invoke_result_t<F>>
+constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
+    return iter::detail::flatten_iter {
+        iter::generate {
+            [make_iter = FWD(make_iter)]() mutable {
+                return iter::item{make_iter};
+            }
+        }
+    };
 }
 
 #endif /* INCLUDE_ITER_GENERATOR_HPP */
@@ -2857,44 +2951,6 @@ namespace iter::adapters { using iter::filter; }
 #ifndef INCLUDE_ITER_FLATMAP_HPP
 #define INCLUDE_ITER_FLATMAP_HPP
 
-#ifndef INCLUDE_ITER_ITER_WRAPPER_HPP
-#define INCLUDE_ITER_ITER_WRAPPER_HPP
-
-namespace iter::detail {
-    template<class I>
-    struct iter_wrapper {
-        static_assert(iterable<I&>);
-        I iterable;
-        using iter_t = iter::iter_t<I&>;
-        iter_t iter = to_iter(iterable);
-    };
-    template<iter I>
-    struct iter_wrapper<I> {
-        using iter_t = I;
-        I iter;
-    };
-    template<class I>
-    iter_wrapper(I) -> iter_wrapper<I>;
-
-    template<class T>
-    struct optional_iter_wrapper {
-        static_assert(iterable<typename T::value_type&>);
-        T optional_iterable;
-        using iter_t = iter::iter_t<decltype(*optional_iterable)>;
-        item<iter_t> optional_iter = optional_iterable ? MAKE_ITEM(to_iter(*optional_iterable)) : noitem;
-    };
-    template<class T>
-    requires iter<typename T::value_type>
-    struct optional_iter_wrapper<T> {
-        using iter_t = typename T::value_type;
-        T optional_iter;
-    };
-    template<class T>
-    optional_iter_wrapper(T) -> optional_iter_wrapper<T>;
-}
-
-#endif /* INCLUDE_ITER_ITER_WRAPPER_HPP */
-
 ITER_DECLARE(flatmap)
 ITER_ALIAS(flat_map, flatmap)
 
@@ -2949,45 +3005,6 @@ constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
 #endif /* INCLUDE_ITER_FLATMAP_HPP */
 
 namespace iter::adapters { using iter::flatmap; }
-#ifndef INCLUDE_ITER_FLATTEN_HPP
-#define INCLUDE_ITER_FLATTEN_HPP
-
-ITER_DECLARE(flatten)
-
-namespace iter::detail {
-    template<assert_iter I>
-    struct [[nodiscard]] flatten_iter {
-        using this_t = flatten_iter;
-
-        constexpr static auto get_current(I& i) {
-            return optional_iter_wrapper{impl::next(i)};
-        }
-
-        [[no_unique_address]] I i;
-        decltype(this_t::get_current(std::declval<I&>())) current{};
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            using inner_iter_t = typename decltype(current)::iter_t;
-            auto val = no_next<inner_iter_t>();
-            do {
-                if (self.current.optional_iter) [[likely]]
-                    if (emplace_next(val, *self.current.optional_iter)) [[likely]]
-                        return val;
-            } while (EMPLACE_NEW(self.current, this_t::get_current(self.i)).optional_iter);
-            return val;
-        }
-    };
-
-    template<class I>
-    flatten_iter(I) -> flatten_iter<I>;
-}
-
-template<iter::assert_iterable I>
-constexpr auto ITER_IMPL(flatten) (I&& iterable) {
-    return iter::detail::flatten_iter<iter::iter_t<I>>{.i = iter::to_iter(FWD(iterable))};
-}
-
-#endif /* INCLUDE_ITER_FLATTEN_HPP */
 
 namespace iter::adapters { using iter::flatten; }
 #ifndef INCLUDE_ITER_INSPECT_HPP
@@ -4292,6 +4309,8 @@ namespace iter {
 
 // Invoke iter::cycle on this iter
 ITER_X(cycle)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
 // Invoke iter::box on this iter
 ITER_X(box)
 // Invoke iter::chain on this iter
@@ -4318,8 +4337,6 @@ ITER_X(filter)
 ITER_X(flatmap)
 // Invoke iter::flat_map (aka iter::flatmap) on this iter
 ITER_X(flat_map)
-// Invoke iter::flatten on this iter
-ITER_X(flatten)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
 // Invoke iter::map_while on this iter

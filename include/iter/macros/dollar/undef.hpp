@@ -8,6 +8,7 @@
 #undef $cycle
 #undef $until
 #undef $til
+#undef $flatten
 #undef $box
 #undef $chain
 #undef $take
@@ -21,7 +22,6 @@
 #undef $filter
 #undef $flatmap
 #undef $flat_map
-#undef $flatten
 #undef $inspect
 #undef $map_while
 #undef $map

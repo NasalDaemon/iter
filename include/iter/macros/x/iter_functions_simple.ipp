@@ -2,6 +2,8 @@
 
 // Invoke iter::cycle on this iter
 ITER_X(cycle)
+// Invoke iter::flatten on this iter
+ITER_X(flatten)
 // Invoke iter::box on this iter
 ITER_X(box)
 // Invoke iter::chain on this iter
@@ -28,8 +30,6 @@ ITER_X(filter)
 ITER_X(flatmap)
 // Invoke iter::flat_map (aka iter::flatmap) on this iter
 ITER_X(flat_map)
-// Invoke iter::flatten on this iter
-ITER_X(flatten)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
 // Invoke iter::map_while on this iter
