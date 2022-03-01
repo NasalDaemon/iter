@@ -199,7 +199,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_iterator_v = false;
         template<class I>
-        constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
+        inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
 
         template<class T>
         concept iterator = is_iterator_v<std::decay_t<T>>;

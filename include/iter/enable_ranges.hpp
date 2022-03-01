@@ -6,6 +6,6 @@
 #include <ranges>
 
 template<iter::iter I>
-constexpr bool std::ranges::enable_view<I> = true;
+inline constexpr bool std::ranges::enable_view<I> = true;
 
 #endif /* INCLUDE_ITER_ENABLE_RANGES_HPP */

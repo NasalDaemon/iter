@@ -28,7 +28,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_partition_index = false;
         template<std::size_t I>
-        constexpr bool is_partition_index<part_t<I>> = true;
+        inline constexpr bool is_partition_index<part_t<I>> = true;
 
         template<class T>
         concept partition_index = is_partition_index<T>;

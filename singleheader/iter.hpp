@@ -123,10 +123,10 @@ static constexpr bound<std::decay_t<F>, A, O> make_bound(F&& f) {
 
 namespace concepts {
     template<class>
-    constexpr bool is_bindable = false;
+    static constexpr bool is_bindable = false;
 
     template<class U, class... Fs>
-    constexpr bool is_bindable<bindable<U, Fs...>> = true;
+    inline constexpr bool is_bindable<bindable<U, Fs...>> = true;
 
     template<class T>
     concept Bindable = is_bindable<typename std::decay_t<T>::bindable_t>;
@@ -144,9 +144,9 @@ namespace concepts {
     concept SpecializableBindable = Bindable<T> && std::decay_t<T>::is_specializable;
 
     template<class>
-    constexpr bool is_bind_placeholder = false;
+    static constexpr bool is_bind_placeholder = false;
     template<size_t I>
-    constexpr bool is_bind_placeholder<bind_placeholder<I>> = true;
+    inline constexpr bool is_bind_placeholder<bind_placeholder<I>> = true;
 
     template<class T>
     concept BindPlaceholder = is_bind_placeholder<std::decay_t<T>>;
@@ -181,9 +181,9 @@ namespace concepts {
     };
 
     template<class T>
-    constexpr bool is_bound = false;
+    static constexpr bool is_bound = false;
     template<class F, std::size_t A, bool O>
-    constexpr bool is_bound<bound<F, A, O>> = true;
+    inline constexpr bool is_bound<bound<F, A, O>> = true;
 
     template<class T, std::size_t A = 0>
     concept Bound = is_bound<std::decay_t<T>> && std::decay_t<T>::arity == A;
@@ -902,14 +902,14 @@ namespace concepts {
     template<class T>
     static constexpr bool is_move_item = false;
     template<class T>
-    constexpr bool is_move_item<iter::move_item<T>> = true;
+    inline constexpr bool is_move_item<iter::move_item<T>> = true;
     template<class T>
     concept move_item = is_move_item<std::remove_cvref_t<T>>;
 
     template<class T>
     static constexpr bool is_item = false;
     template<class T>
-    constexpr bool is_item<iter::item<T>> = true;
+    inline constexpr bool is_item<iter::item<T>> = true;
     template<class T>
     concept item = move_item<T> || is_item<std::remove_cvref_t<T>>;
 
@@ -966,7 +966,7 @@ namespace iter {
 
     namespace concepts {
         template<class T> static constexpr bool is_tuple = false;
-        template<class... Ts> constexpr bool is_tuple<iter::tuple<Ts...>> = true;
+        template<class... Ts> inline constexpr bool is_tuple<iter::tuple<Ts...>> = true;
         template<class T>
         concept tuple = is_tuple<T>;
         template<class T>
@@ -1208,7 +1208,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_iterator_v = false;
         template<class I>
-        constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
+        inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
 
         template<class T>
         concept iterator = is_iterator_v<std::decay_t<T>>;
@@ -1803,7 +1803,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_iter_of_optional = false;
         template<class T>
-        constexpr bool is_iter_of_optional<iter::optional<T>> = true;
+        inline constexpr bool is_iter_of_optional<iter::optional<T>> = true;
         template<class T>
         concept iter_of_optional = is_iter_of_optional<T>;
     }
@@ -1936,7 +1936,7 @@ namespace iter {
             template<class T>
             static constexpr bool is_generator = false;
             template<class T>
-            constexpr bool is_generator<generator<T>> = true;
+            inline constexpr bool is_generator<generator<T>> = true;
         }
         template<class T>
         concept generator = detail::is_generator<T>;
@@ -2817,7 +2817,7 @@ namespace iter::detail {
     };
 
     template<class T> static constexpr bool is_zip = false;
-    template<class... Ts> constexpr bool is_zip<zip_iter<Ts...>> = true;
+    template<class... Ts> inline constexpr bool is_zip<zip_iter<Ts...>> = true;
     template<class T>
     concept decays_to_zip = is_zip<std::remove_cvref_t<T>>;
 }
@@ -4028,7 +4028,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_partition_index = false;
         template<std::size_t I>
-        constexpr bool is_partition_index<part_t<I>> = true;
+        inline constexpr bool is_partition_index<part_t<I>> = true;
 
         template<class T>
         concept partition_index = is_partition_index<T>;

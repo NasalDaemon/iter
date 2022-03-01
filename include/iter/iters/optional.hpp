@@ -29,7 +29,7 @@ namespace iter {
         template<class T>
         static constexpr bool is_iter_of_optional = false;
         template<class T>
-        constexpr bool is_iter_of_optional<iter::optional<T>> = true;
+        inline constexpr bool is_iter_of_optional<iter::optional<T>> = true;
         template<class T>
         concept iter_of_optional = is_iter_of_optional<T>;
     }

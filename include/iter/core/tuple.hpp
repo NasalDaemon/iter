@@ -40,7 +40,7 @@ namespace iter {
 
     namespace concepts {
         template<class T> static constexpr bool is_tuple = false;
-        template<class... Ts> constexpr bool is_tuple<iter::tuple<Ts...>> = true;
+        template<class... Ts> inline constexpr bool is_tuple<iter::tuple<Ts...>> = true;
         template<class T>
         concept tuple = is_tuple<T>;
         template<class T>

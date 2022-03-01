@@ -278,14 +278,14 @@ namespace concepts {
     template<class T>
     static constexpr bool is_move_item = false;
     template<class T>
-    constexpr bool is_move_item<iter::move_item<T>> = true;
+    inline constexpr bool is_move_item<iter::move_item<T>> = true;
     template<class T>
     concept move_item = is_move_item<std::remove_cvref_t<T>>;
 
     template<class T>
     static constexpr bool is_item = false;
     template<class T>
-    constexpr bool is_item<iter::item<T>> = true;
+    inline constexpr bool is_item<iter::item<T>> = true;
     template<class T>
     concept item = move_item<T> || is_item<std::remove_cvref_t<T>>;
 
