@@ -1,7 +1,9 @@
-#if __cpp_impl_coroutine >= 201902L && !defined(INCLUDE_ITER_GENERATOR_HPP)
-#define INCLUDE_ITER_GENERATOR_HPP
+#ifndef ITER_ITERS_GENERATOR_HPP
+#define ITER_ITERS_GENERATOR_HPP
 
 #include "iter/core/core.hpp"
+
+#ifdef ITER_COROUTINE
 
 #include <coroutine>
 
@@ -146,4 +148,6 @@ constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
     };
 }
 
-#endif /* INCLUDE_ITER_GENERATOR_HPP */
+#endif /* ITER_COROUTINE */
+
+#endif /* ITER_ITERS_GENERATOR_HPP */

@@ -1,5 +1,5 @@
 #include "test.hpp"
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#ifdef ITER_COROUTINE
 
 generator<int> range_gen() {
     int n = 0;
@@ -62,4 +62,4 @@ TEST(GeneratorTest, cycle) {
     ASSERT_EQ(90, std::move(gen) |take| 20 | sum());
 }
 
-#endif // INCLUDE_ITER_GENERATOR_HPP
+#endif // ITER_COROUTINE

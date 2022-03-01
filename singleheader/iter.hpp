@@ -582,6 +582,10 @@ namespace xtd::detail {
 #  define ITER_UNREACHABLE() do { } while(0)
 #endif
 
+#if __cpp_impl_coroutine >= 201902L
+#  define ITER_COROUTINE
+#endif
+
 #endif /* ITER_CORE_MACROS_HPP */
 
 #ifndef INCLUDE_ITER_EMPLACE_NEW_HPP
@@ -1922,8 +1926,10 @@ namespace iter {
 #endif /* ITER_ITERS_GENERATE_HPP */
 
 namespace iter::iters { using iter::generate; }
-#if __cpp_impl_coroutine >= 201902L && !defined(INCLUDE_ITER_GENERATOR_HPP)
-#define INCLUDE_ITER_GENERATOR_HPP
+#ifndef ITER_ITERS_GENERATOR_HPP
+#define ITER_ITERS_GENERATOR_HPP
+
+#ifdef ITER_COROUTINE
 
 #include <coroutine>
 
@@ -2143,9 +2149,11 @@ constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
     };
 }
 
-#endif /* INCLUDE_ITER_GENERATOR_HPP */
+#endif /* ITER_COROUTINE */
 
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#endif /* ITER_ITERS_GENERATOR_HPP */
+
+#ifdef ITER_COROUTINE
 namespace iter::iters { using iter::generator; }
 #endif
 #ifndef INCLUDE_ITER_COMPOUND_HPP

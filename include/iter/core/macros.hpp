@@ -52,4 +52,8 @@
 #  define ITER_UNREACHABLE() do { } while(0)
 #endif
 
+#if __cpp_impl_coroutine >= 201902L
+#  define ITER_COROUTINE
+#endif
+
 #endif /* ITER_CORE_MACROS_HPP */

@@ -16,7 +16,7 @@ namespace iter::iters { using iter::range; }
 #include "iter/iters/generate.hpp"
 namespace iter::iters { using iter::generate; }
 #include "iter/iters/generator.hpp"
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#ifdef ITER_COROUTINE
 namespace iter::iters { using iter::generator; }
 #endif
 #include "iter/iters/compound.hpp"

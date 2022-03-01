@@ -48,7 +48,7 @@ BENCHMARK(bench_iter_generate_fib)->Arg(100'000'000);
 BENCHMARK(bench_std_fib)->Arg(10'000);
 BENCHMARK(bench_std_fib)->Arg(100'000'000);
 
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#ifdef ITER_COROUTINE
 
 iter::generator<std::size_t> iter_fib_generator(size_t max) {
     std::size_t a = 0, b = 1;

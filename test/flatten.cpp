@@ -33,7 +33,7 @@ TEST(TestFlatten, nested_vector) {
     ASSERT_EQ(s, 45);
 }
 
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#ifdef ITER_COROUTINE
 
 generator<ctor_count<int>> inner(int n) {
     while (true) {
@@ -58,4 +58,4 @@ TEST(TestFlatten, nested_generator) {
     ASSERT_EQ(s, 145);
 }
 
-#endif // INCLUDE_ITER_GENERATOR_HPP
+#endif // ITER_COROUTINE

@@ -241,7 +241,7 @@ BENCHMARK(bench_iter_flatmap_make_triples)->Arg(1000);
 BENCHMARK(bench_iter_flatmap_virtual_make_triples)->Arg(1000);
 BENCHMARK(bench_c_make_triples)->Arg(1000);
 
-#ifdef INCLUDE_ITER_GENERATOR_HPP
+#ifdef ITER_COROUTINE
 
 generator<tuple<int, int, int>> gen_triples() {
     for (int z = 1; true; ++z) {
@@ -290,4 +290,4 @@ BENCHMARK(bench_iter_gen_make_triples)->Arg(10);
 BENCHMARK(bench_iter_gen_make_triples)->Arg(100);
 BENCHMARK(bench_iter_gen_make_triples)->Arg(1000);
 
-#endif // INCLUDE_ITER_GENERATOR_HPP
+#endif // ITER_COROUTINE
