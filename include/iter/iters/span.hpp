@@ -10,33 +10,52 @@ namespace iter {
         using this_t = span;
         constexpr span(T* data, std::size_t size) : data{data}, remaining{size} {}
 
-        template<iter::concepts::random_access_container C>
+        template<concepts::random_access_container C>
         constexpr explicit span(C& container) : span{std::addressof(container[0]), std::size(container)} {}
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.remaining
-                ? (--self.remaining, item_ref(*self.data++))
+                ? (--self.remaining, item_ref(self++))
                 : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return self.remaining
-                ? item_ref(self.data[--self.remaining])
+                ? item_ref(self[--self.remaining])
                 : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.remaining;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
-            return self.data[n];
+            return self[n];
         }
     private:
-        T* data;
+        union {
+            T* data; // active member
+            T (*data_as_array)[]; // used for reading data to help optimiser
+        };
         std::size_t remaining;
+
+        constexpr T& operator++(int) {
+            if (std::is_constant_evaluated()) {
+                return *data++; // avoid type punning in consteval
+            } else {
+                auto& ret = (*data_as_array)[0];
+                ++data;
+                return ret;
+            }
+        }
+        constexpr T& operator[](std::size_t i) const {
+            if (std::is_constant_evaluated())
+                return data[i]; // avoid type punning in consteval
+            else
+                return (*data_as_array)[i];
+        }
     };
 
     template<class T>
     span(T*, std::size_t) -> span<T>;
-    template<iter::concepts::random_access_container C>
+    template<concepts::random_access_container C>
     span(C&) -> span<std::remove_reference_t<decltype(std::declval<C&>()[0])>>;
 }
 

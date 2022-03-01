@@ -7,7 +7,7 @@
 
 using namespace xtd::literals;
 
-void bench_iter_mult(benchmark::State& state)
+void bench_iter_ra_mult(benchmark::State& state)
 {
     std::array<int, 64> a{};
     std::array<int, 64> b{};
@@ -15,6 +15,21 @@ void bench_iter_mult(benchmark::State& state)
 
     for (auto s : state) {
         for (auto [x, y, z] : iter::zip(a, b, c) | iter::cycle() | iter::take | 128) {
+            z = x * y;
+            benchmark::DoNotOptimize(c.data());
+        }
+        benchmark::ClobberMemory();
+    }
+}
+
+void bench_iter_span_mult(benchmark::State& state)
+{
+    std::array<int, 64> a{};
+    std::array<int, 64> b{};
+    std::array<int, 64> c{};
+
+    for (auto s : state) {
+        for (auto [x, y, z] : iter::zip(iter::span{a}, iter::span{b}, iter::span{c}) | iter::cycle() | iter::take | 128) {
             z = x * y;
             benchmark::DoNotOptimize(c.data());
         }
@@ -38,7 +53,9 @@ void bench_std_mult(benchmark::State& state)
     }
 }
 
-BENCHMARK(bench_iter_mult);
+
+BENCHMARK(bench_iter_ra_mult);
+BENCHMARK(bench_iter_span_mult);
 BENCHMARK(bench_std_mult);
 
 void bench_iter_zip_sum(benchmark::State& state)

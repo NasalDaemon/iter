@@ -46,9 +46,7 @@ namespace iter {
                 return {};
             }
 
-            constexpr void unhandled_exception() {
-                m_exception = std::current_exception();
-            }
+            void unhandled_exception() { throw; }
 
             constexpr void return_void() {}
 
@@ -57,17 +55,10 @@ namespace iter {
             }
 
             // Disallow co_await
-            template<class U>
-            std::suspend_never await_transform(U&& value) = delete;
-
-            void rethrow_if_exception() {
-                if (m_exception)
-                    std::rethrow_exception(m_exception);
-            }
+            std::suspend_never await_transform(auto&& value) = delete;
 
         private:
             pointer_type m_value;
-            std::exception_ptr m_exception;
         };
     }
 
@@ -105,10 +96,8 @@ namespace iter {
                 return noitem;
 
             m_coroutine.resume();
-            if (m_coroutine.done()) [[unlikely]] {
-                m_coroutine.promise().rethrow_if_exception();
+            if (m_coroutine.done()) [[unlikely]]
                 return noitem;
-            }
 
             return item_ref(*m_coroutine.promise().value());
         }
@@ -127,27 +116,34 @@ namespace iter {
         using coroutine_handle = std::coroutine_handle<generator_promise<T>>;
         return generator<T>{coroutine_handle::from_promise(*this)};
     }
+} // namespace iter
 
-    template<class... Ts, std::invocable<Ts&...> F>
-    requires concepts::generator<std::invoke_result_t<F, Ts&...>>
-    constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
-        // "Capture" args by value with an inner coroutine taking them by value
-        // The outer function takes by universal reference to observe constness
-        return [](auto make_iter, auto... args) -> std::invoke_result_t<F, Ts&...> {
-            while (true)
-                for (auto it = std::invoke(make_iter, static_cast<Ts&>(args)...); auto next = iter::traits::next(it);)
-                    co_yield *next;
-        }(FWD(make_iter), FWD(args)...);
-    }
-    template<std::invocable<> F>
-    requires concepts::generator<std::invoke_result_t<F>>
-    constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
-        return [](auto make_iter) -> std::invoke_result_t<F> {
-            while (true)
-                for (auto it = std::invoke(make_iter); auto next = iter::traits::next(it);)
-                    co_yield *next;
-        }(FWD(make_iter));
-    }
+#include "iter/iters/generate.hpp"
+#include "iter/adapters/flatten.hpp"
+
+// Utilities to cycle iter::generator coroutine
+template<class... Ts, std::invocable<Ts&...> F>
+requires iter::concepts::generator<std::invoke_result_t<F, Ts&...>>
+constexpr auto ITER_IMPL(cycle) (F&& make_iter, Ts&&... args) {
+    return iter::detail::flatten_iter {
+        iter::generate {
+            [make_iter = FWD(make_iter), ...args = FWD(args)]() mutable {
+                return MAKE_ITEM(make_iter(static_cast<Ts&>(args)...));
+            }
+        }
+    };
+}
+
+template<std::invocable F>
+requires iter::concepts::generator<std::invoke_result_t<F>>
+constexpr auto ITER_IMPL(cycle) (F&& make_iter) {
+    return iter::detail::flatten_iter {
+        iter::generate {
+            [make_iter = FWD(make_iter)]() mutable {
+                return iter::item{make_iter};
+            }
+        }
+    };
 }
 
 #endif /* INCLUDE_ITER_GENERATOR_HPP */

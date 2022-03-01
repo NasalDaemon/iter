@@ -4,7 +4,7 @@
 #include "iter/core/core.hpp"
 
 namespace iter {
-    template<std::invocable<> F>
+    template<std::invocable F>
     requires concepts::item<std::invoke_result_t<F>>
     struct [[nodiscard]] generate : F {
         using this_t = generate;

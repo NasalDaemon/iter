@@ -137,13 +137,17 @@ struct item {
 
 private:
     bool engaged = false;
+    // GCC cannot deal with empty payloads in debug
+#if defined(NDEBUG) || !defined(ITER_COMPILER_GCC)
     [[no_unique_address]]
+#endif
     union payload_t {
         [[no_unique_address]] void_t dummy{};
         [[no_unique_address]] T value;
         constexpr ~payload_t() {}
     } payload{};
 
+    // Workaround for GCC not dealing well with empty payloads
     template<std::invocable F>
     requires std::constructible_from<std::invoke_result_t<F>, T>
     static constexpr payload_t make_payload(F&& f) {
