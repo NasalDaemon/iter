@@ -1513,37 +1513,28 @@ namespace iter {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.remaining
-                ? (--self.remaining, item_ref(self++))
+                ? (--self.remaining, item_ref(*self.data++))
                 : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return self.remaining
-                ? item_ref(self[--self.remaining])
+                ? item_ref(self.get(--self.remaining))
                 : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.remaining;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
-            return self[n];
+            return self.get(n);
         }
     private:
         union {
-            T* data; // active member
-            T (*data_as_array)[]; // used for reading data to help optimiser
+            T* data; // truly active member
+            T (*data_as_array)[]; // used as hint to optimiser during random access reads
         };
         std::size_t remaining;
 
-        constexpr T& operator++(int) {
-            if (std::is_constant_evaluated()) {
-                return *data++; // avoid type punning in consteval
-            } else {
-                auto& ret = (*data_as_array)[0];
-                ++data;
-                return ret;
-            }
-        }
-        constexpr T& operator[](std::size_t i) const {
+        constexpr T& get(std::size_t i) const {
             if (std::is_constant_evaluated())
                 return data[i]; // avoid type punning in consteval
             else
@@ -1719,8 +1710,8 @@ namespace iter {
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
         }
-        constexpr auto ITER_IMPL_GET (this_t& self, size_t) -> auto& {
-            return std::as_const(self.value);
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, size_t) {
+            return (self.value);
         }
     };
 
@@ -1845,7 +1836,7 @@ namespace iter {
             else
                 return self.end_ - self.begin_;
         }
-        constexpr T ITER_IMPL_GET (this_t& self, std::size_t index) {
+        constexpr T ITER_IMPL_GET (this_t const& self, std::size_t index) {
             return self.begin_ + index;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
@@ -1885,7 +1876,7 @@ namespace iter {
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return std::numeric_limits<T>::max();
             }
-            constexpr T ITER_IMPL_GET (this_t&, std::size_t index) {
+            constexpr T ITER_IMPL_GET (this_t const&, std::size_t index) {
                 return index;
             }
         };
@@ -2200,7 +2191,7 @@ namespace iter {
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return 0;
             }
-            constexpr auto ITER_IMPL_GET (this_t&, std::size_t) -> T& {
+            constexpr auto ITER_IMPL_GET (this_t const&, std::size_t) -> T& {
                 ITER_UNREACHABLE();
                 return reinterpret_cast<T&>(*((T*)0));
             }

@@ -24,7 +24,7 @@ namespace iter {
             else
                 return self.end_ - self.begin_;
         }
-        constexpr T ITER_IMPL_GET (this_t& self, std::size_t index) {
+        constexpr T ITER_IMPL_GET (this_t const& self, std::size_t index) {
             return self.begin_ + index;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
@@ -64,7 +64,7 @@ namespace iter {
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return std::numeric_limits<T>::max();
             }
-            constexpr T ITER_IMPL_GET (this_t&, std::size_t index) {
+            constexpr T ITER_IMPL_GET (this_t const&, std::size_t index) {
                 return index;
             }
         };

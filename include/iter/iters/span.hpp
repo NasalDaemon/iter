@@ -15,37 +15,28 @@ namespace iter {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.remaining
-                ? (--self.remaining, item_ref(self++))
+                ? (--self.remaining, item_ref(*self.data++))
                 : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return self.remaining
-                ? item_ref(self[--self.remaining])
+                ? item_ref(self.get(--self.remaining))
                 : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.remaining;
         }
         constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
-            return self[n];
+            return self.get(n);
         }
     private:
         union {
-            T* data; // active member
-            T (*data_as_array)[]; // used for reading data to help optimiser
+            T* data; // truly active member
+            T (*data_as_array)[]; // used as hint to optimiser during random access reads
         };
         std::size_t remaining;
 
-        constexpr T& operator++(int) {
-            if (std::is_constant_evaluated()) {
-                return *data++; // avoid type punning in consteval
-            } else {
-                auto& ret = (*data_as_array)[0];
-                ++data;
-                return ret;
-            }
-        }
-        constexpr T& operator[](std::size_t i) const {
+        constexpr T& get(std::size_t i) const {
             if (std::is_constant_evaluated())
                 return data[i]; // avoid type punning in consteval
             else

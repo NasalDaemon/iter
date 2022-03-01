@@ -14,8 +14,8 @@ namespace iter {
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
         }
-        constexpr auto ITER_IMPL_GET (this_t& self, size_t) -> auto& {
-            return std::as_const(self.value);
+        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, size_t) {
+            return (self.value);
         }
     };
 
