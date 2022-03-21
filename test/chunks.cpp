@@ -12,11 +12,16 @@ TEST(TestChunks, dynamic) {
 
 TEST(TestChunks, dynamic_no_inner_iteration) {
     std::size_t count = 0;
-    range{0, 10}
+    range{0, 9}
         | chunks | 2
         | foreach | [&](auto&&) { ++count; };
 
     ASSERT_EQ(count, 5);
+    count = 0;
+    range{0, 10}
+        | chunks | 2
+        | foreach | [&](auto&&) { ++count; };
+    ASSERT_EQ(count, 6);
 }
 
 TEST(TestChunks, static) {
