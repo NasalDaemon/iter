@@ -97,7 +97,8 @@ namespace iter::detail {
         using this_t = lazy_chunk_iter;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             auto next = iter::no_next<I>();
-            if (self.remaining--) [[likely]] {
+            if (self.remaining) [[likely]] {
+                --self.remaining;
                 if (!emplace_next(next, self.i)) [[unlikely]] {
                     self.size = 0;
                 }
@@ -109,10 +110,16 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
+        constexpr unstable_item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
-                self.remaining = self.size;
-                return self;
+                // Deal with the case where inner iter is not fully iterated
+                if (0 != std::exchange(self.remaining, self.size)) [[unlikely]] {
+                    while (impl::next(static_cast<lazy_chunk_iter<I>&>(self))) {}
+                    if (self.size == 0) [[unlikely]] {
+                        return noitem;
+                    }
+                }
+                return unstable_ref<lazy_chunk_iter<I>&>(self);
             }
             return noitem;
         }
@@ -122,7 +129,7 @@ namespace iter::detail {
 template<iter::assert_iter I>
 constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<0>) (I&& iterable, std::uint32_t size) {
     return iter::detail::chunks_iter<std::remove_reference_t<I>, 0>{
-        {.size = size, .remaining = size, .i = FWD(iterable)}};
+        {.size = size, .remaining = 0, .i = FWD(iterable)}};
 }
 
 template<std::size_t N, iter::assert_iter I>

@@ -23,10 +23,10 @@ namespace iter::detail {
             return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            return self.func(impl::get(self.i, index));
+            return self.func(get(impl::get(self.i, index)));
         }
 
         constexpr auto ITER_IMPL_THIS(flatten) (this_t&& self) {

@@ -21,11 +21,11 @@ namespace iter::detail {
             return val;
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            decltype(auto) val = impl::get(self.i, index);
-            self.func(val);
+            auto val = impl::get(self.i, index);
+            self.func(get(val));
             return val;
         }
     };

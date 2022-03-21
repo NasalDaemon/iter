@@ -13,11 +13,11 @@ namespace iter {
         constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
             return 1;
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return (self.value);
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t) {
+            return stable_ref(self.value);
         }
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return std::exchange(self.on, false) ? item_ref(self.value) : noitem;
+            return std::exchange(self.on, false) ? item(stable_ref(self.value)) : noitem;
         }
         constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
             return repeat{self.value};
@@ -33,16 +33,16 @@ namespace iter {
     template<class T>
     struct once_ref {
         using this_t = once_ref;
-        constexpr once_ref(T& in) : value{in} {}
+        constexpr once_ref(T& in) : value{stable_ref(in)} {}
     private:
-        item<T&> value;
+        stable_item<T&> value;
         constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
             return 1;
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self.value;
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t) {
+            return stable_ref(*self.value);
         }
-        constexpr decltype(auto) ITER_IMPL_NEXT (this_t& self) {
+        constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return std::exchange(self.value, noitem);
         }
         constexpr auto ITER_IMPL_THIS(cycle) (const this_t& self) {

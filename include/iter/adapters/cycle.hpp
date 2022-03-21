@@ -17,7 +17,7 @@ namespace iter::detail {
             return std::numeric_limits<std::size_t>::max();
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return impl::get(self.i, index % impl::size(self.i));

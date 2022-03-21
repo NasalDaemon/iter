@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_CORE_HPP
-#define INCLUDE_ITER_CORE_HPP
+#ifndef ITER_CORE_CORE_HPP
+#define ITER_CORE_CORE_HPP
 
 #include "iter/core/version.hpp"
 
@@ -20,7 +20,8 @@ ITER_DECLARE(cycle)
 
 ITER_INVOKER(next)
 ITER_INVOKER(next_back)
-ITER_INVOKER(get)
+// ITER_INVOKER(get)
+namespace xtd::invokers { struct iter_get; }
 ITER_INVOKER(size)
 
 namespace iter {
@@ -50,8 +51,13 @@ namespace iter {
         };
 
         template<class T>
+        concept stable_iter = iter<T> && requires(T it) {
+            { iter::traits::next(it) } -> stable_item;
+        };
+
+        template<class T>
         concept random_access_iter = iter<T> && requires (T it, std::size_t index) {
-            iter::traits::random_access::get(it, index);
+            { iter::traits::random_access::get(it, index) } -> stability_wrapper;
             { iter::traits::random_access::size(it) } -> std::same_as<std::size_t>;
         };
 
@@ -206,13 +212,8 @@ namespace iter {
     }
 
     namespace detail {
-        constexpr auto consume = xtd::detail::overload {
-            []<class T>(item<T>& next) -> decltype(auto) {
-                return next.consume();
-            },
-            []<class T>(move_item<T>& next) -> decltype(auto) {
-                return next.consume();
-            }
+        constexpr auto consume = [](concepts::item auto& next) -> decltype(auto) {
+            return next.consume();
         };
 
         template<class T>
@@ -366,8 +367,27 @@ constexpr auto ITER_IMPL(to_iter) (I&& iter) -> I&& {
 
 // Define random access functions as deleted by default
 template<class... Ts>
-void ITER_DETAIL_IMPL(get) (Ts&&...) = delete;
+void XTD_IMPL_(iter_get, iter::traits::random_access::get) (Ts&&...) = delete;
 template<class... Ts>
 void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
-#endif /* INCLUDE_ITER_CORE_HPP */
+struct xtd::invokers::iter_get
+{
+    static constexpr iter::concepts::stability_wrapper auto
+    invoke(auto const& bind, auto const& tag, auto&&... args)
+        requires requires {
+            xtd_invoke_iter_get(bind, tag, FWD(args)...);
+        }
+    {
+        auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(bind, tag, FWD(args)...); };
+        using result_t = decltype(call());
+        if constexpr (iter::concepts::stability_wrapper<result_t>)
+            return call();
+        else {
+            static_assert(!std::is_reference_v<result_t>, "References must be stability qualified");
+            return iter::make_stability(call);
+        }
+    }
+};
+
+#endif /* ITER_CORE_CORE_HPP */

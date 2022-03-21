@@ -21,19 +21,19 @@ namespace iter {
 
         constexpr auto ITER_IMPL_NEXT(this_t& self) {
             return self.pos < std::size(self.container)
-                ? iter::item_ref(self.container[self.pos++])
-                : iter::noitem;
+                ? item(stable_ref(self.container[self.pos++]))
+                : noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK(this_t& self) {
             const auto size = std::size(self.container);
             return self.pos < size
-                ? iter::item_ref(size - 1 - self.container[self.pos++])
-                : iter::noitem;
+                ? item(stable_ref(size - 1 - self.container[self.pos++]))
+                : noitem;
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index) {
-            return self.container[index];
+        constexpr auto ITER_IMPL_GET(this_t& self, std::size_t index) {
+            return stable_ref(self.container[index]);
         }
         constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self) {
             return std::size(self.container);

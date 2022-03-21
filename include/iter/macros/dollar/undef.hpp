@@ -27,6 +27,7 @@
 #undef $map
 #undef $move
 #undef $reverse
+#undef $skip_eager
 #undef $skip_while
 #undef $skip
 #undef $split

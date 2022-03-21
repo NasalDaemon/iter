@@ -33,7 +33,7 @@ namespace iter::detail {
             return size > self.n ? size - self.n : 0;
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return impl::get(self.i, index + self.n);

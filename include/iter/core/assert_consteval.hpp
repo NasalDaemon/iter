@@ -2,7 +2,7 @@
 #define ITER_CORE_ASSERT_CONSTEVAL_HPP
 
 namespace iter::detail {
-    class unconstructible { unconstructible(); };
+    class unconstructible { unconstructible(auto&&...); };
     template<class...>
     struct fail_compile_at_linker {
         // Impossible to define anywhere, so will always fail to link

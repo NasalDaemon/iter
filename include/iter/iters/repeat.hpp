@@ -8,14 +8,14 @@ namespace iter {
     struct repeat {
         using this_t = repeat;
         T value;
-        constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            return item_ref(std::as_const(self.value));
+        constexpr auto ITER_IMPL_NEXT (this_t const& self) {
+            return item(stable_ref(self.value));
         }
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
             return std::numeric_limits<std::size_t>::max();
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, size_t) {
-            return (self.value);
+        constexpr auto ITER_IMPL_GET (this_t const& self, size_t) {
+            return stable_ref(self.value);
         }
     };
 

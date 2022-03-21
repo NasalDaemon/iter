@@ -34,7 +34,7 @@ namespace iter {
         {
             return iter::traits::double_ended::next_back(self.i);
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
             return iter::traits::random_access::get(self.i, index);

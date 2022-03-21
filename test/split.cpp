@@ -13,3 +13,10 @@ TEST(TestSplit, empty) {
     std::vector<std::string> expected = {""};
     ASSERT_EQ(s, expected);
 }
+
+TEST(TestSplit, no_inner_iteration) {
+    std::string str = "test,test,,testy";
+    std::size_t count = 0;
+    str |split| ',' |foreach| [&](auto&&) { ++count; };
+    ASSERT_EQ(count, 4);
+}

@@ -2,6 +2,7 @@
 #define INCLUDE_ITER_WINDOW_HPP
 
 #include "iter/adapters/cycle.hpp"
+#include "iter/adapters/map.hpp"
 #include "iter/adapters/skip.hpp"
 #include "iter/adapters/take.hpp"
 
@@ -17,32 +18,34 @@ namespace iter {
 }
 
 namespace iter::detail {
-    template<class T, std::size_t N>
+    template<concepts::stable_item T, std::size_t N>
     struct window_iter_storage {
         std::array<T, N> buffer = {};
         std::size_t size = 0;
         std::size_t end = 0;
         constexpr auto to_iter() {
             using namespace xtd::literals;
-            return cycle(buffer) | skip(_, end) | take(_, size--);
+            return cycle(buffer)
+                | map(_, [](auto& item) { return stable_ref(*item); })
+                | skip(_, end)
+                | take(_, size--);
         }
     };
 
     template<assert_iter I, std::size_t N>
-    struct [[nodiscard]] window_iter : window_iter_storage<value_t<I>, N> {
+    struct [[nodiscard]] window_iter : window_iter_storage<next_t<I>, N> {
         static_assert(N > 1, "Window must be of at least size 2");
         [[no_unique_address]] I i;
 
         using this_t = window_iter;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             while (self.size < N) [[likely]] {
-                if (auto next = impl::next(self.i)) [[likely]] {
-                    self.buffer[self.end] = consume(next);
+                if (emplace_next(self.buffer[self.end], self.i)) [[likely]] {
                     ++self.size;
                     self.end = (self.end + 1) % N;
                 } else break;
             }
-            return self.size == N ? MAKE_ITEM(self.to_iter()) : noitem;
+            return self.size == N ? MAKE_ITEM(unstable{self.to_iter()}) : noitem;
         }
     };
 }

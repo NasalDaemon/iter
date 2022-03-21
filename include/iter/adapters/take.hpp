@@ -25,7 +25,7 @@ namespace iter::detail {
             return std::min(self.n, impl::size(self.i));
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return impl::get(self.i, index);

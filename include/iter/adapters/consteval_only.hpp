@@ -24,14 +24,14 @@ namespace iter::detail {
             return impl::next_back(self.i);
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET(this_t& self, std::size_t index)
             requires concepts::random_access_iter<I>
         {
             assert_consteval<this_t, struct get>();
             return impl::get(self.i, index);
         }
 
-        constexpr decltype(auto) ITER_IMPL_SIZE(this_t const& self)
+        constexpr std::size_t ITER_IMPL_SIZE(this_t const& self)
             requires concepts::random_access_iter<I>
         {
             assert_consteval<this_t, struct size>();

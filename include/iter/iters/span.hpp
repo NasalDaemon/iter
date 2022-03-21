@@ -15,19 +15,19 @@ namespace iter {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.remaining
-                ? (--self.remaining, item_ref(*self.data++))
+                ? (--self.remaining, item(stable_ref(*self.data++)))
                 : noitem;
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             return self.remaining
-                ? item_ref(self.get(--self.remaining))
+                ? item(stable_ref(self.get(--self.remaining)))
                 : noitem;
         }
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self.remaining;
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t n) {
-            return self.get(n);
+        constexpr auto ITER_IMPL_GET (this_t const& self, std::size_t n) {
+            return stable_ref(self.get(n));
         }
     private:
         union {

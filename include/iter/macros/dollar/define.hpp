@@ -27,6 +27,7 @@
 #define $map $(::iter::map)
 #define $move $(::iter::move)
 #define $reverse $(::iter::reverse)
+#define $skip_eager $(::iter::skip_eager)
 #define $skip_while $(::iter::skip_while)
 #define $skip $(::iter::skip)
 #define $split $(::iter::split)

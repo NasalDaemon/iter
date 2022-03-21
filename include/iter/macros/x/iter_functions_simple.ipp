@@ -40,6 +40,8 @@ ITER_X(map)
 ITER_X(move)
 // Invoke iter::reverse on this iter
 ITER_X(reverse)
+// Invoke iter::skip_eager on this iter
+ITER_X(skip_eager)
 // Invoke iter::skip_while on this iter
 ITER_X(skip_while)
 // Invoke iter::skip on this iter

@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_BOX_HPP
-#define INCLUDE_ITER_BOX_HPP
+#ifndef ITER_ADAPTERS_BOX_HPP
+#define ITER_ADAPTERS_BOX_HPP
 
 #include "iter/core/core.hpp"
 
@@ -29,13 +29,13 @@ namespace iter {
         struct virtual_iter_impl final : I, virtual_iter<item_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
+            item<item_t<I>> next() final { return impl::next(static_cast<I&>(*this)); }
         };
         template<concepts::random_access_iter I>
         struct virtual_iter_impl<I> final : I, virtual_iter<item_t<I>, get_t<I>> {
             template<class... Ts>
             constexpr virtual_iter_impl(Ts&&... in) : I{FWD(in)...} {}
-            next_t<I> next() final { return impl::next(static_cast<I&>(*this)); }
+            item<item_t<I>> next() final { return impl::next(static_cast<I&>(*this)); }
             std::size_t size() const final {
                 return impl::size(static_cast<I const&>(*this));
             }
@@ -70,14 +70,14 @@ namespace iter {
         static constexpr bool random_access = !std::same_as<Get, void>;
 
         template<iter I>
-        requires std::same_as<Next, next_t<I>>
+        requires std::same_as<ItemType, item_t<I>>
              && (!random_access || std::same_as<Get, detail::get_t<I>>)
         constexpr boxed(I&& to_box)
             : it{new detail::virtual_iter_impl<std::remove_cvref_t<I>>(FWD(to_box))}
         {}
 
         template<iter I, std::size_t Size, std::size_t Align>
-        requires std::same_as<Next, next_t<I>>
+        requires std::same_as<ItemType, item_t<I>>
              && (!random_access || std::same_as<Get, detail::get_t<I>>)
         constexpr boxed(I&& to_box, scratch<Size, Align>& scratch)
             : it{scratch.template make<detail::virtual_iter_impl<std::remove_cvref_t<I>>>(FWD(to_box)), {0}}
@@ -120,4 +120,4 @@ constexpr auto ITER_IMPL(box) (I&& iter, iter::scratch<Size, Align>& scratch) {
     return iter::boxed(FWD(iter), scratch);
 }
 
-#endif /* INCLUDE_ITER_BOX_HPP */
+#endif /* ITER_ADAPTERS_BOX_HPP */

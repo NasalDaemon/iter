@@ -21,8 +21,8 @@ namespace iter::detail {
         random_access_container_iter(const random_access_container_iter& other) = default;
         random_access_container_iter& operator=(const random_access_container_iter& other) = default;
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t const& self, std::size_t index) {
-            return (*self.container)[index];
+        constexpr auto ITER_IMPL_GET (this_t const& self, std::size_t index) {
+            return stable_ref((*self.container)[index]);
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const& self) {
@@ -31,21 +31,21 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             return self.pos != std::size(*self.container)
-                ? item_ref((*self.container)[self.pos++])
+                ? item(stable_ref((*self.container)[self.pos++]))
                 : noitem;
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             auto const size = std::size(*self.container);
             return self.pos != size
-                ? item_ref((*self.container)[(size - 1 - self.pos++)])
+                ? item(stable_ref((*self.container)[(size - 1 - self.pos++)]))
                 : noitem;
         }
 
         struct cycle;
 
-        constexpr auto ITER_IMPL_THIS(cycle) (this_t&& self) {
-            return cycle{FWD(self)};
+        constexpr auto ITER_IMPL_THIS(cycle) (this_t const& self) {
+            return cycle{self};
         }
     };
 
@@ -56,9 +56,9 @@ namespace iter::detail {
     struct random_access_container_iter<T>::cycle : random_access_container_iter<T> {
         using this_t = cycle;
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) -> auto& {
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) {
             const auto size = std::size(*self.container);
-            return (*self.container)[index % size];
+            return stable_ref((*self.container)[index % size]);
         }
 
         constexpr auto ITER_IMPL_SIZE (this_t const&) {
@@ -67,13 +67,13 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             self.pos = self.pos == std::size(*self.container) ? 0 : self.pos;
-            return item_ref((*self.container)[self.pos++]);
+            return item(stable_ref((*self.container)[self.pos++]));
         }
 
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {
             const auto size = std::size(*self.container);
             self.pos = self.pos == size ? 0 : self.pos;
-            return item_ref((*self.container)[(size - 1 - self.pos++)]);
+            return item(stable_ref((*self.container)[(size - 1 - self.pos++)]));
         }
      };
 }

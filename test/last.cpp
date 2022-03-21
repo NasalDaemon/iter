@@ -93,7 +93,7 @@ TEST(TestLast, random_optional_fallback) {
 
     ASSERT_EQ(9, l2.value);
     ASSERT_EQ(0, l2.copies);
-    NO_CLANG(ASSERT_EQ(0, l2.moves));
+    ASSERT_EQ(1, l2.moves);
     ASSERT_EQ(1, iteration_count);
 }
 

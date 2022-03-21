@@ -10,6 +10,15 @@ TEST(TestChunks, dynamic) {
     ASSERT_EQ(s, 45);
 }
 
+TEST(TestChunks, dynamic_no_inner_iteration) {
+    std::size_t count = 0;
+    range{0, 10}
+        | chunks | 2
+        | foreach | [&](auto&&) { ++count; };
+
+    ASSERT_EQ(count, 5);
+}
+
 TEST(TestChunks, static) {
     auto s = range{0, 10}
         | chunks_<2>()

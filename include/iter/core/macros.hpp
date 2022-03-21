@@ -21,7 +21,7 @@
 
 #define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
 #define ITER_IMPL_NEXT_BACK ITER_DETAIL_IMPL_THIS(next_back)
-#define ITER_IMPL_GET       ITER_DETAIL_IMPL_THIS(get)
+#define ITER_IMPL_GET       XTD_IMPL_THIS_(iter_get, iter::detail::impl::get)
 #define ITER_IMPL_SIZE      ITER_DETAIL_IMPL_THIS(size)
 
 #define ITER_DECLARE(fun) \

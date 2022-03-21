@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_ZIP_HPP
-#define INCLUDE_ITER_ZIP_HPP
+#ifndef ITER_ADAPTERS_ZIP_HPP
+#define ITER_ADAPTERS_ZIP_HPP
 
 #include "iter/core/core.hpp"
 
@@ -9,9 +9,16 @@ namespace iter::detail {
     template<class T>
     static constexpr auto lazy_unwrap_item(T&& in) {
         if constexpr (concepts::owned_item<T>)
-            return [&] { return in.consume(); };
+            return [&] { return FWD(in).consume(); };
         else
-            return [&]() -> auto&& { return in.consume(); };
+            return [&]() -> auto&& { return FWD(in).consume(); };
+    }
+    template<iter I>
+    static constexpr auto lazy_get(I& iter, std::size_t index) {
+        if constexpr (std::is_reference_v<stability_unwrap<get_t<I>>>)
+            return [&iter, index]() -> auto&& { return get(impl::get(iter, index)); };
+        else
+            return [&iter, index] { return get(impl::get(iter, index)); };
     }
 
     template<assert_iter... I>
@@ -24,10 +31,11 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
         {
+            constexpr bool stable = (concepts::stable_iter<I> && ...);
             return apply([](auto&... iters) {
                 return [](auto... items) {
                     return (... & items.has_value())
-                        ? MAKE_ITEM(make_tuple_lazy(lazy_unwrap_item(std::move(items))...))
+                        ? MAKE_ITEM(MAKE_STABILITY(stable, make_tuple_lazy(lazy_unwrap_item(std::move(items))...)))
                         : noitem;
                 }(impl::next(iters)...);
             }, self.i);
@@ -36,8 +44,9 @@ namespace iter::detail {
         constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
+            constexpr bool stable = (concepts::stable<get_t<I>> && ...);
             return apply([=](auto&... iters) {
-                return make_tuple_lazy([&, index]() -> decltype(auto) { return impl::get(iters, index); }...);
+                return MAKE_STABILITY(stable, make_tuple_lazy(lazy_get(iters, index)...));
             }, self.i);
         }
     };
@@ -66,4 +75,4 @@ constexpr auto ITER_IMPL(zip) (I&& zip_iter, Is&&... iterables) {
     }, FWD(zip_iter).i);
 }
 
-#endif /* INCLUDE_ITER_ZIP_HPP */
+#endif /* ITER_ADAPTERS_ZIP_HPP */

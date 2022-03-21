@@ -18,14 +18,18 @@ namespace iter::detail {
             return move_item{impl::next(self.i)};
         }
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            decltype(auto) item = impl::get(self.i, index);
-            if constexpr (std::is_reference_v<decltype(item)>)
-                return std::move(item);
+            auto value = impl::get(self.i, index);
+            if constexpr (std::is_reference_v<detail::stability_unwrap<decltype(value)>>) {
+                if constexpr (concepts::stable<decltype(value)>)
+                    return stable_ref(std::move(get(value)));
+                else
+                    return unstable_ref(std::move(get(value)));
+            }
             else
-                return item;
+                return value;
         }
     };
 

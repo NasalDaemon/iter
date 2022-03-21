@@ -14,9 +14,9 @@ namespace iter {
             constexpr std::size_t ITER_IMPL_SIZE (this_t const&) {
                 return 0;
             }
-            constexpr auto ITER_IMPL_GET (this_t const&, std::size_t) -> T& {
+            constexpr auto ITER_IMPL_GET (this_t const&, std::size_t) {
                 ITER_UNREACHABLE();
-                return reinterpret_cast<T&>(*((T*)0));
+                return stable_ref(reinterpret_cast<T&>(*((T*)0)));
             }
         };
     }

@@ -16,11 +16,14 @@ namespace iter::detail {
     private:
         using this_t = chain_iter;
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
-            std::size_t i1s = impl::size(self.i1.value());
-            return index < i1s ? impl::get(self.i1.value(), index) : impl::get(self.i2, index - i1s);
+            using stability = common_stability<detail::get_t<I1>, detail::get_t<I2>>;
+            std::size_t i1s = impl::size(*self.i1);
+            return index < i1s
+                ? stability{impl::get(*self.i1, index)}
+                : stability{impl::get(self.i2, index - i1s)};
         }
 
         static constexpr bool owned_next = concepts::owned_item<next_t<I1>> || concepts::owned_item<next_t<I2>>;

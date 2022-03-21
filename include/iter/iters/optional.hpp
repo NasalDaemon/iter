@@ -5,16 +5,16 @@
 
 namespace iter {
     template<class T>
-    struct optional : item<T> {
+    struct optional : unstable_item<T> {
         using this_t = optional;
 
         constexpr std::size_t ITER_IMPL_SIZE (this_t const& self) {
             return self ? 1 : 0;
         }
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t) {
-            return *self;
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t) {
+            return stable_ref(*self);
         }
-        constexpr auto ITER_IMPL_NEXT (item<T>& self) {
+        constexpr auto ITER_IMPL_NEXT (unstable_item<T>& self) {
             return std::exchange(self, noitem);
         }
         constexpr auto ITER_IMPL_NEXT_BACK (this_t& self) {

@@ -9,18 +9,23 @@ template<iter::concepts::random_access_iterable I>
 constexpr auto ITER_IMPL(last) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     std::size_t size = iter::traits::random_access::size(iter);
-    using get_t = decltype(iter::traits::random_access::get(iter, size - 1));
+    using get_t = iter::detail::stability_unwrap<decltype(iter::traits::random_access::get(iter, size - 1))>;
     if constexpr (std::is_lvalue_reference_v<decltype(iter)> && std::is_reference_v<get_t>)
         return size > 0 ? MAKE_ITEM_AUTO(iter::traits::random_access::get(iter, size - 1)) : iter::noitem;
     else
-        return size > 0 ? MAKE_ITEM(iter::traits::random_access::get(iter, size - 1)) : iter::noitem;
+        return size > 0 ? iter::item([&] {
+            if constexpr (std::is_reference_v<get_t>)
+                return get(iter::traits::random_access::get(iter, size - 1));
+            else
+                return iter::traits::random_access::get(iter, size - 1);
+        }) : iter::noitem;
 }
 
 template<iter::concepts::random_access_iterable I, class T>
 constexpr auto ITER_IMPL(last) (I&& iterable, T&& fallback) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
     std::size_t size = iter::traits::random_access::size(iter);
-    return size > 0 ? iter::traits::random_access::get(iter, size - 1) : FWD(fallback);
+    return size > 0 ? get(iter::traits::random_access::get(iter, size - 1)) : FWD(fallback);
 }
 
 template<iter::iterable I>

@@ -52,8 +52,8 @@ namespace iter {
 
             constexpr void return_void() {}
 
-            constexpr pointer_type value() const noexcept {
-                return m_value;
+            constexpr reference_type value() const noexcept {
+                return static_cast<reference_type>(*m_value);
             }
 
             // Disallow co_await
@@ -93,7 +93,7 @@ namespace iter {
         using this_t = generator;
         constexpr auto ITER_IMPL_NEXT (this_t& self) { return self.next(); }
 
-        constexpr item<T&> next() {
+        constexpr unstable_item<T&> next() {
             if (!m_coroutine) [[unlikely]]
                 return noitem;
 
@@ -101,7 +101,7 @@ namespace iter {
             if (m_coroutine.done()) [[unlikely]]
                 return noitem;
 
-            return item_ref(*m_coroutine.promise().value());
+            return item(unstable_ref(m_coroutine.promise().value()));
         }
 
         friend class detail::generator_promise<T>;

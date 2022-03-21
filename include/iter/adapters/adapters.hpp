@@ -33,6 +33,8 @@ namespace iter::adapters { using iter::map; }
 namespace iter::adapters { using iter::move; }
 #include "iter/adapters/reverse.hpp"
 namespace iter::adapters { using iter::reverse; }
+#include "iter/adapters/skip_eager.hpp"
+namespace iter::adapters { using iter::skip_eager; }
 #include "iter/adapters/skip_while.hpp"
 namespace iter::adapters { using iter::skip_while; }
 #include "iter/adapters/skip.hpp"

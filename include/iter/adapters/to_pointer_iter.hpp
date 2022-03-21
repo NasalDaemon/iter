@@ -1,5 +1,5 @@
-#ifndef ITER_ITERS_TO_POINTER_ITER_HPP
-#define ITER_ITERS_TO_POINTER_ITER_HPP
+#ifndef ITER_ADAPTERS_TO_POINTER_ITER_HPP
+#define ITER_ADAPTERS_TO_POINTER_ITER_HPP
 
 #include "iter/core/core.hpp"
 
@@ -15,7 +15,7 @@ namespace iter::detail {
 
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
             emplace_next(self.store, self.i);
-            return self.store ? item_ref(*self.store) : noitem;
+            return self.store ? item(unstable_ref(*self.store)) : noitem;
         }
     };
 
@@ -27,12 +27,12 @@ namespace iter::detail {
         // If impl::get returns a value, then we need to store it to return a pointer to storage
         static constexpr bool get_val = !std::is_reference_v<get_t<I>>;
         [[no_unique_address]] I i;
-        [[no_unique_address]] std::conditional_t<get_val, next_t<I>, void_t> store;
+        [[no_unique_address]] std::conditional_t<get_val, unstable_item<item_t<I>>, void_t> store;
 
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index) {
+        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index) {
             if constexpr (get_val) {
                 self.store.emplace([&] { return impl::get(self.i, index); });
-                return self.store.value();
+                return unstable_ref(self.store.value());
             } else
                 return impl::get(self.i, index);
         }
@@ -51,4 +51,4 @@ constexpr decltype(auto) ITER_IMPL(to_pointer_iter) (I&& iter) {
     }
 }
 
-#endif /* ITER_ITERS_TO_POINTER_ITER_HPP */
+#endif /* ITER_ADAPTERS_TO_POINTER_ITER_HPP */
