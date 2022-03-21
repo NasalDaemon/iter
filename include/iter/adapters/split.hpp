@@ -9,7 +9,7 @@ ITER_DECLARE(split)
 namespace iter::detail {
     // Book-keeping to ensure no infinite loop if inner iter is not iterated
     enum class inner_iter_status {
-        created, unstarted, started, finished
+        created, inner_unfinished, inner_finished, outer_finished
     };
 
     template<assert_iter I>
@@ -20,11 +20,11 @@ namespace iter::detail {
 
         using this_t = split_iter_inner;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            self.status = inner_iter_status::started;
             auto next = iter::no_next<I>();
             if (!emplace_next(next, self.i)) [[unlikely]] {
-                self.status = inner_iter_status::finished;
+                self.status = inner_iter_status::outer_finished;
             } else if (*next == self.delimiter) [[unlikely]] {
+                self.status = inner_iter_status::inner_finished;
                 next.reset();
             }
             return next;
@@ -36,19 +36,15 @@ namespace iter::detail {
         using this_t = split_iter;
 
         constexpr stable_item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
-            if (self.status == inner_iter_status::finished) [[likely]] {
+            if (self.status == inner_iter_status::outer_finished)
                 return noitem;
-            } else if (self.status == inner_iter_status::created) [[unlikely]] {
-                self.status = inner_iter_status::unstarted;
-            } else if (self.status == inner_iter_status::unstarted) [[unlikely]] {
-                // Inner iter was not iterated since last time next was called,
-                // so we must do it ourselves to avoid an infinite loop
-                while (impl::next(static_cast<split_iter_inner<I>&>(self))) {}
-                if (self.status == inner_iter_status::finished) [[unlikely]] {
+            if (self.status == inner_iter_status::inner_unfinished) [[unlikely]] {
+                // Inner iter was not fully iterated, so we must complete the inner iter
+                while (impl::next(static_cast<split_iter_inner<I>&>(self)));
+                if (self.status == inner_iter_status::outer_finished)
                     return noitem;
-                }
-                self.status = inner_iter_status::unstarted;
             }
+            self.status = inner_iter_status::inner_unfinished;
             return stable_ref<split_iter_inner<I>&>(self);
         }
     };

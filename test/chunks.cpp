@@ -24,6 +24,20 @@ TEST(TestChunks, dynamic_no_inner_iteration) {
     ASSERT_EQ(count, 6);
 }
 
+TEST(TestChunks, dynamic_partial_inner_iteration) {
+    std::size_t count = 0;
+    range{0, 9}
+        | chunks | 2
+        | foreach | [&](auto&& it) { iter::traits::next(it); ++count; };
+
+    ASSERT_EQ(count, 5);
+    count = 0;
+    range{0, 10}
+        | chunks | 2
+        | foreach | [&](auto&& it) { iter::traits::next(it); ++count; };
+    ASSERT_EQ(count, 6);
+}
+
 TEST(TestChunks, static) {
     auto s = range{0, 10}
         | chunks_<2>()

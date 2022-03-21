@@ -17,7 +17,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 template<iter::assert_iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (iter::traits::next(iter)) {}
+    while (iter::traits::next(iter));
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */

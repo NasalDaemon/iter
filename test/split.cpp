@@ -20,3 +20,10 @@ TEST(TestSplit, no_inner_iteration) {
     str |split| ',' |foreach| [&](auto&&) { ++count; };
     ASSERT_EQ(count, 4);
 }
+
+TEST(TestSplit, partial_inner_iteration) {
+    std::string str = "test,test,,testy";
+    std::size_t count = 0;
+    str |split| ',' |foreach| [&](auto&& it) { iter::traits::next(it); ++count; };
+    ASSERT_EQ(count, 4);
+}

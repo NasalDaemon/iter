@@ -112,14 +112,13 @@ namespace iter::detail {
         using this_t = chunks_iter;
         constexpr unstable_item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
-                if (0 != std::exchange(self.remaining, self.size)) [[unlikely]] {
+                if (self.remaining) [[unlikely]] {
                     // Deal with the case where inner iter is not fully iterated
-                    while (impl::next(static_cast<lazy_chunk_iter<I>&>(self))) {}
-                    if (self.size == 0) [[unlikely]] {
+                    while (impl::next(static_cast<lazy_chunk_iter<I>&>(self)));
+                    if (self.size == 0)
                         return noitem;
-                    }
-                    self.remaining = self.size;
                 }
+                self.remaining = self.size;
                 return unstable_ref<lazy_chunk_iter<I>&>(self);
             }
             return noitem;
