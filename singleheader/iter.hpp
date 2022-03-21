@@ -2753,14 +2753,13 @@ namespace iter::detail {
         using this_t = chunks_iter;
         constexpr unstable_item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
-                if (0 != std::exchange(self.remaining, self.size)) [[unlikely]] {
+                if (self.remaining) [[unlikely]] {
                     // Deal with the case where inner iter is not fully iterated
-                    while (impl::next(static_cast<lazy_chunk_iter<I>&>(self))) {}
-                    if (self.size == 0) [[unlikely]] {
+                    while (impl::next(static_cast<lazy_chunk_iter<I>&>(self)));
+                    if (self.size == 0)
                         return noitem;
-                    }
-                    self.remaining = self.size;
                 }
+                self.remaining = self.size;
                 return unstable_ref<lazy_chunk_iter<I>&>(self);
             }
             return noitem;
@@ -3539,7 +3538,7 @@ ITER_DECLARE(split)
 namespace iter::detail {
     // Book-keeping to ensure no infinite loop if inner iter is not iterated
     enum class inner_iter_status {
-        created, unstarted, started, finished
+        created, inner_unfinished, inner_finished, outer_finished
     };
 
     template<assert_iter I>
@@ -3550,11 +3549,11 @@ namespace iter::detail {
 
         using this_t = split_iter_inner;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            self.status = inner_iter_status::started;
             auto next = iter::no_next<I>();
             if (!emplace_next(next, self.i)) [[unlikely]] {
-                self.status = inner_iter_status::finished;
+                self.status = inner_iter_status::outer_finished;
             } else if (*next == self.delimiter) [[unlikely]] {
+                self.status = inner_iter_status::inner_finished;
                 next.reset();
             }
             return next;
@@ -3566,19 +3565,15 @@ namespace iter::detail {
         using this_t = split_iter;
 
         constexpr stable_item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
-            if (self.status == inner_iter_status::finished) [[likely]] {
+            if (self.status == inner_iter_status::outer_finished)
                 return noitem;
-            } else if (self.status == inner_iter_status::created) [[unlikely]] {
-                self.status = inner_iter_status::unstarted;
-            } else if (self.status == inner_iter_status::unstarted) [[unlikely]] {
-                // Inner iter was not iterated since last time next was called,
-                // so we must do it ourselves to avoid an infinite loop
-                while (impl::next(static_cast<split_iter_inner<I>&>(self))) {}
-                if (self.status == inner_iter_status::finished) [[unlikely]] {
+            if (self.status == inner_iter_status::inner_unfinished) [[unlikely]] {
+                // Inner iter was not fully iterated, so we must complete the inner iter
+                while (impl::next(static_cast<split_iter_inner<I>&>(self)));
+                if (self.status == inner_iter_status::outer_finished)
                     return noitem;
-                }
-                self.status = inner_iter_status::unstarted;
             }
+            self.status = inner_iter_status::inner_unfinished;
             return stable_ref<split_iter_inner<I>&>(self);
         }
     };
@@ -3763,7 +3758,7 @@ constexpr void ITER_IMPL(foreach) (I&& iterable, F func) {
 template<iter::assert_iterable I>
 constexpr void ITER_IMPL(foreach) (I&& iterable) {
     decltype(auto) iter = iter::to_iter(FWD(iterable));
-    while (iter::traits::next(iter)) {}
+    while (iter::traits::next(iter));
 }
 
 #endif /* INCLUDE_ITER_FOREACH_HPP */
