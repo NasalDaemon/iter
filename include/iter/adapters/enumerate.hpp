@@ -13,7 +13,7 @@ namespace iter {
     }
 
     template<class T = std::size_t>
-    static constexpr detail::tag::enumerate_<T> enumerate_;
+    inline constexpr detail::tag::enumerate_<T> enumerate_;
 }
 
 ITER_ALIAS(enumerate, enumerate_<>)

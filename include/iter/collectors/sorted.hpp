@@ -12,7 +12,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr detail::tag::sorted_<C, A> sorted_;
+    inline constexpr detail::tag::sorted_<C, A> sorted_;
 }
 
 ITER_ALIAS(sorted, sorted_<>)

@@ -16,15 +16,21 @@
 
 namespace iter {
 
-static constexpr struct noitem_t {} noitem;
+inline constexpr struct noitem_t {} noitem;
 
 namespace detail {
+    template<class T>
+    union optional_payload {
+        [[no_unique_address]] T value;
+        [[no_unique_address]] void_t dummy{};
+        constexpr ~optional_payload() {}
+    };
 
 // GCC can't do constexpr comparison with nullptr
 // and it can't do much in constexpr before 12 anyway
 #if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
 #  define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
-    static constexpr struct constexpr_nullptr_t {
+    inline constexpr struct constexpr_nullptr_t {
         template<class T>
         constexpr operator T*() const {
             return const_cast<T*>(&null<T>.value);
@@ -37,14 +43,6 @@ namespace detail {
 #else
 #  define ITER_CONSTEXPR_NULLPTR nullptr
 #endif
-
-    template<class T>
-    union optional_payload {
-        [[no_unique_address]] T value;
-        [[no_unique_address]] void_t dummy{};
-        constexpr ~optional_payload() {}
-    };
-
 } // namespace detail
 
 } // namespace iter
@@ -153,7 +151,7 @@ struct item {
         if (std::exchange(engaged, true))
             this->value() = FWD(value);
         else
-            std::construct_at(std::addressof(payload.value), FWD(value));
+            std::construct_at(std::addressof(value()), FWD(value));
         return *this;
     }
 
@@ -162,7 +160,7 @@ struct item {
     constexpr item& emplace(As&&... args) {
         if (std::exchange(engaged, true))
             destroy();
-        std::construct_at(std::addressof(payload.value), FWD(args)...);
+        std::construct_at(std::addressof(value()), FWD(args)...);
         return *this;
     }
 
@@ -313,14 +311,14 @@ move_item(T) -> move_item<T>;
 
 namespace concepts {
     template<class T>
-    static constexpr bool is_move_item = false;
+    inline constexpr bool is_move_item = false;
     template<class T, bool S>
     inline constexpr bool is_move_item<move_item<item<T, S>>> = true;
     template<class T>
     concept move_item = is_move_item<std::remove_cvref_t<T>>;
 
     template<class T>
-    static constexpr bool is_item = false;
+    inline constexpr bool is_item = false;
     template<class T, bool S>
     inline constexpr bool is_item<iter::item<T, S>> = true;
     template<class T>

@@ -14,7 +14,7 @@ namespace iter {
         struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
     }
     template<std::size_t N = 2>
-    static constexpr detail::tag::window<N> window;
+    inline constexpr detail::tag::window<N> window;
 }
 
 namespace iter::detail {

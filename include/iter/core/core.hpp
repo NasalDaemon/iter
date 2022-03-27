@@ -132,7 +132,7 @@ namespace iter {
             return EMPLACE_NEW(current, impl::next(it));
         }
 
-        static constexpr struct sentinel_t {} sentinel;
+        inline constexpr struct sentinel_t {} sentinel;
 
         // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
@@ -203,7 +203,7 @@ namespace iter {
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_iterator_v = false;
+        inline constexpr bool is_iterator_v = false;
         template<class I>
         inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
 

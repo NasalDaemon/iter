@@ -49,7 +49,7 @@ TEST(TestMin, pointer) {
         | min();
     ASSERT_EQ(m->value, 5);
     NO_CLANG(ASSERT_EQ(m->moves, 0));
-    ASSERT_EQ(m->copies, 1);
+    ASSERT_EQ(m->copies, 0);
     ASSERT_EQ(iterations, arr.size());
 }
 
@@ -61,7 +61,7 @@ TEST(TestMin, pointer_by) {
         | min_by | counter_unwrap;
     ASSERT_EQ(m->value, 5);
     NO_CLANG(ASSERT_EQ(m->moves, 0));
-    ASSERT_EQ(m->copies, 1);
+    ASSERT_EQ(m->copies, 0);
     ASSERT_EQ(iterations, arr.size());
 }
 

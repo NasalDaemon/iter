@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_MIN_HPP
-#define INCLUDE_ITER_MIN_HPP
+#ifndef ITER_CONSUMERS_MIN_HPP
+#define ITER_CONSUMERS_MIN_HPP
 
 #include "iter/core/core.hpp"
 
@@ -23,23 +23,23 @@ namespace iter::detail::minmax {
     }
 
     template<class C, iter::iterable I, class F>
-    requires (!iter::concepts::owned_item<iter::next_t<I>>)
+    requires iter::concepts::stable_item<iter::next_t<I>>
+        && (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto val = iter::no_next<I>();
-        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
-        iter::item<iter::value_t<I>> result;
+        auto next = no_next<I>(), result = no_next<I>();
+        auto emplace_next = [&]() -> bool { return next = impl::next(iter); };
         if (emplace_next()) {
-            result = *val;
+            result = next;
             while (emplace_next())
-                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*val))))
-                    *result = *val;
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*next))))
+                    result = next;
         }
         return result;
     }
 
-    static constexpr auto min = [](auto&& l) { return l > 0; };
-    static constexpr auto max = [](auto&& l) { return l < 0; };
+    inline constexpr auto min = [](auto&& l) { return l > 0; };
+    inline constexpr auto max = [](auto&& l) { return l < 0; };
 
     template<class C, iter::iterable I, class F>
     requires iter::concepts::owned_item<iter::next_t<I>>
@@ -62,19 +62,19 @@ namespace iter::detail::minmax {
     }
 
     template<class C, iter::concepts::iterable I, class F>
-    requires (!iter::concepts::owned_item<iter::next_t<I>>)
+    requires iter::concepts::stable_item<iter::next_t<I>>
+        && (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto val = iter::no_next<I>();
+        auto val = no_next<I>(), result = no_next<I>();
         auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
-        item<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));
-            result = *val;
+            result = val;
             while (emplace_next()) {
                 auto next_proj = std::invoke(FWD(func), iter::as_const(*val));
                 if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
-                    *result = *val;
+                    result = val;
                     current_proj = std::move(next_proj);
                 }
             }
@@ -82,8 +82,8 @@ namespace iter::detail::minmax {
         return result;
     }
 
-    static constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
-    static constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
+    inline constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
+    inline constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
 }
 
 template<iter::assert_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
@@ -97,4 +97,4 @@ constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
     return iter::detail::minmax::by(iter::detail::minmax::min_by, FWD(iterable), FWD(func));
 }
 
-#endif /* INCLUDE_ITER_MIN_HPP */
+#endif /* ITER_CONSUMERS_MIN_HPP */

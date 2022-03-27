@@ -12,7 +12,7 @@ namespace iter {
         struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
     }
     template<std::size_t N = 0>
-    static constexpr detail::tag::chunks_<N> chunks_;
+    inline constexpr detail::tag::chunks_<N> chunks_;
 }
 
 ITER_ALIAS(chunks, chunks_<>)

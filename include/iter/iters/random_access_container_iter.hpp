@@ -80,7 +80,7 @@ namespace iter::detail {
 
 namespace iter::concepts {
     template<class T>
-    static constexpr bool is_random_access_container = false;
+    inline constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
     inline constexpr bool is_random_access_container<T[N]> = true;

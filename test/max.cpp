@@ -48,7 +48,7 @@ TEST(TestMax, pointer) {
         | max();
     ASSERT_EQ(m->value, 25);
     NO_CLANG(ASSERT_EQ(m->moves, 0));
-    ASSERT_EQ(m->copies, 1);
+    ASSERT_EQ(m->copies, 0);
     ASSERT_EQ(iterations, arr.size());
 }
 
@@ -60,7 +60,7 @@ TEST(TestMax, pointer_by) {
         | max_by | counter_unwrap;
     ASSERT_EQ(m->value, 25);
     NO_CLANG(ASSERT_EQ(m->moves, 0));
-    ASSERT_EQ(m->copies, 1);
+    ASSERT_EQ(m->copies, 0);
     ASSERT_EQ(iterations, arr.size());
 }
 

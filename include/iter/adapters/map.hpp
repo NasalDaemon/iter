@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ITER_MAP_HPP
-#define INCLUDE_ITER_MAP_HPP
+#ifndef ITER_ADAPTERS_MAP_HPP
+#define ITER_ADAPTERS_MAP_HPP
 
 #include "iter/adapters/flatten.hpp"
 #include "iter/adapters/flatmap.hpp"
@@ -23,7 +23,7 @@ namespace iter::detail {
             return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
         }
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return self.func(get(impl::get(self.i, index)));
@@ -46,4 +46,4 @@ constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
     return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#endif /* INCLUDE_ITER_MAP_HPP */
+#endif /* ITER_ADAPTERS_MAP_HPP */

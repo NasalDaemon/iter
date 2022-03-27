@@ -25,5 +25,5 @@ EOM
 grep -Pzo 'template<(.*)>\n.*detail::tag::(\w+)<(.*)> \w+;' singleheader/iter.hpp \
     | tr '\r\n' ';' \
     | tr '\0' ';' \
-    | perl -pe 's#template<([^;]+)>;\s+static constexpr detail::tag::\w+<([^>]+)>\s+(\w+)[;]+#// Invoke iter::\3 on this iter\nITER_X(\3, (\1), (\2))\n#g' \
+    | perl -pe 's#template<([^;]+)>;\s+(?:static|inline) constexpr detail::tag::\w+<([^>]+)>\s+(\w+)[;]+#// Invoke iter::\3 on this iter\nITER_X(\3, (\1), (\2))\n#g' \
     >> $X_MACROS_FILE

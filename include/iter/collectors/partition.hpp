@@ -22,11 +22,11 @@ namespace iter {
     };
 
     template<std::size_t I>
-    static constexpr auto part = part_t<I>{};
+    inline constexpr auto part = part_t<I>{};
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_partition_index = false;
+        inline constexpr bool is_partition_index = false;
         template<std::size_t I>
         inline constexpr bool is_partition_index<part_t<I>> = true;
 

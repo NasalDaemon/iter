@@ -13,25 +13,25 @@ namespace iter {
         struct non_relocatable;
     }
     namespace tag {
-        static constexpr struct non_copiable_t {
+        inline constexpr struct non_copiable_t {
             template<class T>
             using type = detail::non_copiable<T>;
         } non_copiable;
-        static constexpr struct non_movable_t {
+        inline constexpr struct non_movable_t {
             template<class T>
             using type = detail::non_movable<T>;
         } non_movable;
-        static constexpr struct non_relocatable_t {
+        inline constexpr struct non_relocatable_t {
             template<class T>
             using type = detail::non_relocatable<T>;
         } non_relocatable;
-        static constexpr struct relocatable_t {
+        inline constexpr struct relocatable_t {
             template<class T>
             using type = void_t;
         } relocatable;
         namespace detail {
             template<class T>
-            static constexpr bool is_relocation = false;
+            inline constexpr bool is_relocation = false;
             template<>
             inline constexpr bool is_relocation<tag::non_copiable_t> = true;
             template<>

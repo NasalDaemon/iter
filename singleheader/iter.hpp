@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITER_CORE_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220321
+#  define ITER_LIBRARY_VERSION 20220327
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -71,7 +71,7 @@ template<class T> struct xtd_method_t<T> : xtd_method_t<> {
 }
 
 namespace {
-static constexpr bool xtd_invoker_defined_in_root_namespace = false;
+inline constexpr bool xtd_invoker_defined_in_root_namespace = false;
 }
 
 namespace xtd {
@@ -82,7 +82,7 @@ namespace detail {
 }
 
 namespace invokers {
-    static constexpr bool xtd_invoker_defined_in_root_namespace = true;
+    inline constexpr bool xtd_invoker_defined_in_root_namespace = true;
 
     struct main {
         template<class... Ts>
@@ -123,7 +123,7 @@ static constexpr bound<std::decay_t<F>, A, O> make_bound(F&& f) {
 
 namespace concepts {
     template<class>
-    static constexpr bool is_bindable = false;
+    inline constexpr bool is_bindable = false;
 
     template<class U, class... Fs>
     inline constexpr bool is_bindable<bindable<U, Fs...>> = true;
@@ -144,7 +144,7 @@ namespace concepts {
     concept SpecializableBindable = Bindable<T> && std::decay_t<T>::is_specializable;
 
     template<class>
-    static constexpr bool is_bind_placeholder = false;
+    inline constexpr bool is_bind_placeholder = false;
     template<size_t I>
     inline constexpr bool is_bind_placeholder<bind_placeholder<I>> = true;
 
@@ -181,7 +181,7 @@ namespace concepts {
     };
 
     template<class T>
-    static constexpr bool is_bound = false;
+    inline constexpr bool is_bound = false;
     template<class F, std::size_t A, bool O>
     inline constexpr bool is_bound<bound<F, A, O>> = true;
 
@@ -411,7 +411,7 @@ constexpr auto apply(auto&& func) {
 }
 
 namespace literals {
-    [[maybe_unused]] static constexpr bind_placeholder _;
+    [[maybe_unused]] inline constexpr bind_placeholder _;
 
     template<char... C>
     requires (sizeof...(C) == 1 && ((C >= '0') && ...) && ((C <= '9') && ...))
@@ -562,7 +562,7 @@ namespace xtd::detail {
 
 #define ITER_ALIAS(alias, ... /*of*/) \
     namespace iter {\
-        static constexpr auto& alias = __VA_ARGS__;\
+        inline constexpr auto& alias = __VA_ARGS__;\
     }
 
 #if defined(__clang__)
@@ -767,15 +767,21 @@ static constexpr auto make_stability(F&& f) {
 
 namespace iter {
 
-static constexpr struct noitem_t {} noitem;
+inline constexpr struct noitem_t {} noitem;
 
 namespace detail {
+    template<class T>
+    union optional_payload {
+        [[no_unique_address]] T value;
+        [[no_unique_address]] void_t dummy{};
+        constexpr ~optional_payload() {}
+    };
 
 // GCC can't do constexpr comparison with nullptr
 // and it can't do much in constexpr before 12 anyway
 #if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
 #  define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
-    static constexpr struct constexpr_nullptr_t {
+    inline constexpr struct constexpr_nullptr_t {
         template<class T>
         constexpr operator T*() const {
             return const_cast<T*>(&null<T>.value);
@@ -788,14 +794,6 @@ namespace detail {
 #else
 #  define ITER_CONSTEXPR_NULLPTR nullptr
 #endif
-
-    template<class T>
-    union optional_payload {
-        [[no_unique_address]] T value;
-        [[no_unique_address]] void_t dummy{};
-        constexpr ~optional_payload() {}
-    };
-
 } // namespace detail
 
 } // namespace iter
@@ -904,7 +902,7 @@ struct item {
         if (std::exchange(engaged, true))
             this->value() = FWD(value);
         else
-            std::construct_at(std::addressof(payload.value), FWD(value));
+            std::construct_at(std::addressof(value()), FWD(value));
         return *this;
     }
 
@@ -913,7 +911,7 @@ struct item {
     constexpr item& emplace(As&&... args) {
         if (std::exchange(engaged, true))
             destroy();
-        std::construct_at(std::addressof(payload.value), FWD(args)...);
+        std::construct_at(std::addressof(value()), FWD(args)...);
         return *this;
     }
 
@@ -1064,14 +1062,14 @@ move_item(T) -> move_item<T>;
 
 namespace concepts {
     template<class T>
-    static constexpr bool is_move_item = false;
+    inline constexpr bool is_move_item = false;
     template<class T, bool S>
     inline constexpr bool is_move_item<move_item<item<T, S>>> = true;
     template<class T>
     concept move_item = is_move_item<std::remove_cvref_t<T>>;
 
     template<class T>
-    static constexpr bool is_item = false;
+    inline constexpr bool is_item = false;
     template<class T, bool S>
     inline constexpr bool is_item<iter::item<T, S>> = true;
     template<class T>
@@ -1307,7 +1305,7 @@ namespace iter {
             return EMPLACE_NEW(current, impl::next(it));
         }
 
-        static constexpr struct sentinel_t {} sentinel;
+        inline constexpr struct sentinel_t {} sentinel;
 
         // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
@@ -1378,7 +1376,7 @@ namespace iter {
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_iterator_v = false;
+        inline constexpr bool is_iterator_v = false;
         template<class I>
         inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
 
@@ -1659,7 +1657,7 @@ namespace iter::detail {
 
 namespace iter::concepts {
     template<class T>
-    static constexpr bool is_random_access_container = false;
+    inline constexpr bool is_random_access_container = false;
 
     template<class T, std::size_t N>
     inline constexpr bool is_random_access_container<T[N]> = true;
@@ -1777,25 +1775,25 @@ namespace iter {
         struct non_relocatable;
     }
     namespace tag {
-        static constexpr struct non_copiable_t {
+        inline constexpr struct non_copiable_t {
             template<class T>
             using type = detail::non_copiable<T>;
         } non_copiable;
-        static constexpr struct non_movable_t {
+        inline constexpr struct non_movable_t {
             template<class T>
             using type = detail::non_movable<T>;
         } non_movable;
-        static constexpr struct non_relocatable_t {
+        inline constexpr struct non_relocatable_t {
             template<class T>
             using type = detail::non_relocatable<T>;
         } non_relocatable;
-        static constexpr struct relocatable_t {
+        inline constexpr struct relocatable_t {
             template<class T>
             using type = void_t;
         } relocatable;
         namespace detail {
             template<class T>
-            static constexpr bool is_relocation = false;
+            inline constexpr bool is_relocation = false;
             template<>
             inline constexpr bool is_relocation<tag::non_copiable_t> = true;
             template<>
@@ -1987,7 +1985,7 @@ namespace iter {
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_iter_of_optional = false;
+        inline constexpr bool is_iter_of_optional = false;
         template<class T>
         inline constexpr bool is_iter_of_optional<iter::optional<T>> = true;
         template<class T>
@@ -2076,8 +2074,8 @@ namespace iter {
     }
 
     template<class T = std::size_t>
-    static constexpr detail::indices_tag<T> indices_ = {};
-    static constexpr auto indices = indices_<>;
+    inline constexpr detail::indices_tag<T> indices_ = {};
+    inline constexpr auto indices = indices_<>;
 }
 
 template<std::integral T>
@@ -2122,7 +2120,7 @@ namespace iter {
     namespace concepts {
         namespace detail {
             template<class T>
-            static constexpr bool is_generator = false;
+            inline constexpr bool is_generator = false;
             template<class T>
             inline constexpr bool is_generator<generator<T>> = true;
         }
@@ -2653,7 +2651,7 @@ namespace iter {
         struct chunks_ : xtd::tagged_bindable<chunks_<N>, xtd::invokers::iter_chunks> {};
     }
     template<std::size_t N = 0>
-    static constexpr detail::tag::chunks_<N> chunks_;
+    inline constexpr detail::tag::chunks_<N> chunks_;
 }
 
 ITER_ALIAS(chunks, chunks_<>)
@@ -2958,7 +2956,7 @@ namespace iter {
     }
 
     template<class T = std::size_t>
-    static constexpr detail::tag::enumerate_map_<T> enumerate_map_;
+    inline constexpr detail::tag::enumerate_map_<T> enumerate_map_;
 }
 
 ITER_ALIAS(enumerate_map, enumerate_map_<>)
@@ -3025,7 +3023,7 @@ namespace iter::detail {
         }
     };
 
-    template<class T> static constexpr bool is_zip = false;
+    template<class T> inline constexpr bool is_zip = false;
     template<class... Ts> inline constexpr bool is_zip<zip_iter<Ts...>> = true;
     template<class T>
     concept decays_to_zip = is_zip<std::remove_cvref_t<T>>;
@@ -3060,7 +3058,7 @@ namespace iter {
     }
 
     template<class T = std::size_t>
-    static constexpr detail::tag::enumerate_<T> enumerate_;
+    inline constexpr detail::tag::enumerate_<T> enumerate_;
 }
 
 ITER_ALIAS(enumerate, enumerate_<>)
@@ -3282,8 +3280,8 @@ constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
 #endif /* INCLUDE_ITER_MAP_WHILE_HPP */
 
 namespace iter::adapters { using iter::map_while; }
-#ifndef INCLUDE_ITER_MAP_HPP
-#define INCLUDE_ITER_MAP_HPP
+#ifndef ITER_ADAPTERS_MAP_HPP
+#define ITER_ADAPTERS_MAP_HPP
 
 ITER_DECLARE(map)
 
@@ -3304,7 +3302,7 @@ namespace iter::detail {
             return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
         }
 
-        constexpr auto ITER_IMPL_GET (this_t& self, std::size_t index)
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
             requires this_t::random_access
         {
             return self.func(get(impl::get(self.i, index)));
@@ -3327,7 +3325,7 @@ constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
     return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
 }
 
-#endif /* INCLUDE_ITER_MAP_HPP */
+#endif /* ITER_ADAPTERS_MAP_HPP */
 
 namespace iter::adapters { using iter::map; }
 #ifndef ITER_ADAPTERS_MOVE_HPP
@@ -3686,7 +3684,7 @@ namespace iter {
         struct window : xtd::tagged_bindable<window<N>, xtd::invokers::iter_window> {};
     }
     template<std::size_t N = 2>
-    static constexpr detail::tag::window<N> window;
+    inline constexpr detail::tag::window<N> window;
 }
 
 namespace iter::detail {
@@ -3973,8 +3971,8 @@ namespace iter::consumers { using iter::nth; }
 #ifndef INCLUDE_ITER_MAX_HPP
 #define INCLUDE_ITER_MAX_HPP
 
-#ifndef INCLUDE_ITER_MIN_HPP
-#define INCLUDE_ITER_MIN_HPP
+#ifndef ITER_CONSUMERS_MIN_HPP
+#define ITER_CONSUMERS_MIN_HPP
 
 ITER_DECLARE(min)
 ITER_DECLARE(min_by)
@@ -3996,23 +3994,23 @@ namespace iter::detail::minmax {
     }
 
     template<class C, iter::iterable I, class F>
-    requires (!iter::concepts::owned_item<iter::next_t<I>>)
+    requires iter::concepts::stable_item<iter::next_t<I>>
+        && (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto val = iter::no_next<I>();
-        auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
-        iter::item<iter::value_t<I>> result;
+        auto next = no_next<I>(), result = no_next<I>();
+        auto emplace_next = [&]() -> bool { return next = impl::next(iter); };
         if (emplace_next()) {
-            result = *val;
+            result = next;
             while (emplace_next())
-                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*val))))
-                    *result = *val;
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*next))))
+                    result = next;
         }
         return result;
     }
 
-    static constexpr auto min = [](auto&& l) { return l > 0; };
-    static constexpr auto max = [](auto&& l) { return l < 0; };
+    inline constexpr auto min = [](auto&& l) { return l > 0; };
+    inline constexpr auto max = [](auto&& l) { return l < 0; };
 
     template<class C, iter::iterable I, class F>
     requires iter::concepts::owned_item<iter::next_t<I>>
@@ -4035,19 +4033,19 @@ namespace iter::detail::minmax {
     }
 
     template<class C, iter::concepts::iterable I, class F>
-    requires (!iter::concepts::owned_item<iter::next_t<I>>)
+    requires iter::concepts::stable_item<iter::next_t<I>>
+        && (!iter::concepts::owned_item<iter::next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
         decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto val = iter::no_next<I>();
+        auto val = no_next<I>(), result = no_next<I>();
         auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
-        item<iter::value_t<I>> result;
         if (emplace_next()) {
             auto current_proj = std::invoke(FWD(func), iter::as_const(*val));
-            result = *val;
+            result = val;
             while (emplace_next()) {
                 auto next_proj = std::invoke(FWD(func), iter::as_const(*val));
                 if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
-                    *result = *val;
+                    result = val;
                     current_proj = std::move(next_proj);
                 }
             }
@@ -4055,8 +4053,8 @@ namespace iter::detail::minmax {
         return result;
     }
 
-    static constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
-    static constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
+    inline constexpr auto min_by = [](auto&& next, auto&& current) { return next > current; };
+    inline constexpr auto max_by = [](auto&& next, auto&& current) { return next < current; };
 }
 
 template<iter::assert_iterable I, std::invocable<iter::cref_t<I>, iter::cref_t<I>> F = std::compare_three_way>
@@ -4070,7 +4068,7 @@ constexpr auto ITER_IMPL(min_by) (I&& iterable, F&& func) {
     return iter::detail::minmax::by(iter::detail::minmax::min_by, FWD(iterable), FWD(func));
 }
 
-#endif /* INCLUDE_ITER_MIN_HPP */
+#endif /* ITER_CONSUMERS_MIN_HPP */
 
 ITER_DECLARE(max)
 ITER_DECLARE(max_by)
@@ -4193,7 +4191,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
-    static constexpr detail::tag::collect<C, A, Traits...> collect;
+    inline constexpr detail::tag::collect<C, A, Traits...> collect;
 }
 
 ITER_ALIAS(to_vector, collect<std::vector>)
@@ -4272,11 +4270,11 @@ namespace iter {
     };
 
     template<std::size_t I>
-    static constexpr auto part = part_t<I>{};
+    inline constexpr auto part = part_t<I>{};
 
     namespace concepts {
         template<class T>
-        static constexpr bool is_partition_index = false;
+        inline constexpr bool is_partition_index = false;
         template<std::size_t I>
         inline constexpr bool is_partition_index<part_t<I>> = true;
 
@@ -4340,7 +4338,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr detail::tag::unzip_<C, A> unzip_;
+    inline constexpr detail::tag::unzip_<C, A> unzip_;
 
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>
@@ -4420,7 +4418,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr detail::tag::sorted_<C, A> sorted_;
+    inline constexpr detail::tag::sorted_<C, A> sorted_;
 }
 
 ITER_ALIAS(sorted, sorted_<>)

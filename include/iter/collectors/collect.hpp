@@ -13,7 +13,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits>
-    static constexpr detail::tag::collect<C, A, Traits...> collect;
+    inline constexpr detail::tag::collect<C, A, Traits...> collect;
 }
 
 ITER_ALIAS(to_vector, collect<std::vector>)

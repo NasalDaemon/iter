@@ -30,7 +30,7 @@ static auto strings = [] {
 
 void bench_iter_min_int(benchmark::State& state) {
     for (auto s : state) {
-        auto m = ints | iter::min();
+        auto m = iter::min(ints).value();
         benchmark::DoNotOptimize(m);
     }
 }
@@ -38,6 +38,13 @@ void bench_iter_min_int(benchmark::State& state) {
 void bench_std_min_int(benchmark::State& state) {
     for (auto s : state) {
         auto m = *std::min_element(ints.begin(), ints.end());
+        benchmark::DoNotOptimize(m);
+    }
+}
+
+void bench_std_ranges_min_int(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = std::ranges::min(ints);
         benchmark::DoNotOptimize(m);
     }
 }
@@ -56,22 +63,25 @@ void bench_c_min_int(benchmark::State& state) {
 
 BENCHMARK(bench_iter_min_int);
 BENCHMARK(bench_std_min_int);
+BENCHMARK(bench_std_ranges_min_int);
 BENCHMARK(bench_c_min_int);
 
 void bench_iter_min_int_optional1(benchmark::State& state) {
     for (auto s : state) {
-        auto m = ints
-            | iter::map | std::identity{}
-            | iter::min();
+        auto m = iter::wrap(ints)
+            .map([](auto& i) { return iter::stable_ref(i); })
+            .min()
+            .value();
         benchmark::DoNotOptimize(m);
     }
 }
 
 void bench_iter_min_int_optional2(benchmark::State& state) {
     for (auto s : state) {
-        auto m = iter::range{-state.range(0), state.range(0)}
-            | iter::map | [](auto i) { return i*i; }
-            | iter::min();
+        auto m = iter::wrap{iter::range{-state.range(0), state.range(0)}}
+            .map([](auto i) { return i*i; })
+            .min()
+            .value();
         benchmark::DoNotOptimize(m);
     }
 }
@@ -116,6 +126,13 @@ void bench_std_min_string(benchmark::State& state) {
     }
 }
 
+void bench_std_ranges_min_string(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = std::ranges::min(strings);
+        benchmark::DoNotOptimize(m);
+    }
+}
+
 void bench_c_min_string(benchmark::State& state) {
     for (auto s : state) {
         std::string* min = &strings[0];
@@ -130,6 +147,7 @@ void bench_c_min_string(benchmark::State& state) {
 
 BENCHMARK(bench_iter_min_string);
 BENCHMARK(bench_std_min_string);
+BENCHMARK(bench_std_ranges_min_string);
 BENCHMARK(bench_c_min_string);
 
 void bench_iter_min_by_int(benchmark::State& state) {

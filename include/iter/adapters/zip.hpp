@@ -51,7 +51,7 @@ namespace iter::detail {
         }
     };
 
-    template<class T> static constexpr bool is_zip = false;
+    template<class T> inline constexpr bool is_zip = false;
     template<class... Ts> inline constexpr bool is_zip<zip_iter<Ts...>> = true;
     template<class T>
     concept decays_to_zip = is_zip<std::remove_cvref_t<T>>;

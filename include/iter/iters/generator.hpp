@@ -14,7 +14,7 @@ namespace iter {
     namespace concepts {
         namespace detail {
             template<class T>
-            static constexpr bool is_generator = false;
+            inline constexpr bool is_generator = false;
             template<class T>
             inline constexpr bool is_generator<generator<T>> = true;
         }

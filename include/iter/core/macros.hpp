@@ -32,7 +32,7 @@
 
 #define ITER_ALIAS(alias, ... /*of*/) \
     namespace iter {\
-        static constexpr auto& alias = __VA_ARGS__;\
+        inline constexpr auto& alias = __VA_ARGS__;\
     }
 
 #if defined(__clang__)

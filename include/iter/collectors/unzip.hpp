@@ -13,7 +13,7 @@ namespace iter {
     }
 
     template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    static constexpr detail::tag::unzip_<C, A> unzip_;
+    inline constexpr detail::tag::unzip_<C, A> unzip_;
 
     namespace detail {
         template<template<class...> class CT, template<class> class AT, class>

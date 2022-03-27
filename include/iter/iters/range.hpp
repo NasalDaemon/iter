@@ -78,8 +78,8 @@ namespace iter {
     }
 
     template<class T = std::size_t>
-    static constexpr detail::indices_tag<T> indices_ = {};
-    static constexpr auto indices = indices_<>;
+    inline constexpr detail::indices_tag<T> indices_ = {};
+    inline constexpr auto indices = indices_<>;
 }
 
 template<std::integral T>
