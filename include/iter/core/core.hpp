@@ -6,6 +6,7 @@
 #include "extend/extend.hpp"
 
 #include <compare>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -20,7 +21,6 @@ ITER_DECLARE(cycle)
 
 ITER_INVOKER(next)
 ITER_INVOKER(next_back)
-// ITER_INVOKER(get)
 namespace xtd::invokers { struct iter_get; }
 ITER_INVOKER(size)
 
@@ -32,7 +32,7 @@ namespace iter {
             ITER_FUNCTION(next_back);
         }
         namespace random_access {
-            ITER_FUNCTION(get);
+            XTD_FUNCTION_(iter_get) get;
             ITER_FUNCTION(size);
         }
     }
@@ -373,13 +373,10 @@ void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
 struct xtd::invokers::iter_get
 {
-    static constexpr iter::concepts::stability_wrapper auto
-    invoke(auto const& bind, auto const& tag, auto&&... args)
-        requires requires {
-            xtd_invoke_iter_get(bind, tag, FWD(args)...);
-        }
+    static constexpr iter::concepts::stability_wrapper
+    auto invoke(auto&&... args) requires requires { xtd_invoke_iter_get(FWD(args)...); }
     {
-        auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(bind, tag, FWD(args)...); };
+        auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(FWD(args)...); };
         using result_t = decltype(call());
         if constexpr (iter::concepts::stability_wrapper<result_t>)
             return call();

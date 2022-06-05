@@ -1,14 +1,15 @@
-#ifndef INCLUDE_ITER_SPLIT_HPP
-#define INCLUDE_ITER_SPLIT_HPP
+#ifndef ITER_ADAPTERS_SPLIT_HPP
+#define ITER_ADAPTERS_SPLIT_HPP
 
 #include "iter/adapters/take.hpp"
 #include "iter/adapters/map.hpp"
+#include "iter/iters/iter_ref.hpp"
 
 ITER_DECLARE(split)
 
 namespace iter::detail {
     // Book-keeping to ensure no infinite loop if inner iter is not iterated
-    enum class inner_iter_status {
+    enum class inner_iter_status : std::uint8_t {
         created, inner_unfinished, inner_finished, outer_finished
     };
 
@@ -20,7 +21,7 @@ namespace iter::detail {
 
         using this_t = split_iter_inner;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            auto next = iter::no_next<I>();
+            auto next = no_next<I>();
             if (!emplace_next(next, self.i)) [[unlikely]] {
                 self.status = inner_iter_status::outer_finished;
             } else if (*next == self.delimiter) [[unlikely]] {
@@ -35,7 +36,7 @@ namespace iter::detail {
     struct [[nodiscard]] split_iter : split_iter_inner<I> {
         using this_t = split_iter;
 
-        constexpr stable_item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
+        constexpr unstable_item<iter_ref<split_iter_inner<I>>> ITER_IMPL_NEXT (this_t& self) {
             if (self.status == inner_iter_status::outer_finished)
                 return noitem;
             if (self.status == inner_iter_status::inner_unfinished) [[unlikely]] {
@@ -45,7 +46,7 @@ namespace iter::detail {
                     return noitem;
             }
             self.status = inner_iter_status::inner_unfinished;
-            return stable_ref<split_iter_inner<I>&>(self);
+            return iter_ref<split_iter_inner<I>>(self);
         }
     };
 }
@@ -56,4 +57,4 @@ constexpr auto ITER_IMPL(split) (I&& iterable, iter::value_t<I> delimiter) {
         {.i = iter::to_iter(FWD(iterable)), .delimiter = delimiter}};
 }
 
-#endif /* INCLUDE_ITER_SPLIT_HPP */
+#endif /* ITER_ADAPTERS_SPLIT_HPP */

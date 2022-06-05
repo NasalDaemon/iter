@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITER_CORE_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220327
+#  define ITER_LIBRARY_VERSION 20220605
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -250,7 +250,7 @@ namespace detail {
 
     template<std::size_t>
     struct sink {
-        constexpr sink(auto&&...) {}
+        constexpr explicit(false) sink(auto&&) {}
     };
 
     template<std::size_t... Is>
@@ -262,7 +262,7 @@ namespace detail {
     constexpr decltype(auto) get_i(Ts&&... args) {
         return [&]<std::size_t... Is>(std::index_sequence<Is...>) -> decltype(auto) {
             return get_value<(0*Is)...>(FWD(args)...);
-        }(std::make_index_sequence<sizeof...(Ts)-1>{});
+        }(std::make_index_sequence<I>{});
     }
 
     template<size_t BI, std::size_t I>
@@ -524,6 +524,7 @@ namespace xtd::detail {
 #endif /* EXTEND_INCLUDE_EXTEND_HPP */
 
 #include <compare>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -532,21 +533,21 @@ namespace xtd::detail {
 #define ITER_CORE_MACROS_HPP
 
 #ifndef ITER_GLOBAL_INVOKER
-#  define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
-#  define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
+#   define ITER_INVOKER(name)          XTD_INVOKER(iter_ ## name)
+#   define ITER_FUNCTION(fun)          XTD_FUNCTION_(iter_ ## fun) fun
+#   define ITER_IMPL(name)             XTD_IMPL_(iter_ ## name, iter::name)
+#   define ITER_IMPL_THIS(name)        XTD_IMPL_THIS_(iter_ ## name, iter::name)
+#   define ITER_DETAIL_IMPL(name)      XTD_IMPL_(iter_ ## name, iter::detail::impl::name)
+#   define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS_(iter_ ## name, iter::detail::impl::name)
 #else
-#  warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
-           Any failing invocations may return an endless list of candidates.
-#  define ITER_INVOKER(name)
-#  define ITER_FUNCTION(fun)          XTD_FUNCTION fun
-#  define ITER_IMPL(name)             XTD_IMPL(iter::name)
-#  define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
-#  define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
-#  define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
+#   warning Overload resolution is more complex with ITER_GLOBAL_INVOKER. \
+            Any failing invocations may return an endless list of candidates.
+#   define ITER_INVOKER(name)
+#   define ITER_FUNCTION(fun)          XTD_FUNCTION fun
+#   define ITER_IMPL(name)             XTD_IMPL(iter::name)
+#   define ITER_IMPL_THIS(name)        XTD_IMPL_THIS(iter::name)
+#   define ITER_DETAIL_IMPL(name)      XTD_IMPL(iter::detail::impl::name)
+#   define ITER_DETAIL_IMPL_THIS(name) XTD_IMPL_THIS(iter::detail::impl::name)
 #endif
 
 #define ITER_IMPL_NEXT      ITER_DETAIL_IMPL_THIS(next)
@@ -566,24 +567,24 @@ namespace xtd::detail {
     }
 
 #if defined(__clang__)
-#  define ITER_COMPILER_CLANG
-#  define ITER_ASSUME(condition) __builtin_assume(!!(condition))
-#  define ITER_UNREACHABLE() __builtin_unreachable()
+#   define ITER_COMPILER_CLANG
+#   define ITER_ASSUME(condition) __builtin_assume(!!(condition))
+#   define ITER_UNREACHABLE() __builtin_unreachable()
 #elif defined(__GNUC__) || defined (__GNUG__)
-#  define ITER_COMPILER_GCC
-#  define ITER_ASSUME(condition) do { if(!(condition)) __builtin_unreachable(); } while(0)
-#  define ITER_UNREACHABLE() __builtin_unreachable()
+#   define ITER_COMPILER_GCC
+#   define ITER_ASSUME(condition) do { if(!(condition)) __builtin_unreachable(); } while(0)
+#   define ITER_UNREACHABLE() __builtin_unreachable()
 #elif defined(_MSC_VER)
-#  define ITER_COMPILER_MSVC
-#  define ITER_ASSUME(condition) __assume(!!(condition))
-#  define ITER_UNREACHABLE() __assume(0)
+#   define ITER_COMPILER_MSVC
+#   define ITER_ASSUME(condition) __assume(!!(condition))
+#   define ITER_UNREACHABLE() __assume(0)
 #else
-#  define ITER_ASSUME(condition) do { } while(0)
-#  define ITER_UNREACHABLE() do { } while(0)
+#   define ITER_ASSUME(condition) do { } while(0)
+#   define ITER_UNREACHABLE() do { } while(0)
 #endif
 
 #if __cpp_impl_coroutine >= 201902L
-#  define ITER_COROUTINE
+#   define ITER_COROUTINE
 #endif
 
 #endif /* ITER_CORE_MACROS_HPP */
@@ -750,19 +751,20 @@ static constexpr auto make_stability(F&& f) {
 
 } // namespace iter
 
-#define MAKE_STABILITY(stable, ...) ::iter::make_stability<stable>([&]() -> decltype(auto) { return (__VA_ARGS__); })
+#define MAKE_STABILITY(stable, ...) ::iter::make_stability<stable>([&] { return (__VA_ARGS__); })
+#define MAKE_STABILITY_AUTO(stable, ...) ::iter::make_stability<stable>([&]() -> decltype(auto) { return (__VA_ARGS__); })
 
 #endif /* ITER_CORE_STABILITY_HPP */
 
 // GCC cannot deal with empty payloads in debug
 #if defined(NDEBUG) || !defined(ITER_COMPILER_GCC)
-#  define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE [[no_unique_address]]
-#  define ITER_ITEM_ABI_NAMESPACE iter
-#  define ITER_ITEM_ABI_IMPORT
+#   define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE [[no_unique_address]]
+#   define ITER_ITEM_ABI_NAMESPACE iter
+#   define ITER_ITEM_ABI_IMPORT
 #else
-#  define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE
-#  define ITER_ITEM_ABI_NAMESPACE iter::detail::item_abi
-#  define ITER_ITEM_ABI_IMPORT using ITER_ITEM_ABI_NAMESPACE::item;
+#   define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE
+#   define ITER_ITEM_ABI_NAMESPACE iter::detail::item_abi
+#   define ITER_ITEM_ABI_IMPORT using ITER_ITEM_ABI_NAMESPACE::item;
 #endif
 
 namespace iter {
@@ -780,7 +782,7 @@ namespace detail {
 // GCC can't do constexpr comparison with nullptr
 // and it can't do much in constexpr before 12 anyway
 #if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
-#  define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
+#   define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
     inline constexpr struct constexpr_nullptr_t {
         template<class T>
         constexpr operator T*() const {
@@ -792,7 +794,7 @@ namespace detail {
         static constexpr optional_payload<T> null{};
     } constexpr_nullptr;
 #else
-#  define ITER_CONSTEXPR_NULLPTR nullptr
+#   define ITER_CONSTEXPR_NULLPTR nullptr
 #endif
 } // namespace detail
 
@@ -976,12 +978,12 @@ struct item<T, Stable> {
     static constexpr bool owner = false;
     static constexpr bool stable = Stable;
 
-    using stability_wrapper = std::conditional_t<stable, iter::stable<T>, iter::unstable<T>>;
+    using stability_t = typename iter::stability_wrapper<stable>::template type<T>;
 
-    constexpr item(stability_wrapper ref) : ptr(std::addressof(get(ref))) {}
+    constexpr item(stability_t ref) : ptr(std::addressof(get(ref))) {}
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
-    constexpr explicit item(F&& f) : ptr(detail::addressof(get(stability_wrapper{std::invoke(FWD(f))}))) {}
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
+    constexpr explicit item(F&& f) : ptr(detail::addressof(get(stability_t{std::invoke(FWD(f))}))) {}
 
     item() = default;
     constexpr item(noitem_t) : item() {}
@@ -998,11 +1000,11 @@ struct item<T, Stable> {
     item& emplace(T&& ref) { ptr = std::addressof(ref); return *this; }
 
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
     item& operator=(F&& f) { return emplace(FWD(f)); }
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
-    item& emplace(F&& f) { ptr = std::addressof(get(stability_wrapper{std::invoke(FWD(f))})); return *this; }
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
+    item& emplace(F&& f) { ptr = std::addressof(get(stability_t{std::invoke(FWD(f))})); return *this; }
 
     constexpr T&& value() const { return static_cast<T&&>(*ptr); }
 
@@ -1037,6 +1039,8 @@ template<class T>
 using stable_item = item<T, true>;
 template<class T>
 using unstable_item = item<T, false>;
+template<class T>
+using make_item_t = item<detail::stability_unwrap<T>, concepts::stable<T>>;
 
 template<class T>
 struct move_item;
@@ -1193,7 +1197,6 @@ ITER_DECLARE(cycle)
 
 ITER_INVOKER(next)
 ITER_INVOKER(next_back)
-// ITER_INVOKER(get)
 namespace xtd::invokers { struct iter_get; }
 ITER_INVOKER(size)
 
@@ -1205,7 +1208,7 @@ namespace iter {
             ITER_FUNCTION(next_back);
         }
         namespace random_access {
-            ITER_FUNCTION(get);
+            XTD_FUNCTION_(iter_get) get;
             ITER_FUNCTION(size);
         }
     }
@@ -1546,13 +1549,10 @@ void ITER_DETAIL_IMPL(size) (Ts&&...) = delete;
 
 struct xtd::invokers::iter_get
 {
-    static constexpr iter::concepts::stability_wrapper auto
-    invoke(auto const& bind, auto const& tag, auto&&... args)
-        requires requires {
-            xtd_invoke_iter_get(bind, tag, FWD(args)...);
-        }
+    static constexpr iter::concepts::stability_wrapper
+    auto invoke(auto&&... args) requires requires { xtd_invoke_iter_get(FWD(args)...); }
     {
-        auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(bind, tag, FWD(args)...); };
+        auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(FWD(args)...); };
         using result_t = decltype(call());
         if constexpr (iter::concepts::stability_wrapper<result_t>)
             return call();
@@ -2549,7 +2549,8 @@ namespace iter::detail {
         }
 
         static constexpr bool owned_next = concepts::owned_item<next_t<I1>> || concepts::owned_item<next_t<I2>>;
-        using item_t = std::conditional_t<owned_next, item<value_t<I1>>, item<value_t<I1>&>>;
+        static constexpr bool stable = concepts::stable_iter<I1> && concepts::stable_iter<I2>;
+        using item_t = std::conditional_t<owned_next, item<value_t<I1>, stable>, item<value_t<I1>&, stable>>;
 
         constexpr item_t ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)
@@ -2642,6 +2643,50 @@ constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
 }
 
 #endif /* ITER_ADAPTERS_TAKE_HPP */
+
+#ifndef ITER_ITERS_ITER_REF_HPP
+#define ITER_ITERS_ITER_REF_HPP
+
+namespace iter::detail {
+
+// Use this to avoid copying when an iter returns an item referring to its own instance
+template<iter I>
+struct iter_ref {
+    using this_t = iter_ref;
+    constexpr explicit iter_ref(I& i) : i{i} {}
+
+    constexpr auto ITER_IMPL_NEXT(this_t& self) {
+        return impl::next(self.i);
+    }
+
+    constexpr auto ITER_IMPL_NEXT_BACK(this_t& self)
+        requires concepts::double_ended_iter<I>
+    {
+        return impl::next_back(self.i);
+    }
+
+    constexpr std::size_t ITER_IMPL_SIZE(this_t const& self)
+        requires concepts::random_access_iter<I>
+    {
+        return impl::size(self.i);
+    }
+
+    constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t n)
+        requires concepts::random_access_iter<I>
+    {
+        return impl::get(self.i, n);
+    }
+
+private:
+    I& i;
+};
+
+template<class I>
+iter_ref(I&) -> iter_ref<I>;
+
+}
+
+#endif /* ITER_ITERS_ITER_REF_HPP */
 
 XTD_INVOKER(iter_chunks)
 
@@ -2749,7 +2794,7 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr unstable_item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
+        constexpr unstable_item<iter_ref<lazy_chunk_iter<I>>> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
                 if (self.remaining) [[unlikely]] {
                     // Deal with the case where inner iter is not fully iterated
@@ -2758,7 +2803,7 @@ namespace iter::detail {
                         return noitem;
                 }
                 self.remaining = self.size;
-                return unstable_ref<lazy_chunk_iter<I>&>(self);
+                return iter_ref<lazy_chunk_iter<I>>(self);
             }
             return noitem;
         }
@@ -2779,6 +2824,150 @@ constexpr auto XTD_IMPL_TAG_(iter_chunks, iter::detail::tag::chunks_<N>) (I&& it
 #endif /* ITER_ADAPTERS_CHUNKS_HPP */
 
 namespace iter::adapters { using iter::chunks; using iter::chunks_; }
+#ifndef ITER_ADAPTERS_CHUNK_BY_HPP
+#define ITER_ADAPTERS_CHUNK_BY_HPP
+
+ITER_DECLARE(chunk_by)
+
+namespace iter::concepts {
+    template<class F, class I>
+    concept chunk_by_invocable_proj = requires (F func, cref_t<I> ref) {
+        func(ref);
+    };
+    template<class F, class I>
+    concept chunk_by_invocable_adj = requires (F func, cref_t<I> ref) {
+        { func(ref, ref) } -> std::same_as<bool>;
+    };
+
+    template<class F, class I>
+    concept chunk_by_invocable = chunk_by_invocable_proj<F, I> || chunk_by_invocable_adj<F, I>;
+}
+
+namespace iter::detail {
+    template<concepts::stable_iter I, concepts::chunk_by_invocable<I> F>
+    struct chunk_by_iter_base { // chunk_by_invocable_adj
+        using this_t = chunk_by_iter_base;
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+        next_t<I> items[2]{};
+        // 0, 1 : in middle of chunk, index to emplace into
+        // 2 : end of chunk (index 0)
+        // 3 : end of chunk (index 1)
+        // 4 : no items left
+        // 5 : iteration not started
+        std::uint8_t index = 5;
+
+        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
+        using item_t = item<ref_t<I>, stable>;
+        using stability_t = typename item_t::stability_t;
+
+        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+            if (self.index > 1) { // start of next chunk
+                self.index -= 2;
+                // return item which failed chunk predicate
+                return stability_t{*self.items[self.index ^ 1]};
+            }
+            if (auto& current = emplace_next(self.items[self.index], self.i)) {
+                self.index ^= 1;
+                if (auto& prev = self.items[self.index]) {
+                    if (!self.func(std::as_const(*prev), std::as_const(*current))) {
+                        self.index += 2; // predicate failed, make sure to return current value next time
+                        return noitem;
+                    }
+                }
+                return stability_t{*current};
+            }
+            self.index = 4;
+            return noitem;
+        }
+    };
+
+    template<concepts::stable_iter I, concepts::chunk_by_invocable_proj<I> F>
+    struct chunk_by_iter_base<I, F> {
+        using this_t = chunk_by_iter_base;
+        using projection_t = make_item_t<std::invoke_result_t<F, cref_t<I>>>;
+        static_assert(concepts::stable_item<projection_t>);
+        
+        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
+        using item_t = item<ref_t<I>, stable>;
+        using stability_t = typename item_t::stability_t;
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+        next_t<I> last;
+        projection_t projection;
+        bool end = false;
+
+        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+            if (self.end && self.last) [[unlikely]] {
+                self.end = false;
+                return stability_t(*self.last);
+            }
+
+            if (emplace_next(self.last, self.i)) {
+                if (self.projection) [[likely]] {
+                    auto projected = MAKE_ITEM_AUTO(self.func(std::as_const(*self.last)));
+                    if (*projected != *self.projection) {
+                        self.projection = std::move(projected);
+                        self.end = true;
+                        return noitem;
+                    }
+                } else {
+                    EMPLACE_NEW(self.projection, MAKE_ITEM_AUTO(self.func(std::as_const(*self.last))));
+                }
+                return stability_t(*self.last);
+            } else {
+                self.end = true;
+            }
+            return noitem;
+        }
+    };
+    template<iter I, class F>
+    struct [[nodiscard]] chunk_by_iter : chunk_by_iter_base<I, F> {
+        using this_t = chunk_by_iter;
+        using base_t = chunk_by_iter_base<I, F>;
+
+        constexpr unstable_item<iter_ref<base_t>> ITER_IMPL_NEXT(this_t& self)
+            requires concepts::chunk_by_invocable_proj<F, I> 
+        {
+            auto& base = static_cast<base_t&>(self);
+            if (base.end == base.last.has_value())
+                return iter_ref(base);
+            else if (base.last) [[unlikely]] {
+                while(auto n = impl::next(base));
+                if (base.last.has_value())
+                    return iter_ref(base);
+            }
+            return noitem;
+        }
+
+        constexpr unstable_item<iter_ref<base_t>> ITER_IMPL_NEXT(this_t& self)
+            requires concepts::chunk_by_invocable_adj<F, I>
+        {
+            auto& base = static_cast<base_t&>(self);
+            if (base.index == 5) [[unlikely]] { // kick start iteration
+                base.index = 0;
+            } else if (base.index == 4) [[unlikely]] { // no more items
+                return noitem;
+            } else if (base.index < 2) [[unlikely]] { // unfinished chunk
+                while(auto n = impl::next(base));
+                if (base.index == 4)
+                    return noitem;
+            }
+            return iter_ref(base);
+        }
+    };
+}
+
+template<iter::assert_iterable I, iter::concepts::chunk_by_invocable<I> F>
+constexpr auto ITER_IMPL(chunk_by)(I&& iterable, F&& func) {
+    return iter::detail::chunk_by_iter{iter::to_iter(FWD(iterable)), FWD(func)};
+}
+
+#endif /* ITER_ADAPTERS_CHUNK_BY_HPP */
+
+namespace iter::adapters { using iter::chunk_by; }
 #ifndef ITER_ADAPTERS_CONSTEVAL_ONLY_HPP
 #define ITER_ADAPTERS_CONSTEVAL_ONLY_HPP
 
@@ -2884,6 +3073,189 @@ constexpr auto ITER_IMPL(cycle) (I&& iterable) {
 #endif /* ITER_ADAPTERS_CYCLE_HPP */
 
 namespace iter::adapters { using iter::cycle; }
+#ifndef ITER_ADAPTERS_ELEMENTS_HPP
+#define ITER_ADAPTERS_ELEMENTS_HPP
+
+#ifndef ITER_ADAPTERS_MAP_HPP
+#define ITER_ADAPTERS_MAP_HPP
+
+#ifndef INCLUDE_ITER_FLATMAP_HPP
+#define INCLUDE_ITER_FLATMAP_HPP
+
+ITER_DECLARE(flatmap)
+ITER_ALIAS(flat_map, flatmap)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] flatmap_iter {
+        using this_t = flatmap_iter;
+        using invoke_result = std::invoke_result_t<F, consume_t<I>>;
+        static_assert(!concepts::iter_of_optional<invoke_result>,
+            "Do not return iter::optional in iter::flatmap, instead return iter::item (preferrably in iter::filter_map).");
+        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
+        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
+
+        item<wrapped_inner_iter_t> current{};
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr auto get_current() {
+            auto next = impl::next(i);
+            return next
+                ? MAKE_ITEM(iter_wrapper{func(consume(next))})
+                : noitem;
+        }
+
+        constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
+            auto val = no_next<inner_iter_t>();
+            do {
+                if (self.current) [[likely]]
+                    if (emplace_next(val, self.current->iter)) [[likely]]
+                        return val;
+            } while (EMPLACE_NEW(self.current, self.get_current()));
+            return val;
+        }
+    };
+
+    template<class I, class F>
+    flatmap_iter(I, F) -> flatmap_iter<I, F>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
+    return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
+#define ITER_ADAPTERS_FILTER_MAP_HPP
+
+ITER_DECLARE(filter_map)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] filter_map_iter {
+        using this_t = filter_map_iter;
+        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
+        static_assert(concepts::item<mapped_t>);
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
+            mapped_t mapped;
+            while (auto val = impl::next(self.i)) {
+                if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
+                    return mapped;
+                }
+            }
+            return mapped;
+        }
+    };
+
+    template<class I, class P>
+    filter_map_iter(I, P) -> filter_map_iter<I, P>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
+    return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */
+
+// flatmap on iter::item is equivalent to the specially optimised filter_map
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+requires iter::concepts::item<std::invoke_result_t<F, iter::consume_t<I>>>
+constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
+    return iter::filter_map(FWD(iterable), FWD(func));
+}
+
+#endif /* INCLUDE_ITER_FLATMAP_HPP */
+
+ITER_DECLARE(map)
+
+namespace iter::detail {
+    template<assert_iter I, std::invocable<consume_t<I>> F>
+    struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+    private:
+        using this_t = map_iter;
+        using result_t = std::invoke_result_t<F, consume_t<I>>;
+
+        constexpr auto ITER_IMPL_NEXT (this_t& self)
+            requires (!this_t::random_access)
+        {
+            auto val = impl::next(self.i);
+            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
+        }
+
+        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
+            requires this_t::random_access
+        {
+            return self.func(get(impl::get(self.i, index)));
+        }
+
+        constexpr auto ITER_IMPL_THIS(flatten) (this_t&& self) {
+            return iter::flatmap(std::move(self.i), std::move(self.func));
+        }
+        constexpr auto ITER_IMPL_THIS(flatten) (this_t const& self) {
+            return iter::flatmap(self.i, self.func);
+        }
+    };
+
+    template<class I, class F>
+    map_iter(I, F) -> map_iter<I, F>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
+constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
+    return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
+}
+
+#endif /* ITER_ADAPTERS_MAP_HPP */
+
+XTD_INVOKER(iter_elements)
+ITER_DECLARE(keys)
+ITER_DECLARE(values)
+
+namespace iter {
+    namespace detail::tag {
+        template<std::size_t N>
+        struct elements : xtd::tagged_bindable<elements<N>, xtd::invokers::iter_elements> {};
+    }
+
+    template<std::size_t N>
+    inline constexpr detail::tag::elements<N> elements;
+}
+
+template<std::size_t N, iter::assert_iterable I>
+constexpr auto XTD_IMPL_TAG_(iter_elements, iter::detail::tag::elements<N>)(I&& iterable) {
+    using std::get;
+    return iter::map(FWD(iterable), [](auto&& value) {
+        constexpr bool stable = iter::concepts::stable_iter<iter::iter_t<I>>;
+        using element_t = std::tuple_element_t<N, iter::value_t<I>>;
+        if constexpr (!std::is_reference_v<element_t> && !std::is_reference_v<iter::item_t<I>>)
+            return MAKE_STABILITY(stable, get<N>(FWD(value)));
+        else
+            return MAKE_STABILITY_AUTO(stable, get<N>(FWD(value)));
+    });
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(keys)(I&& iterable) {
+    return iter::elements<0>(FWD(iterable));
+}
+
+template<iter::assert_iterable I>
+constexpr auto ITER_IMPL(values)(I&& iterable) {
+    return iter::elements<1>(FWD(iterable));
+}
+
+#endif /* ITER_ADAPTERS_ELEMENTS_HPP */
+
+namespace iter::adapters { using iter::elements; using iter::keys; using iter::values; }
 #ifndef INCLUDE_ITER_ENUMERATE_MAP_HPP
 #define INCLUDE_ITER_ENUMERATE_MAP_HPP
 
@@ -3071,42 +3443,6 @@ constexpr decltype(auto) XTD_IMPL_TAG_(iter_enumerate, iter::detail::tag::enumer
 #endif /* ITER_ADAPTERS_ENUMERATE_HPP */
 
 namespace iter::adapters { using iter::enumerate; using iter::enumerate_; }
-#ifndef ITER_ADAPTERS_FILTER_MAP_HPP
-#define ITER_ADAPTERS_FILTER_MAP_HPP
-
-ITER_DECLARE(filter_map)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] filter_map_iter {
-        using this_t = filter_map_iter;
-        using mapped_t = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(concepts::item<mapped_t>);
-
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-        constexpr mapped_t ITER_IMPL_NEXT (this_t& self) {
-            mapped_t mapped;
-            while (auto val = impl::next(self.i)) {
-                if (EMPLACE_NEW(mapped, self.func(consume(val)))) {
-                    return mapped;
-                }
-            }
-            return mapped;
-        }
-    };
-
-    template<class I, class P>
-    filter_map_iter(I, P) -> filter_map_iter<I, P>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(filter_map) (I&& iterable, F&& func) {
-    return iter::detail::filter_map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#endif /* ITER_ADAPTERS_FILTER_MAP_HPP */
 
 namespace iter::adapters { using iter::filter_map; }
 #ifndef INCLUDE_ITER_FILTER_HPP
@@ -3146,61 +3482,6 @@ constexpr auto ITER_IMPL(filter) (I&& iterable, P&& pred) {
 #endif /* INCLUDE_ITER_FILTER_HPP */
 
 namespace iter::adapters { using iter::filter; }
-#ifndef INCLUDE_ITER_FLATMAP_HPP
-#define INCLUDE_ITER_FLATMAP_HPP
-
-ITER_DECLARE(flatmap)
-ITER_ALIAS(flat_map, flatmap)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] flatmap_iter {
-        using this_t = flatmap_iter;
-        using invoke_result = std::invoke_result_t<F, consume_t<I>>;
-        static_assert(!concepts::iter_of_optional<invoke_result>,
-            "Do not return iter::optional in iter::flatmap, instead return iter::item (preferrably in iter::filter_map).");
-        using wrapped_inner_iter_t = iter_wrapper<invoke_result>;
-        using inner_iter_t = typename wrapped_inner_iter_t::iter_t;
-
-        item<wrapped_inner_iter_t> current{};
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-        constexpr auto get_current() {
-            auto next = impl::next(i);
-            return next
-                ? MAKE_ITEM(iter_wrapper{func(consume(next))})
-                : noitem;
-        }
-
-        constexpr next_t<inner_iter_t> ITER_IMPL_NEXT (this_t& self) {
-            auto val = no_next<inner_iter_t>();
-            do {
-                if (self.current) [[likely]]
-                    if (emplace_next(val, self.current->iter)) [[likely]]
-                        return val;
-            } while (EMPLACE_NEW(self.current, self.get_current()));
-            return val;
-        }
-    };
-
-    template<class I, class F>
-    flatmap_iter(I, F) -> flatmap_iter<I, F>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::detail::flatmap_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-// flatmap on iter::item is equivalent to the specially optimised filter_map
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-requires iter::concepts::item<std::invoke_result_t<F, iter::consume_t<I>>>
-constexpr auto ITER_IMPL(flatmap) (I&& iterable, F&& func) {
-    return iter::filter_map(FWD(iterable), FWD(func));
-}
-
-#endif /* INCLUDE_ITER_FLATMAP_HPP */
 
 namespace iter::adapters { using iter::flatmap; }
 
@@ -3280,52 +3561,6 @@ constexpr auto ITER_IMPL(map_while) (I&& iterable, F&& func) {
 #endif /* INCLUDE_ITER_MAP_WHILE_HPP */
 
 namespace iter::adapters { using iter::map_while; }
-#ifndef ITER_ADAPTERS_MAP_HPP
-#define ITER_ADAPTERS_MAP_HPP
-
-ITER_DECLARE(map)
-
-namespace iter::detail {
-    template<assert_iter I, std::invocable<consume_t<I>> F>
-    struct [[nodiscard]] map_iter : enable_random_access<map_iter<I, F>, I> {
-        [[no_unique_address]] I i;
-        [[no_unique_address]] F func;
-
-    private:
-        using this_t = map_iter;
-        using result_t = std::invoke_result_t<F, consume_t<I>>;
-
-        constexpr auto ITER_IMPL_NEXT (this_t& self)
-            requires (!this_t::random_access)
-        {
-            auto val = impl::next(self.i);
-            return val ? MAKE_ITEM_AUTO(self.func(consume(val))) : noitem;
-        }
-
-        constexpr decltype(auto) ITER_IMPL_GET (this_t& self, std::size_t index)
-            requires this_t::random_access
-        {
-            return self.func(get(impl::get(self.i, index)));
-        }
-
-        constexpr auto ITER_IMPL_THIS(flatten) (this_t&& self) {
-            return iter::flatmap(std::move(self.i), std::move(self.func));
-        }
-        constexpr auto ITER_IMPL_THIS(flatten) (this_t const& self) {
-            return iter::flatmap(self.i, self.func);
-        }
-    };
-
-    template<class I, class F>
-    map_iter(I, F) -> map_iter<I, F>;
-}
-
-template<iter::assert_iterable I, std::invocable<iter::consume_t<I>> F>
-constexpr auto ITER_IMPL(map) (I&& iterable, F&& func) {
-    return iter::detail::map_iter<iter::iter_t<I>, std::remove_cvref_t<F>>{.i = iter::to_iter(FWD(iterable)), .func = FWD(func)};
-}
-
-#endif /* ITER_ADAPTERS_MAP_HPP */
 
 namespace iter::adapters { using iter::map; }
 #ifndef ITER_ADAPTERS_MOVE_HPP
@@ -3528,14 +3763,14 @@ constexpr auto ITER_IMPL(skip) (I&& iterable, std::size_t n) {
 #endif /* INCLUDE_ITER_SKIP_HPP */
 
 namespace iter::adapters { using iter::skip; }
-#ifndef INCLUDE_ITER_SPLIT_HPP
-#define INCLUDE_ITER_SPLIT_HPP
+#ifndef ITER_ADAPTERS_SPLIT_HPP
+#define ITER_ADAPTERS_SPLIT_HPP
 
 ITER_DECLARE(split)
 
 namespace iter::detail {
     // Book-keeping to ensure no infinite loop if inner iter is not iterated
-    enum class inner_iter_status {
+    enum class inner_iter_status : std::uint8_t {
         created, inner_unfinished, inner_finished, outer_finished
     };
 
@@ -3547,7 +3782,7 @@ namespace iter::detail {
 
         using this_t = split_iter_inner;
         constexpr auto ITER_IMPL_NEXT (this_t& self) {
-            auto next = iter::no_next<I>();
+            auto next = no_next<I>();
             if (!emplace_next(next, self.i)) [[unlikely]] {
                 self.status = inner_iter_status::outer_finished;
             } else if (*next == self.delimiter) [[unlikely]] {
@@ -3562,7 +3797,7 @@ namespace iter::detail {
     struct [[nodiscard]] split_iter : split_iter_inner<I> {
         using this_t = split_iter;
 
-        constexpr stable_item<split_iter_inner<I>&> ITER_IMPL_NEXT (this_t& self) {
+        constexpr unstable_item<iter_ref<split_iter_inner<I>>> ITER_IMPL_NEXT (this_t& self) {
             if (self.status == inner_iter_status::outer_finished)
                 return noitem;
             if (self.status == inner_iter_status::inner_unfinished) [[unlikely]] {
@@ -3572,7 +3807,7 @@ namespace iter::detail {
                     return noitem;
             }
             self.status = inner_iter_status::inner_unfinished;
-            return stable_ref<split_iter_inner<I>&>(self);
+            return iter_ref<split_iter_inner<I>>(self);
         }
     };
 }
@@ -3583,7 +3818,7 @@ constexpr auto ITER_IMPL(split) (I&& iterable, iter::value_t<I> delimiter) {
         {.i = iter::to_iter(FWD(iterable)), .delimiter = delimiter}};
 }
 
-#endif /* INCLUDE_ITER_SPLIT_HPP */
+#endif /* ITER_ADAPTERS_SPLIT_HPP */
 
 namespace iter::adapters { using iter::split; }
 #ifndef INCLUDE_ITER_TAKE_WHILE_HPP
@@ -3696,7 +3931,7 @@ namespace iter::detail {
         constexpr auto to_iter() {
             using namespace xtd::literals;
             return cycle(buffer)
-                | map(_, [](auto& item) { return stable_ref(*item); })
+                | map(_, [](auto& item) { return unstable_ref(*item); })
                 | skip(_, end)
                 | take(_, size--);
         }
@@ -3978,32 +4213,32 @@ ITER_DECLARE(min)
 ITER_DECLARE(min_by)
 
 namespace iter::detail::minmax {
-    template<class C, iter::iterable I, class F>
-    requires iter::concepts::owned_item<iter::next_t<I>>
+    template<class C, iterable I, class F>
+    requires concepts::owned_item<next_t<I>>
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
+        decltype(auto) iter = to_iter(FWD(iterable));
+        auto next = no_next<I>(), current = no_next<I>();
+        auto emplace_next = [&]() -> bool { return detail::emplace_next(next, iter); };
         if (emplace_next()) {
             current = std::move(next);
             while (emplace_next())
-                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*current), iter::as_const(*next))))
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), as_const(*current), as_const(*next))))
                     *current = std::move(*next);
         }
         return current;
     }
 
-    template<class C, iter::iterable I, class F>
-    requires iter::concepts::stable_item<iter::next_t<I>>
-        && (!iter::concepts::owned_item<iter::next_t<I>>)
+    template<class C, iterable I, class F>
+    requires concepts::stable_item<iter::next_t<I>>
+        && (!concepts::owned_item<iter::next_t<I>>)
     constexpr auto apply(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter(FWD(iterable));
+        decltype(auto) iter = to_iter(FWD(iterable));
         auto next = no_next<I>(), result = no_next<I>();
         auto emplace_next = [&]() -> bool { return next = impl::next(iter); };
         if (emplace_next()) {
             result = next;
             while (emplace_next())
-                if (std::invoke(FWD(comp), std::invoke(FWD(func), iter::as_const(*result), iter::as_const(*next))))
+                if (std::invoke(FWD(comp), std::invoke(FWD(func), as_const(*result), as_const(*next))))
                     result = next;
         }
         return result;
@@ -4012,18 +4247,18 @@ namespace iter::detail::minmax {
     inline constexpr auto min = [](auto&& l) { return l > 0; };
     inline constexpr auto max = [](auto&& l) { return l < 0; };
 
-    template<class C, iter::iterable I, class F>
-    requires iter::concepts::owned_item<iter::next_t<I>>
+    template<class C, iterable I, class F>
+    requires concepts::owned_item<next_t<I>>
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter(FWD(iterable));
-        auto next = iter::no_next<I>(), current = iter::no_next<I>();
-        auto emplace_next = [&]() -> bool { return iter::detail::emplace_next(next, iter); };
+        decltype(auto) iter = to_iter(FWD(iterable));
+        auto next = no_next<I>(), current = no_next<I>();
+        auto emplace_next = [&]() -> bool { return detail::emplace_next(next, iter); };
         if (emplace_next()) {
-            auto current_proj = std::invoke(FWD(func), iter::as_const(*next));
+            auto current_proj = std::invoke(FWD(func), as_const(*next));
             current = std::move(next);
             while (emplace_next()) {
-                auto next_proj = std::invoke(FWD(func), iter::as_const(*next));
-                if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
+                auto next_proj = std::invoke(FWD(func), as_const(*next));
+                if (std::invoke(FWD(comp), as_const(current_proj), as_const(next_proj))) {
                     *current = std::move(*next);
                     current_proj = std::move(next_proj);
                 }
@@ -4032,19 +4267,19 @@ namespace iter::detail::minmax {
         return current;
     }
 
-    template<class C, iter::concepts::iterable I, class F>
-    requires iter::concepts::stable_item<iter::next_t<I>>
-        && (!iter::concepts::owned_item<iter::next_t<I>>)
+    template<class C, iterable I, class F>
+    requires concepts::stable_item<next_t<I>>
+        && (!concepts::owned_item<next_t<I>>)
     constexpr auto by(C&& comp, I&& iterable, F&& func) {
-        decltype(auto) iter = iter::to_iter(FWD(iterable));
+        decltype(auto) iter = to_iter(FWD(iterable));
         auto val = no_next<I>(), result = no_next<I>();
         auto emplace_next = [&]() -> bool { return val = impl::next(iter); };
         if (emplace_next()) {
-            auto current_proj = std::invoke(FWD(func), iter::as_const(*val));
+            auto current_proj = std::invoke(FWD(func), as_const(*val));
             result = val;
             while (emplace_next()) {
-                auto next_proj = std::invoke(FWD(func), iter::as_const(*val));
-                if (std::invoke(FWD(comp), iter::as_const(current_proj), iter::as_const(next_proj))) {
+                auto next_proj = std::invoke(FWD(func), as_const(*val));
+                if (std::invoke(FWD(comp), as_const(current_proj), as_const(next_proj))) {
                     result = val;
                     current_proj = std::move(next_proj);
                 }
@@ -4558,8 +4793,22 @@ ITER_X(chain)
 ITER_X(take)
 // Invoke iter::chunks (aka iter::chunks_<>) on this iter
 ITER_X(chunks)
+// Invoke iter::chunk_by on this iter
+ITER_X(chunk_by)
 // Invoke iter::consteval_only on this iter
 ITER_X(consteval_only)
+// Invoke iter::flatmap on this iter
+ITER_X(flatmap)
+// Invoke iter::flat_map (aka iter::flatmap) on this iter
+ITER_X(flat_map)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::map on this iter
+ITER_X(map)
+// Invoke iter::keys on this iter
+ITER_X(keys)
+// Invoke iter::values on this iter
+ITER_X(values)
 // Invoke iter::zip_map on this iter
 ITER_X(zip_map)
 // Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
@@ -4568,20 +4817,12 @@ ITER_X(enumerate_map)
 ITER_X(zip)
 // Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
 ITER_X(enumerate)
-// Invoke iter::filter_map on this iter
-ITER_X(filter_map)
 // Invoke iter::filter on this iter
 ITER_X(filter)
-// Invoke iter::flatmap on this iter
-ITER_X(flatmap)
-// Invoke iter::flat_map (aka iter::flatmap) on this iter
-ITER_X(flat_map)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
 // Invoke iter::map_while on this iter
 ITER_X(map_while)
-// Invoke iter::map on this iter
-ITER_X(map)
 // Invoke iter::move on this iter
 ITER_X(move)
 // Invoke iter::reverse on this iter
@@ -4659,6 +4900,8 @@ ITER_X(sorted)
 
 // Invoke iter::chunks_ on this iter
 ITER_X(chunks_, (std::size_t N = 0), (N))
+// Invoke iter::elements on this iter
+ITER_X(elements, (std::size_t N), (N))
 // Invoke iter::enumerate_map_ on this iter
 ITER_X(enumerate_map_, (class T = std::size_t), (T))
 // Invoke iter::enumerate_ on this iter

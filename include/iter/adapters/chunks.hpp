@@ -2,6 +2,7 @@
 #define ITER_ADAPTERS_CHUNKS_HPP
 
 #include "iter/adapters/take.hpp"
+#include "iter/iters/iter_ref.hpp"
 #include "iter/iters/span.hpp"
 
 XTD_INVOKER(iter_chunks)
@@ -110,7 +111,7 @@ namespace iter::detail {
     template<assert_iter I>
     struct [[nodiscard]] chunks_iter<I, 0> : lazy_chunk_iter<I> {
         using this_t = chunks_iter;
-        constexpr unstable_item<lazy_chunk_iter<I>&> ITER_IMPL_NEXT (this_t& self) {
+        constexpr unstable_item<iter_ref<lazy_chunk_iter<I>>> ITER_IMPL_NEXT (this_t& self) {
             if (self.size) [[likely]] {
                 if (self.remaining) [[unlikely]] {
                     // Deal with the case where inner iter is not fully iterated
@@ -119,7 +120,7 @@ namespace iter::detail {
                         return noitem;
                 }
                 self.remaining = self.size;
-                return unstable_ref<lazy_chunk_iter<I>&>(self);
+                return iter_ref<lazy_chunk_iter<I>>(self);
             }
             return noitem;
         }

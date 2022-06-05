@@ -7,10 +7,14 @@ namespace iter::adapters { using iter::box; }
 namespace iter::adapters { using iter::chain; }
 #include "iter/adapters/chunks.hpp"
 namespace iter::adapters { using iter::chunks; using iter::chunks_; }
+#include "iter/adapters/chunk_by.hpp"
+namespace iter::adapters { using iter::chunk_by; }
 #include "iter/adapters/consteval_only.hpp"
 namespace iter::adapters { using iter::consteval_only; }
 #include "iter/adapters/cycle.hpp"
 namespace iter::adapters { using iter::cycle; }
+#include "iter/adapters/elements.hpp"
+namespace iter::adapters { using iter::elements; using iter::keys; using iter::values; }
 #include "iter/adapters/enumerate_map.hpp"
 namespace iter::adapters { using iter::enumerate_map; using iter::enumerate_map_; }
 #include "iter/adapters/enumerate.hpp"

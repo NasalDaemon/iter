@@ -12,8 +12,22 @@ ITER_X(chain)
 ITER_X(take)
 // Invoke iter::chunks (aka iter::chunks_<>) on this iter
 ITER_X(chunks)
+// Invoke iter::chunk_by on this iter
+ITER_X(chunk_by)
 // Invoke iter::consteval_only on this iter
 ITER_X(consteval_only)
+// Invoke iter::flatmap on this iter
+ITER_X(flatmap)
+// Invoke iter::flat_map (aka iter::flatmap) on this iter
+ITER_X(flat_map)
+// Invoke iter::filter_map on this iter
+ITER_X(filter_map)
+// Invoke iter::map on this iter
+ITER_X(map)
+// Invoke iter::keys on this iter
+ITER_X(keys)
+// Invoke iter::values on this iter
+ITER_X(values)
 // Invoke iter::zip_map on this iter
 ITER_X(zip_map)
 // Invoke iter::enumerate_map (aka iter::enumerate_map_<>) on this iter
@@ -22,20 +36,12 @@ ITER_X(enumerate_map)
 ITER_X(zip)
 // Invoke iter::enumerate (aka iter::enumerate_<>) on this iter
 ITER_X(enumerate)
-// Invoke iter::filter_map on this iter
-ITER_X(filter_map)
 // Invoke iter::filter on this iter
 ITER_X(filter)
-// Invoke iter::flatmap on this iter
-ITER_X(flatmap)
-// Invoke iter::flat_map (aka iter::flatmap) on this iter
-ITER_X(flat_map)
 // Invoke iter::inspect on this iter
 ITER_X(inspect)
 // Invoke iter::map_while on this iter
 ITER_X(map_while)
-// Invoke iter::map on this iter
-ITER_X(map)
 // Invoke iter::move on this iter
 ITER_X(move)
 // Invoke iter::reverse on this iter

@@ -119,6 +119,7 @@ static constexpr auto make_stability(F&& f) {
 
 } // namespace iter
 
-#define MAKE_STABILITY(stable, ...) ::iter::make_stability<stable>([&]() -> decltype(auto) { return (__VA_ARGS__); })
+#define MAKE_STABILITY(stable, ...) ::iter::make_stability<stable>([&] { return (__VA_ARGS__); })
+#define MAKE_STABILITY_AUTO(stable, ...) ::iter::make_stability<stable>([&]() -> decltype(auto) { return (__VA_ARGS__); })
 
 #endif /* ITER_CORE_STABILITY_HPP */

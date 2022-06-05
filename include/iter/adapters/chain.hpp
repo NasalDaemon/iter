@@ -27,7 +27,8 @@ namespace iter::detail {
         }
 
         static constexpr bool owned_next = concepts::owned_item<next_t<I1>> || concepts::owned_item<next_t<I2>>;
-        using item_t = std::conditional_t<owned_next, item<value_t<I1>>, item<value_t<I1>&>>;
+        static constexpr bool stable = concepts::stable_iter<I1> && concepts::stable_iter<I2>;
+        using item_t = std::conditional_t<owned_next, item<value_t<I1>, stable>, item<value_t<I1>&, stable>>;
 
         constexpr item_t ITER_IMPL_NEXT (this_t& self)
             requires (!this_t::random_access)

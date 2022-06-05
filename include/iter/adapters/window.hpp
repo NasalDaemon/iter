@@ -26,7 +26,7 @@ namespace iter::detail {
         constexpr auto to_iter() {
             using namespace xtd::literals;
             return cycle(buffer)
-                | map(_, [](auto& item) { return stable_ref(*item); })
+                | map(_, [](auto& item) { return unstable_ref(*item); })
                 | skip(_, end)
                 | take(_, size--);
         }

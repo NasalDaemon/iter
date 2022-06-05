@@ -1,7 +1,7 @@
 #ifndef INCLUDE_ITER_WRAP_HPP
 #define INCLUDE_ITER_WRAP_HPP
 
-#include "iter.hpp"
+#include "iter/iter.hpp"
 
 namespace iter {
     template<iterable I>

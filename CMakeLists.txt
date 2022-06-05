@@ -80,6 +80,7 @@ add_executable(iter_test
   test/all.cpp
   test/any.cpp
   test/chain.cpp
+  test/chunk_by.cpp
   test/chunks.cpp
   test/collect.cpp
   test/compound.cpp

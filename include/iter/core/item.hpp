@@ -5,13 +5,13 @@
 
 // GCC cannot deal with empty payloads in debug
 #if defined(NDEBUG) || !defined(ITER_COMPILER_GCC)
-#  define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE [[no_unique_address]]
-#  define ITER_ITEM_ABI_NAMESPACE iter
-#  define ITER_ITEM_ABI_IMPORT
+#   define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE [[no_unique_address]]
+#   define ITER_ITEM_ABI_NAMESPACE iter
+#   define ITER_ITEM_ABI_IMPORT
 #else
-#  define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE
-#  define ITER_ITEM_ABI_NAMESPACE iter::detail::item_abi
-#  define ITER_ITEM_ABI_IMPORT using ITER_ITEM_ABI_NAMESPACE::item;
+#   define ITER_ITEM_ABI_PAYLOAD_ATTRIBUTE
+#   define ITER_ITEM_ABI_NAMESPACE iter::detail::item_abi
+#   define ITER_ITEM_ABI_IMPORT using ITER_ITEM_ABI_NAMESPACE::item;
 #endif
 
 namespace iter {
@@ -29,7 +29,7 @@ namespace detail {
 // GCC can't do constexpr comparison with nullptr
 // and it can't do much in constexpr before 12 anyway
 #if defined(ITER_COMPILER_GCC) && __GNUC__ >= 12
-#  define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
+#   define ITER_CONSTEXPR_NULLPTR ::iter::detail::constexpr_nullptr
     inline constexpr struct constexpr_nullptr_t {
         template<class T>
         constexpr operator T*() const {
@@ -41,7 +41,7 @@ namespace detail {
         static constexpr optional_payload<T> null{};
     } constexpr_nullptr;
 #else
-#  define ITER_CONSTEXPR_NULLPTR nullptr
+#   define ITER_CONSTEXPR_NULLPTR nullptr
 #endif
 } // namespace detail
 
@@ -225,12 +225,12 @@ struct item<T, Stable> {
     static constexpr bool owner = false;
     static constexpr bool stable = Stable;
 
-    using stability_wrapper = std::conditional_t<stable, iter::stable<T>, iter::unstable<T>>;
+    using stability_t = typename iter::stability_wrapper<stable>::template type<T>;
 
-    constexpr item(stability_wrapper ref) : ptr(std::addressof(get(ref))) {}
+    constexpr item(stability_t ref) : ptr(std::addressof(get(ref))) {}
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
-    constexpr explicit item(F&& f) : ptr(detail::addressof(get(stability_wrapper{std::invoke(FWD(f))}))) {}
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
+    constexpr explicit item(F&& f) : ptr(detail::addressof(get(stability_t{std::invoke(FWD(f))}))) {}
 
     item() = default;
     constexpr item(noitem_t) : item() {}
@@ -247,11 +247,11 @@ struct item<T, Stable> {
     item& emplace(T&& ref) { ptr = std::addressof(ref); return *this; }
 
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
     item& operator=(F&& f) { return emplace(FWD(f)); }
     template<std::invocable F>
-    requires std::constructible_from<stability_wrapper, std::invoke_result_t<F>>
-    item& emplace(F&& f) { ptr = std::addressof(get(stability_wrapper{std::invoke(FWD(f))})); return *this; }
+    requires std::constructible_from<stability_t, std::invoke_result_t<F>>
+    item& emplace(F&& f) { ptr = std::addressof(get(stability_t{std::invoke(FWD(f))})); return *this; }
 
     constexpr T&& value() const { return static_cast<T&&>(*ptr); }
 
@@ -286,6 +286,8 @@ template<class T>
 using stable_item = item<T, true>;
 template<class T>
 using unstable_item = item<T, false>;
+template<class T>
+using make_item_t = item<detail::stability_unwrap<T>, concepts::stable<T>>;
 
 template<class T>
 struct move_item;

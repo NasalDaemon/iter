@@ -19,7 +19,7 @@ static auto ints = [] {
 
 static auto strings = [] {
     std::array<std::string, 2048> a{};
-    std::uniform_int_distribution<int> ranlen(0, 20);
+    std::uniform_int_distribution<int> ranlen(0, 32);
     std::generate(a.begin(), a.end(), [&] {
         auto len = ranlen(eng);
         return std::string(len, 'a');
@@ -38,6 +38,13 @@ void bench_iter_min_int(benchmark::State& state) {
 void bench_std_min_int(benchmark::State& state) {
     for (auto s : state) {
         auto m = *std::min_element(ints.begin(), ints.end());
+        benchmark::DoNotOptimize(m);
+    }
+}
+
+void bench_iter_reduce_min_int(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = iter::reduce(ints, [](auto l, auto r) { return std::min(l, r); }).value();
         benchmark::DoNotOptimize(m);
     }
 }
@@ -63,6 +70,7 @@ void bench_c_min_int(benchmark::State& state) {
 
 BENCHMARK(bench_iter_min_int);
 BENCHMARK(bench_std_min_int);
+BENCHMARK(bench_iter_reduce_min_int);
 BENCHMARK(bench_std_ranges_min_int);
 BENCHMARK(bench_c_min_int);
 
@@ -71,6 +79,16 @@ void bench_iter_min_int_optional1(benchmark::State& state) {
         auto m = iter::wrap(ints)
             .map([](auto& i) { return iter::stable_ref(i); })
             .min()
+            .value();
+        benchmark::DoNotOptimize(m);
+    }
+}
+
+void bench_iter_min_int_reduce_optional1(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = iter::wrap(ints)
+            .map([](auto& i) { return iter::stable_ref(i); })
+            .reduce([](auto l, auto r) { return std::min(l, r); })
             .value();
         benchmark::DoNotOptimize(m);
     }
@@ -86,8 +104,20 @@ void bench_iter_min_int_optional2(benchmark::State& state) {
     }
 }
 
+void bench_iter_min_int_reduce_optional2(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = iter::wrap{iter::range{-state.range(0), state.range(0)}}
+            .map([](auto i) { return i*i; })
+            .reduce([](auto l, auto r) { return std::min(l, r); })
+            .value();
+        benchmark::DoNotOptimize(m);
+    }
+}
+
 BENCHMARK(bench_iter_min_int_optional1);
+BENCHMARK(bench_iter_min_int_reduce_optional1);
 BENCHMARK(bench_iter_min_int_optional2)->Arg(1000);
+BENCHMARK(bench_iter_min_int_reduce_optional2)->Arg(1000);
 
 #ifndef ITER_COMPILER_CLANG
 
@@ -119,6 +149,13 @@ void bench_iter_min_string(benchmark::State& state) {
     }
 }
 
+void bench_iter_min_reduce_string(benchmark::State& state) {
+    for (auto s : state) {
+        auto m = strings | iter::reduce | [](auto& l, auto& r) -> auto& { return std::min(l, r); };
+        benchmark::DoNotOptimize(m);
+    }
+}
+
 void bench_std_min_string(benchmark::State& state) {
     for (auto s : state) {
         auto m = *std::min_element(strings.begin(), strings.end());
@@ -146,6 +183,7 @@ void bench_c_min_string(benchmark::State& state) {
 }
 
 BENCHMARK(bench_iter_min_string);
+BENCHMARK(bench_iter_min_reduce_string);
 BENCHMARK(bench_std_min_string);
 BENCHMARK(bench_std_ranges_min_string);
 BENCHMARK(bench_c_min_string);
