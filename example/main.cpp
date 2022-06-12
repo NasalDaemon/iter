@@ -182,7 +182,7 @@ int main() {
 #ifndef ITER_COMPILER_CLANG
     auto input_range = range{0, 10}
             | map(_, [](auto i) { return i*i; })
-            | into_input_range();
+            | to_input_range();
     for (auto i : input_range
             | std::views::transform(std::identity{})
             | std::views::drop(2)

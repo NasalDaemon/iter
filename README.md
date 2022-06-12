@@ -43,7 +43,7 @@ void multiply(std::vector<float> const& x, std::vector<float> const& y, std::vec
   }
 }
 ```
-All `iter`s can be used as a `std::ranges::view` with `#include "iter/enable_ranges.hpp`.
+All `iter`s can be used with the range-based for-loop syntax sugar, but they aren't standards conformant ranges that can be used with standard algorithms. To convert an `iter` to a proper input range that conforms to the `std::ranges::range` concept, use `iter::to_input_range(it)`. That input range can be used with `std::ranges` adaptors and algorithms that support input iterators.
 ##### Supports UFCS-style syntax via the [extend](https://github.com/NasalDaemon/extend) library.
 
 Since people like to write functional algorithms in many different styles, functions in the `iter` namespace support a wide range of calling styles. In practice, you will use only a subset corresponding to your preferred style.

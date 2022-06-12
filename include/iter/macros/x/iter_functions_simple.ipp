@@ -96,11 +96,11 @@ ITER_X(to_vector)
 ITER_X(to_map)
 // Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
 ITER_X(to_string)
-// Invoke iter::into_input_range on this iter
-ITER_X(into_input_range)
 // Invoke iter::partition on this iter
 ITER_X(partition)
 // Invoke iter::sorted (aka iter::sorted_<>) on this iter
 ITER_X(sorted)
+// Invoke iter::to_input_range on this iter
+ITER_X(to_input_range)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter
 ITER_X(unzip)

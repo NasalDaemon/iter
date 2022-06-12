@@ -56,9 +56,9 @@
 #undef $to_vector
 #undef $to_map
 #undef $to_string
-#undef $into_input_range
 #undef $partition
 #undef $sorted
+#undef $to_input_range
 #undef $unzip
 #undef $chunks_
 #undef $elements

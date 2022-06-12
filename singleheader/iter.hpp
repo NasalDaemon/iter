@@ -1310,34 +1310,22 @@ namespace iter {
 
         inline constexpr struct sentinel_t {} sentinel;
 
+        // Minimal implementation to support range-based for loop syntax
         template<iter I>
-        struct iterator_wrapper : iterator_traits<I> {
-            using traits = iterator_traits<I>;
-            using typename traits::value_type;
+        struct range_for_wrapper {
+            explicit constexpr range_for_wrapper(auto&& it) : i{FWD(it)} {}
+            constexpr range_for_wrapper() = default;
 
-            explicit constexpr iterator_wrapper(auto&& it)
-                : i{FWD(it)}
-                , current{impl::next(i)}
-            {}
-            constexpr iterator_wrapper() = default;
+            auto operator<=>(const range_for_wrapper&) const = delete;
 
-            auto operator<=>(const iterator_wrapper&) const = delete;
-
-            constexpr bool operator!=(sentinel_t) const { return current.has_value(); }
-            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr bool operator!=(sentinel_t) { return emplace_next(current, i).has_value(); }
+            constexpr bool operator==(sentinel_t) { return !operator!=(sentinel); }
             constexpr auto& operator*() { return *current; }
             constexpr auto& operator*() const { return *current; }
             constexpr auto* operator->() { return std::addressof(*current); }
             constexpr auto* operator->() const { return std::addressof(*current); }
-            constexpr auto& operator++() {
-                emplace_next(current, i);
-                return *this;
-            }
-            [[nodiscard]] constexpr iterator_wrapper operator++(int) {
-                auto ret = *this;
-                emplace_next(current, i);
-                return ret;
-            };
+            constexpr void operator++() {}
+            constexpr void operator++(int) {}
 
         private:
             I i;
@@ -1345,11 +1333,11 @@ namespace iter {
         };
 
         template<class T>
-        iterator_wrapper(T) -> iterator_wrapper<T>;
+        range_for_wrapper(T) -> range_for_wrapper<T>;
 
         template<iter I>
         constexpr auto begin(I&& iter) {
-            return iterator_wrapper{FWD(iter)};
+            return range_for_wrapper{FWD(iter)};
         }
 
         template<iter I>
@@ -1373,7 +1361,7 @@ namespace iter {
         template<class T>
         inline constexpr bool is_iterator_v = false;
         template<class I>
-        inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
+        inline constexpr bool is_iterator_v<iter::detail::range_for_wrapper<I>> = true;
 
         template<class T>
         concept iterator = is_iterator_v<std::decay_t<T>>;
@@ -4475,65 +4463,6 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<std::map, 
 #endif /* ITER_COLLECTORS_COLLECT_HPP */
 
 namespace iter::collectors { using iter::collect; }
-#ifndef ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
-#define ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
-
-ITER_DECLARE(into_input_range)
-
-namespace iter::detail {
-    template<iter I>
-    struct input_range {
-        constexpr explicit input_range(auto&& it)
-            : i{FWD(it)}
-            , current{impl::next(i)}
-        {}
-
-        struct iterator : iterator_traits<I> {
-            explicit iterator(input_range* outer)
-                : outer{outer}
-            {}
-
-            iterator() = default;
-
-            auto operator<=>(const iterator&) const = delete;
-            constexpr bool operator==(const iterator& other) const { return outer == other.outer; }
-
-            constexpr bool operator!=(sentinel_t) const { return outer->current.has_value(); }
-            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
-            constexpr auto& operator*() const { return *outer->current; }
-            constexpr auto* operator->() const { return std::addressof(*outer->current); }
-            constexpr auto& operator++() {
-                emplace_next(outer->current, outer->i);
-                return *this;
-            }
-            constexpr void operator++(int) {
-                emplace_next(outer->current, outer->i);
-            };
-
-        private:
-            input_range* outer;
-        };
-
-        constexpr auto begin() { return iterator(this); }
-        constexpr auto end() const { return sentinel; }
-
-    private:
-        I i;
-        next_t<I> current;
-    };
-
-    template<class I>
-    input_range(I) -> input_range<I>;
-}
-
-template<iter::iter I>
-constexpr auto ITER_IMPL(into_input_range)(I&& i) {
-    return iter::detail::input_range{FWD(i)};
-}
-
-#endif /* ITER_COLLECTORS_INTO_INPUT_RANGE_HPP */
-
-namespace iter::collectors { using iter::into_input_range; }
 #ifndef ITER_COLLECTORS_PARTITION_HPP
 #define ITER_COLLECTORS_PARTITION_HPP
 
@@ -4647,6 +4576,65 @@ constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&
 #endif /* ITER_COLLECTORS_SORTED_HPP */
 
 namespace iter::collectors { using iter::sorted; using iter::sorted_; }
+#ifndef ITER_COLLECTORS_TO_INPUT_RANGE_HPP
+#define ITER_COLLECTORS_TO_INPUT_RANGE_HPP
+
+ITER_DECLARE(to_input_range)
+
+namespace iter::detail {
+    template<iter I>
+    struct input_range {
+        constexpr explicit input_range(auto&& it)
+            : i{FWD(it)}
+            , current{impl::next(i)}
+        {}
+
+        struct iterator : iterator_traits<I> {
+            explicit iterator(input_range* outer)
+                : outer{outer}
+            {}
+
+            iterator() = default;
+
+            auto operator<=>(const iterator&) const = delete;
+            constexpr bool operator==(const iterator& other) const { return outer == other.outer; }
+
+            constexpr bool operator!=(sentinel_t) const { return outer->current.has_value(); }
+            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr auto& operator*() const { return *outer->current; }
+            constexpr auto* operator->() const { return std::addressof(*outer->current); }
+            constexpr auto& operator++() {
+                emplace_next(outer->current, outer->i);
+                return *this;
+            }
+            constexpr void operator++(int) {
+                emplace_next(outer->current, outer->i);
+            };
+
+        private:
+            input_range* outer;
+        };
+
+        constexpr auto begin() { return iterator(this); }
+        constexpr auto end() const { return sentinel; }
+
+    private:
+        I i;
+        next_t<I> current;
+    };
+
+    template<class I>
+    input_range(I) -> input_range<I>;
+}
+
+template<iter::iter I>
+constexpr auto ITER_IMPL(to_input_range)(I&& i) {
+    return iter::detail::input_range{FWD(i)};
+}
+
+#endif /* ITER_COLLECTORS_TO_INPUT_RANGE_HPP */
+
+namespace iter::collectors { using iter::to_input_range; }
 #ifndef INCLUDE_ITER_UNZIP_HPP
 #define INCLUDE_ITER_UNZIP_HPP
 
@@ -4928,12 +4916,12 @@ ITER_X(to_vector)
 ITER_X(to_map)
 // Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
 ITER_X(to_string)
-// Invoke iter::into_input_range on this iter
-ITER_X(into_input_range)
 // Invoke iter::partition on this iter
 ITER_X(partition)
 // Invoke iter::sorted (aka iter::sorted_<>) on this iter
 ITER_X(sorted)
+// Invoke iter::to_input_range on this iter
+ITER_X(to_input_range)
 // Invoke iter::unzip (aka iter::unzip_<>) on this iter
 ITER_X(unzip)
 

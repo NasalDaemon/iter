@@ -134,34 +134,22 @@ namespace iter {
 
         inline constexpr struct sentinel_t {} sentinel;
 
+        // Minimal implementation to support range-based for loop syntax
         template<iter I>
-        struct iterator_wrapper : iterator_traits<I> {
-            using traits = iterator_traits<I>;
-            using typename traits::value_type;
+        struct range_for_wrapper {
+            explicit constexpr range_for_wrapper(auto&& it) : i{FWD(it)} {}
+            constexpr range_for_wrapper() = default;
 
-            explicit constexpr iterator_wrapper(auto&& it)
-                : i{FWD(it)}
-                , current{impl::next(i)}
-            {}
-            constexpr iterator_wrapper() = default;
+            auto operator<=>(const range_for_wrapper&) const = delete;
 
-            auto operator<=>(const iterator_wrapper&) const = delete;
-
-            constexpr bool operator!=(sentinel_t) const { return current.has_value(); }
-            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr bool operator!=(sentinel_t) { return emplace_next(current, i).has_value(); }
+            constexpr bool operator==(sentinel_t) { return !operator!=(sentinel); }
             constexpr auto& operator*() { return *current; }
             constexpr auto& operator*() const { return *current; }
             constexpr auto* operator->() { return std::addressof(*current); }
             constexpr auto* operator->() const { return std::addressof(*current); }
-            constexpr auto& operator++() {
-                emplace_next(current, i);
-                return *this;
-            }
-            [[nodiscard]] constexpr iterator_wrapper operator++(int) {
-                auto ret = *this;
-                emplace_next(current, i);
-                return ret;
-            };
+            constexpr void operator++() {}
+            constexpr void operator++(int) {}
 
         private:
             I i;
@@ -169,11 +157,11 @@ namespace iter {
         };
 
         template<class T>
-        iterator_wrapper(T) -> iterator_wrapper<T>;
+        range_for_wrapper(T) -> range_for_wrapper<T>;
 
         template<iter I>
         constexpr auto begin(I&& iter) {
-            return iterator_wrapper{FWD(iter)};
+            return range_for_wrapper{FWD(iter)};
         }
 
         template<iter I>
@@ -197,7 +185,7 @@ namespace iter {
         template<class T>
         inline constexpr bool is_iterator_v = false;
         template<class I>
-        inline constexpr bool is_iterator_v<iter::detail::iterator_wrapper<I>> = true;
+        inline constexpr bool is_iterator_v<iter::detail::range_for_wrapper<I>> = true;
 
         template<class T>
         concept iterator = is_iterator_v<std::decay_t<T>>;

@@ -1,9 +1,9 @@
-#ifndef ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
-#define ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
+#ifndef ITER_COLLECTORS_TO_INPUT_RANGE_HPP
+#define ITER_COLLECTORS_TO_INPUT_RANGE_HPP
 
 #include "iter/core/core.hpp"
 
-ITER_DECLARE(into_input_range)
+ITER_DECLARE(to_input_range)
 
 namespace iter::detail {
     template<iter I>
@@ -52,8 +52,8 @@ namespace iter::detail {
 }
 
 template<iter::iter I>
-constexpr auto ITER_IMPL(into_input_range)(I&& i) {
+constexpr auto ITER_IMPL(to_input_range)(I&& i) {
     return iter::detail::input_range{FWD(i)};
 }
 
-#endif /* ITER_COLLECTORS_INTO_INPUT_RANGE_HPP */
+#endif /* ITER_COLLECTORS_TO_INPUT_RANGE_HPP */
