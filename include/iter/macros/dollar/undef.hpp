@@ -56,16 +56,17 @@
 #undef $to_vector
 #undef $to_map
 #undef $to_string
+#undef $into_input_range
 #undef $partition
-#undef $unzip
 #undef $sorted
+#undef $unzip
 #undef $chunks_
 #undef $elements
 #undef $enumerate_map_
 #undef $enumerate_
 #undef $window
 #undef $collect
-#undef $unzip_
 #undef $sorted_
+#undef $unzip_
 
 #endif /* ITER_DOLLAR_MACROS_DEFINE_HPP */

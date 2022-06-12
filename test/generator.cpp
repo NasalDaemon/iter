@@ -18,7 +18,7 @@ TEST(GeneratorTest, simple) {
 
 TEST(GeneratorTest, range_for) {
     int s = 0;
-    for (auto i : range_gen() |take| 10) {
+    for (auto i : range_gen() |take| 10 | into_input_range()) {
         s += i;
     }
     ASSERT_EQ(s, 45);

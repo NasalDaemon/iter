@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITER_CORE_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220605
+#  define ITER_LIBRARY_VERSION 20220612
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -1310,58 +1310,50 @@ namespace iter {
 
         inline constexpr struct sentinel_t {} sentinel;
 
-        // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
-        requires (!std::is_const_v<I>) && (!std::is_reference_v<I>)
         struct iterator_wrapper : iterator_traits<I> {
             using traits = iterator_traits<I>;
             using typename traits::value_type;
 
-            explicit constexpr iterator_wrapper(I& it) : it{std::addressof(it)}
+            explicit constexpr iterator_wrapper(auto&& it)
+                : i{FWD(it)}
+                , current{impl::next(i)}
             {}
             constexpr iterator_wrapper() = default;
 
             auto operator<=>(const iterator_wrapper&) const = delete;
 
-            // const to follow std::ranges::range concept,
-            constexpr bool operator!=(sentinel_t) const {
-                return detail::emplace_next(current, *it).has_value();
-            }
-            constexpr bool operator==(sentinel_t) const {
-                return !operator!=(sentinel);
-            }
-            constexpr auto& operator*() {
-                return *current;
-            }
-            constexpr auto& operator*() const {
-                return *current;
-            }
-            constexpr auto* operator->() {
-                return std::addressof(*current);
-            }
-            constexpr auto* operator->() const {
-                return std::addressof(*current);
-            }
+            constexpr bool operator!=(sentinel_t) const { return current.has_value(); }
+            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr auto& operator*() { return *current; }
+            constexpr auto& operator*() const { return *current; }
+            constexpr auto* operator->() { return std::addressof(*current); }
+            constexpr auto* operator->() const { return std::addressof(*current); }
             constexpr auto& operator++() {
+                emplace_next(current, i);
                 return *this;
             }
-            constexpr void operator++(int) {}
+            [[nodiscard]] constexpr iterator_wrapper operator++(int) {
+                auto ret = *this;
+                emplace_next(current, i);
+                return ret;
+            };
 
         private:
-            I* it;
-            mutable next_t<I> current;
+            I i;
+            next_t<I> current;
         };
 
         template<class T>
-        iterator_wrapper(T&) -> iterator_wrapper<T>;
+        iterator_wrapper(T) -> iterator_wrapper<T>;
 
-        template<iter T>
-        constexpr auto begin(T& iter) {
-            return detail::iterator_wrapper{iter};
+        template<iter I>
+        constexpr auto begin(I&& iter) {
+            return iterator_wrapper{FWD(iter)};
         }
 
-        template<iter T>
-        constexpr auto end(T&) {
+        template<iter I>
+        constexpr auto end(I&&) {
             return detail::sentinel;
         }
     }
@@ -1554,9 +1546,9 @@ struct xtd::invokers::iter_get
     {
         auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(FWD(args)...); };
         using result_t = decltype(call());
-        if constexpr (iter::concepts::stability_wrapper<result_t>)
+        if constexpr (iter::concepts::stability_wrapper<result_t>) {
             return call();
-        else {
+        } else {
             static_assert(!std::is_reference_v<result_t>, "References must be stability qualified");
             return iter::make_stability(call);
         }
@@ -2653,32 +2645,32 @@ namespace iter::detail {
 template<iter I>
 struct iter_ref {
     using this_t = iter_ref;
-    constexpr explicit iter_ref(I& i) : i{i} {}
+    constexpr explicit iter_ref(I& i) : i{std::addressof(i)} {}
 
     constexpr auto ITER_IMPL_NEXT(this_t& self) {
-        return impl::next(self.i);
+        return impl::next(*self.i);
     }
 
     constexpr auto ITER_IMPL_NEXT_BACK(this_t& self)
         requires concepts::double_ended_iter<I>
     {
-        return impl::next_back(self.i);
+        return impl::next_back(*self.i);
     }
 
     constexpr std::size_t ITER_IMPL_SIZE(this_t const& self)
         requires concepts::random_access_iter<I>
     {
-        return impl::size(self.i);
+        return impl::size(*self.i);
     }
 
     constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t n)
         requires concepts::random_access_iter<I>
     {
-        return impl::get(self.i, n);
+        return impl::get(*self.i, n);
     }
 
 private:
-    I& i;
+    I* i;
 };
 
 template<class I>
@@ -4483,6 +4475,65 @@ constexpr auto XTD_IMPL_TAG_(iter_collect, iter::detail::tag::collect<std::map, 
 #endif /* ITER_COLLECTORS_COLLECT_HPP */
 
 namespace iter::collectors { using iter::collect; }
+#ifndef ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
+#define ITER_COLLECTORS_INTO_INPUT_RANGE_HPP
+
+ITER_DECLARE(into_input_range)
+
+namespace iter::detail {
+    template<iter I>
+    struct input_range {
+        constexpr explicit input_range(auto&& it)
+            : i{FWD(it)}
+            , current{impl::next(i)}
+        {}
+
+        struct iterator : iterator_traits<I> {
+            explicit iterator(input_range* outer)
+                : outer{outer}
+            {}
+
+            iterator() = default;
+
+            auto operator<=>(const iterator&) const = delete;
+            constexpr bool operator==(const iterator& other) const { return outer == other.outer; }
+
+            constexpr bool operator!=(sentinel_t) const { return outer->current.has_value(); }
+            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr auto& operator*() const { return *outer->current; }
+            constexpr auto* operator->() const { return std::addressof(*outer->current); }
+            constexpr auto& operator++() {
+                emplace_next(outer->current, outer->i);
+                return *this;
+            }
+            constexpr void operator++(int) {
+                emplace_next(outer->current, outer->i);
+            };
+
+        private:
+            input_range* outer;
+        };
+
+        constexpr auto begin() { return iterator(this); }
+        constexpr auto end() const { return sentinel; }
+
+    private:
+        I i;
+        next_t<I> current;
+    };
+
+    template<class I>
+    input_range(I) -> input_range<I>;
+}
+
+template<iter::iter I>
+constexpr auto ITER_IMPL(into_input_range)(I&& i) {
+    return iter::detail::input_range{FWD(i)};
+}
+
+#endif /* ITER_COLLECTORS_INTO_INPUT_RANGE_HPP */
+
+namespace iter::collectors { using iter::into_input_range; }
 #ifndef ITER_COLLECTORS_PARTITION_HPP
 #define ITER_COLLECTORS_PARTITION_HPP
 
@@ -4561,6 +4612,41 @@ constexpr decltype(auto) ITER_IMPL(partition) (I&& iterable, F&& func) {
 #endif /* ITER_COLLECTORS_PARTITION_HPP */
 
 namespace iter::collectors { using iter::partition; }
+#ifndef ITER_COLLECTORS_SORTED_HPP
+#define ITER_COLLECTORS_SORTED_HPP
+
+XTD_INVOKER(iter_sorted)
+
+namespace iter {
+    namespace detail::tag {
+        template<template<class...> class C = std::vector, template<class> class A = std::allocator>
+        struct sorted_ : xtd::tagged_bindable<sorted_<C, A>, xtd::invokers::iter_sorted> {};
+    }
+
+    template<template<class...> class C = std::vector, template<class> class A = std::allocator>
+    inline constexpr detail::tag::sorted_<C, A> sorted_;
+}
+
+ITER_ALIAS(sorted, sorted_<>)
+
+template<template<class...> class CT, template<class> class AT,
+         iter::assert_iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
+    auto container = iter::collect<CT, AT>(FWD(iter));
+    std::sort(std::begin(container), std::end(container), FWD(predicate));
+    return container;
+}
+
+template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
+constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter) {
+    auto container = iter::collect<CT, AT>(FWD(iter));
+    std::sort(std::begin(container), std::end(container));
+    return container;
+}
+
+#endif /* ITER_COLLECTORS_SORTED_HPP */
+
+namespace iter::collectors { using iter::sorted; using iter::sorted_; }
 #ifndef INCLUDE_ITER_UNZIP_HPP
 #define INCLUDE_ITER_UNZIP_HPP
 
@@ -4641,41 +4727,6 @@ constexpr auto XTD_IMPL_TAG_(iter_unzip, iter::detail::tag::unzip_<CT, AT>)(I&& 
 #endif /* INCLUDE_ITER_UNZIP_HPP */
 
 namespace iter::collectors { using iter::unzip; using iter::unzip_; }
-#ifndef ITER_COLLECTORS_SORTED_HPP
-#define ITER_COLLECTORS_SORTED_HPP
-
-XTD_INVOKER(iter_sorted)
-
-namespace iter {
-    namespace detail::tag {
-        template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-        struct sorted_ : xtd::tagged_bindable<sorted_<C, A>, xtd::invokers::iter_sorted> {};
-    }
-
-    template<template<class...> class C = std::vector, template<class> class A = std::allocator>
-    inline constexpr detail::tag::sorted_<C, A> sorted_;
-}
-
-ITER_ALIAS(sorted, sorted_<>)
-
-template<template<class...> class CT, template<class> class AT,
-         iter::assert_iter I, std::invocable<iter::ref_t<I>, iter::ref_t<I>> P>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter, P&& predicate) {
-    auto container = iter::collect<CT, AT>(FWD(iter));
-    std::sort(std::begin(container), std::end(container), FWD(predicate));
-    return container;
-}
-
-template<template<class...> class CT, template<class> class AT, iter::assert_iter I>
-constexpr auto XTD_IMPL_TAG_(iter_sorted, iter::detail::tag::sorted_<CT, AT>)(I&& iter) {
-    auto container = iter::collect<CT, AT>(FWD(iter));
-    std::sort(std::begin(container), std::end(container));
-    return container;
-}
-
-#endif /* ITER_COLLECTORS_SORTED_HPP */
-
-namespace iter::collectors { using iter::sorted; using iter::sorted_; }
 
 #endif /* ITER_COLLECTORS_COLLECTORS_HPP */
 
@@ -4877,12 +4928,14 @@ ITER_X(to_vector)
 ITER_X(to_map)
 // Invoke iter::to_string (aka iter::collect<std::basic_string, std::allocator, std::char_traits>) on this iter
 ITER_X(to_string)
+// Invoke iter::into_input_range on this iter
+ITER_X(into_input_range)
 // Invoke iter::partition on this iter
 ITER_X(partition)
-// Invoke iter::unzip (aka iter::unzip_<>) on this iter
-ITER_X(unzip)
 // Invoke iter::sorted (aka iter::sorted_<>) on this iter
 ITER_X(sorted)
+// Invoke iter::unzip (aka iter::unzip_<>) on this iter
+ITER_X(unzip)
 
 #undef ITER_X
 
@@ -4910,10 +4963,10 @@ ITER_X(enumerate_, (class T = std::size_t), (T))
 ITER_X(window, (std::size_t N = 2), (N))
 // Invoke iter::collect on this iter
 ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
-// Invoke iter::unzip_ on this iter
-ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
 // Invoke iter::sorted_ on this iter
 ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::unzip_ on this iter
+ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
 
 #undef ITER_EXPAND
 #undef ITER_X

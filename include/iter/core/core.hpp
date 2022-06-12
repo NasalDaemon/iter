@@ -134,58 +134,50 @@ namespace iter {
 
         inline constexpr struct sentinel_t {} sentinel;
 
-        // C++ style iterator_wrapper wrapper (sniff...)
         template<iter I>
-        requires (!std::is_const_v<I>) && (!std::is_reference_v<I>)
         struct iterator_wrapper : iterator_traits<I> {
             using traits = iterator_traits<I>;
             using typename traits::value_type;
 
-            explicit constexpr iterator_wrapper(I& it) : it{std::addressof(it)}
+            explicit constexpr iterator_wrapper(auto&& it)
+                : i{FWD(it)}
+                , current{impl::next(i)}
             {}
             constexpr iterator_wrapper() = default;
 
             auto operator<=>(const iterator_wrapper&) const = delete;
 
-            // const to follow std::ranges::range concept,
-            constexpr bool operator!=(sentinel_t) const {
-                return detail::emplace_next(current, *it).has_value();
-            }
-            constexpr bool operator==(sentinel_t) const {
-                return !operator!=(sentinel);
-            }
-            constexpr auto& operator*() {
-                return *current;
-            }
-            constexpr auto& operator*() const {
-                return *current;
-            }
-            constexpr auto* operator->() {
-                return std::addressof(*current);
-            }
-            constexpr auto* operator->() const {
-                return std::addressof(*current);
-            }
+            constexpr bool operator!=(sentinel_t) const { return current.has_value(); }
+            constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
+            constexpr auto& operator*() { return *current; }
+            constexpr auto& operator*() const { return *current; }
+            constexpr auto* operator->() { return std::addressof(*current); }
+            constexpr auto* operator->() const { return std::addressof(*current); }
             constexpr auto& operator++() {
+                emplace_next(current, i);
                 return *this;
             }
-            constexpr void operator++(int) {}
+            [[nodiscard]] constexpr iterator_wrapper operator++(int) {
+                auto ret = *this;
+                emplace_next(current, i);
+                return ret;
+            };
 
         private:
-            I* it;
-            mutable next_t<I> current;
+            I i;
+            next_t<I> current;
         };
 
         template<class T>
-        iterator_wrapper(T&) -> iterator_wrapper<T>;
+        iterator_wrapper(T) -> iterator_wrapper<T>;
 
-        template<iter T>
-        constexpr auto begin(T& iter) {
-            return detail::iterator_wrapper{iter};
+        template<iter I>
+        constexpr auto begin(I&& iter) {
+            return iterator_wrapper{FWD(iter)};
         }
 
-        template<iter T>
-        constexpr auto end(T&) {
+        template<iter I>
+        constexpr auto end(I&&) {
             return detail::sentinel;
         }
     }
@@ -378,9 +370,9 @@ struct xtd::invokers::iter_get
     {
         auto call = [&]() -> decltype(auto) { return xtd_invoke_iter_get(FWD(args)...); };
         using result_t = decltype(call());
-        if constexpr (iter::concepts::stability_wrapper<result_t>)
+        if constexpr (iter::concepts::stability_wrapper<result_t>) {
             return call();
-        else {
+        } else {
             static_assert(!std::is_reference_v<result_t>, "References must be stability qualified");
             return iter::make_stability(call);
         }

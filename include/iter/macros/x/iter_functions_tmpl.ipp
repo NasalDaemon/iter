@@ -12,7 +12,7 @@ ITER_X(enumerate_, (class T = std::size_t), (T))
 ITER_X(window, (std::size_t N = 2), (N))
 // Invoke iter::collect on this iter
 ITER_X(collect, (template<class...> class C = std::vector, template<class> class A = std::allocator, template<class> class... Traits), (C, A, Traits...))
-// Invoke iter::unzip_ on this iter
-ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
 // Invoke iter::sorted_ on this iter
 ITER_X(sorted_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))
+// Invoke iter::unzip_ on this iter
+ITER_X(unzip_, (template<class...> class C = std::vector, template<class> class A = std::allocator), (C, A))

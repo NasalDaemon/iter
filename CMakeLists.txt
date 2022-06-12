@@ -28,8 +28,8 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(
     ${GNU_COMPILE_OPTIONS}
     "-fcoroutines"
-    "-ftemplate-backtrace-limit=0"
-    "-fconcepts-diagnostics-depth=4"
+    # "-ftemplate-backtrace-limit=0"
+    # "-fconcepts-diagnostics-depth=8"
     )
   add_link_options(
     # "-fsanitize=address,undefined"
