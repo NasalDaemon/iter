@@ -23,16 +23,18 @@ namespace iter::detail {
             auto operator<=>(const iterator&) const = delete;
             constexpr bool operator==(const iterator& other) const { return outer == other.outer; }
 
-            constexpr bool operator!=(sentinel_t) const { return outer->current.has_value(); }
+            constexpr bool operator!=(sentinel_t) const { return outer && outer->current.has_value(); }
             constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
             constexpr auto& operator*() const { return *outer->current; }
             constexpr auto* operator->() const { return std::addressof(*outer->current); }
             constexpr auto& operator++() {
-                emplace_next(outer->current, outer->i);
+                if (outer)
+                    emplace_next(outer->current, outer->i);
                 return *this;
             }
             constexpr void operator++(int) {
-                emplace_next(outer->current, outer->i);
+                if (outer)
+                    emplace_next(outer->current, outer->i);
             };
 
         private:
@@ -43,7 +45,7 @@ namespace iter::detail {
         constexpr auto end() const { return sentinel; }
 
     private:
-        I i;
+        [[no_unique_address]] I i;
         next_t<I> current;
     };
 

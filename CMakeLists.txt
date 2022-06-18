@@ -79,6 +79,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 add_executable(iter_test
   test/all.cpp
   test/any.cpp
+  test/batching.cpp
   test/chain.cpp
   test/chunk_by.cpp
   test/chunks.cpp

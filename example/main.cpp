@@ -1,8 +1,5 @@
 #include "iter/wrap.hpp"
 #include "iter/macros/dollar/define.hpp"
-#ifndef ITER_COMPILER_CLANG
-#include "iter/enable_ranges.hpp"
-#endif
 
 #include <algorithm>
 #include <string>

@@ -2,6 +2,7 @@
 #define ITER_ADAPTERS_BATCHING_HPP
 
 #include "iter/core/core.hpp"
+#include "iter/iters/iter_ref.hpp"
 
 ITER_DECLARE(batching)
 
@@ -10,13 +11,13 @@ namespace iter::detail {
     struct [[nodiscard]] batching_iter {
         using this_t = batching_iter;
 
-        static_assert(concepts::item<std::invoke_result_t<F, I&>>);
+        static_assert(concepts::item<std::invoke_result_t<F, iter_ref<I>>>);
 
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
 
         constexpr auto ITER_IMPL_NEXT(this_t& self) {
-            return std::invoke(self.func, self.i);
+            return std::invoke(self.func, iter_ref{self.i});
         }
     };
 

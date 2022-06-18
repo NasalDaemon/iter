@@ -35,25 +35,21 @@ namespace iter::detail {
         // 5 : iteration not started
         std::uint8_t index = 5;
 
-        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
-        using item_t = item<ref_t<I>, stable>;
-        using stability_t = typename item_t::stability_t;
-
-        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+        constexpr item<ref_t<I>, false> ITER_IMPL_NEXT(this_t& self) {
             if (self.index > 1) { // start of next chunk
                 self.index -= 2;
                 // return item which failed chunk predicate
-                return stability_t{*self.items[self.index ^ 1]};
+                return unstable_ref(*self.items[self.index ^ 1]);
             }
             if (auto& current = emplace_next(self.items[self.index], self.i)) {
                 self.index ^= 1;
                 if (auto& prev = self.items[self.index]) {
-                    if (!self.func(std::as_const(*prev), std::as_const(*current))) {
+                    if (!self.func(as_const(*prev), as_const(*current))) {
                         self.index += 2; // predicate failed, make sure to return current value next time
                         return noitem;
                     }
                 }
-                return stability_t{*current};
+                return unstable_ref(*current);
             }
             self.index = 4;
             return noitem;
@@ -66,34 +62,30 @@ namespace iter::detail {
         using projection_t = make_item_t<std::invoke_result_t<F, cref_t<I>>>;
         static_assert(concepts::stable_item<projection_t>);
         
-        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
-        using item_t = item<ref_t<I>, stable>;
-        using stability_t = typename item_t::stability_t;
-
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
         next_t<I> last;
         projection_t projection;
         bool end = false;
 
-        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+        constexpr item<ref_t<I>, false> ITER_IMPL_NEXT(this_t& self) {
             if (self.end && self.last) [[unlikely]] {
                 self.end = false;
-                return stability_t(*self.last);
+                return unstable_ref(*self.last);
             }
 
             if (emplace_next(self.last, self.i)) {
                 if (self.projection) [[likely]] {
-                    auto projected = MAKE_ITEM_AUTO(self.func(std::as_const(*self.last)));
+                    auto projected = MAKE_ITEM_AUTO(self.func(as_const(*self.last)));
                     if (*projected != *self.projection) {
                         self.projection = std::move(projected);
                         self.end = true;
                         return noitem;
                     }
                 } else {
-                    EMPLACE_NEW(self.projection, MAKE_ITEM_AUTO(self.func(std::as_const(*self.last))));
+                    EMPLACE_NEW(self.projection, MAKE_ITEM_AUTO(self.func(as_const(*self.last))));
                 }
-                return stability_t(*self.last);
+                return unstable_ref(*self.last);
             } else {
                 self.end = true;
             }

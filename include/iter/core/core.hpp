@@ -138,7 +138,6 @@ namespace iter {
         template<iter I>
         struct range_for_wrapper {
             explicit constexpr range_for_wrapper(auto&& it) : i{FWD(it)} {}
-            constexpr range_for_wrapper() = default;
 
             auto operator<=>(const range_for_wrapper&) const = delete;
 
@@ -166,7 +165,7 @@ namespace iter {
 
         template<iter I>
         constexpr auto end(I&&) {
-            return detail::sentinel;
+            return sentinel;
         }
     }
 

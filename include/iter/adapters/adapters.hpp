@@ -1,6 +1,8 @@
 #ifndef ITER_ADAPTERS_ADAPTERS_HPP
 #define ITER_ADAPTERS_ADAPTERS_HPP
 
+#include "iter/adapters/batching.hpp"
+namespace iter::adapters { using iter::batching; }
 #include "iter/adapters/box.hpp"
 namespace iter::adapters { using iter::box; }
 #include "iter/adapters/chain.hpp"
