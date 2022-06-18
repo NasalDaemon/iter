@@ -9,6 +9,7 @@
 #define $until $(::iter::until)
 #define $til $(::iter::til)
 #define $flatten $(::iter::flatten)
+#define $batching $(::iter::batching)
 #define $box $(::iter::box)
 #define $chain $(::iter::chain)
 #define $take $(::iter::take)

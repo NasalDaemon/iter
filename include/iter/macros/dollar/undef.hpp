@@ -9,6 +9,7 @@
 #undef $until
 #undef $til
 #undef $flatten
+#undef $batching
 #undef $box
 #undef $chain
 #undef $take

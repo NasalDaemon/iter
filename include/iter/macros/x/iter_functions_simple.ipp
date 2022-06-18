@@ -4,6 +4,8 @@
 ITER_X(cycle)
 // Invoke iter::flatten on this iter
 ITER_X(flatten)
+// Invoke iter::batching on this iter
+ITER_X(batching)
 // Invoke iter::box on this iter
 ITER_X(box)
 // Invoke iter::chain on this iter

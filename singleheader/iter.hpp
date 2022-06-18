@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITER_CORE_CORE_HPP
 
 #ifndef ITER_LIBRARY_VERSION
-#  define ITER_LIBRARY_VERSION 20220612
+#  define ITER_LIBRARY_VERSION 20220618
 #endif
 
 #ifndef EXTEND_INCLUDE_EXTEND_HPP
@@ -1314,7 +1314,6 @@ namespace iter {
         template<iter I>
         struct range_for_wrapper {
             explicit constexpr range_for_wrapper(auto&& it) : i{FWD(it)} {}
-            constexpr range_for_wrapper() = default;
 
             auto operator<=>(const range_for_wrapper&) const = delete;
 
@@ -1342,7 +1341,7 @@ namespace iter {
 
         template<iter I>
         constexpr auto end(I&&) {
-            return detail::sentinel;
+            return sentinel;
         }
     }
 
@@ -2379,6 +2378,64 @@ namespace iter::iters { using iter::empty; }
 #ifndef ITER_ADAPTERS_ADAPTERS_HPP
 #define ITER_ADAPTERS_ADAPTERS_HPP
 
+#ifndef ITER_ADAPTERS_BATCHING_HPP
+#define ITER_ADAPTERS_BATCHING_HPP
+
+#ifndef ITER_ITERS_ITER_REF_HPP
+#define ITER_ITERS_ITER_REF_HPP
+
+namespace iter::detail {
+
+// Use this to avoid copying when an iter returns an item referring to its own instance
+template<iter I>
+struct iter_ref {
+    using this_t = iter_ref;
+    constexpr explicit iter_ref(I& i) : i{std::addressof(i)} {}
+
+    constexpr auto ITER_IMPL_NEXT(this_t& self) {
+        return impl::next(*self.i);
+    }
+
+private:
+    I* i;
+};
+
+template<class I>
+iter_ref(I&) -> iter_ref<I>;
+
+}
+
+#endif /* ITER_ITERS_ITER_REF_HPP */
+
+ITER_DECLARE(batching)
+
+namespace iter::detail {
+    template<iter I, std::invocable<I&> F>
+    struct [[nodiscard]] batching_iter {
+        using this_t = batching_iter;
+
+        static_assert(concepts::item<std::invoke_result_t<F, iter_ref<I>>>);
+
+        [[no_unique_address]] I i;
+        [[no_unique_address]] F func;
+
+        constexpr auto ITER_IMPL_NEXT(this_t& self) {
+            return std::invoke(self.func, iter_ref{self.i});
+        }
+    };
+
+    template<class I, class F>
+    batching_iter(I, F) -> batching_iter<I, F>;
+}
+
+template<iter::assert_iterable I, std::invocable<iter::iter_t<I>&> F>
+constexpr auto ITER_IMPL(batching) (I&& iterable, F&& func) {
+    return iter::detail::batching_iter{iter::to_iter(FWD(iterable)), FWD(func)};
+}
+
+#endif /* ITER_ADAPTERS_BATCHING_HPP */
+
+namespace iter::adapters { using iter::batching; }
 #ifndef ITER_ADAPTERS_BOX_HPP
 #define ITER_ADAPTERS_BOX_HPP
 
@@ -2624,50 +2681,6 @@ constexpr auto ITER_IMPL(take) (I&& iterable, std::size_t n) {
 
 #endif /* ITER_ADAPTERS_TAKE_HPP */
 
-#ifndef ITER_ITERS_ITER_REF_HPP
-#define ITER_ITERS_ITER_REF_HPP
-
-namespace iter::detail {
-
-// Use this to avoid copying when an iter returns an item referring to its own instance
-template<iter I>
-struct iter_ref {
-    using this_t = iter_ref;
-    constexpr explicit iter_ref(I& i) : i{std::addressof(i)} {}
-
-    constexpr auto ITER_IMPL_NEXT(this_t& self) {
-        return impl::next(*self.i);
-    }
-
-    constexpr auto ITER_IMPL_NEXT_BACK(this_t& self)
-        requires concepts::double_ended_iter<I>
-    {
-        return impl::next_back(*self.i);
-    }
-
-    constexpr std::size_t ITER_IMPL_SIZE(this_t const& self)
-        requires concepts::random_access_iter<I>
-    {
-        return impl::size(*self.i);
-    }
-
-    constexpr decltype(auto) ITER_IMPL_GET(this_t& self, std::size_t n)
-        requires concepts::random_access_iter<I>
-    {
-        return impl::get(*self.i, n);
-    }
-
-private:
-    I* i;
-};
-
-template<class I>
-iter_ref(I&) -> iter_ref<I>;
-
-}
-
-#endif /* ITER_ITERS_ITER_REF_HPP */
-
 XTD_INVOKER(iter_chunks)
 
 namespace iter {
@@ -2838,25 +2851,21 @@ namespace iter::detail {
         // 5 : iteration not started
         std::uint8_t index = 5;
 
-        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
-        using item_t = item<ref_t<I>, stable>;
-        using stability_t = typename item_t::stability_t;
-
-        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+        constexpr item<ref_t<I>, false> ITER_IMPL_NEXT(this_t& self) {
             if (self.index > 1) { // start of next chunk
                 self.index -= 2;
                 // return item which failed chunk predicate
-                return stability_t{*self.items[self.index ^ 1]};
+                return unstable_ref(*self.items[self.index ^ 1]);
             }
             if (auto& current = emplace_next(self.items[self.index], self.i)) {
                 self.index ^= 1;
                 if (auto& prev = self.items[self.index]) {
-                    if (!self.func(std::as_const(*prev), std::as_const(*current))) {
+                    if (!self.func(as_const(*prev), as_const(*current))) {
                         self.index += 2; // predicate failed, make sure to return current value next time
                         return noitem;
                     }
                 }
-                return stability_t{*current};
+                return unstable_ref(*current);
             }
             self.index = 4;
             return noitem;
@@ -2869,34 +2878,30 @@ namespace iter::detail {
         using projection_t = make_item_t<std::invoke_result_t<F, cref_t<I>>>;
         static_assert(concepts::stable_item<projection_t>);
         
-        static constexpr bool stable = !concepts::owned_item<next_t<I>>;
-        using item_t = item<ref_t<I>, stable>;
-        using stability_t = typename item_t::stability_t;
-
         [[no_unique_address]] I i;
         [[no_unique_address]] F func;
         next_t<I> last;
         projection_t projection;
         bool end = false;
 
-        constexpr item_t ITER_IMPL_NEXT(this_t& self) {
+        constexpr item<ref_t<I>, false> ITER_IMPL_NEXT(this_t& self) {
             if (self.end && self.last) [[unlikely]] {
                 self.end = false;
-                return stability_t(*self.last);
+                return unstable_ref(*self.last);
             }
 
             if (emplace_next(self.last, self.i)) {
                 if (self.projection) [[likely]] {
-                    auto projected = MAKE_ITEM_AUTO(self.func(std::as_const(*self.last)));
+                    auto projected = MAKE_ITEM_AUTO(self.func(as_const(*self.last)));
                     if (*projected != *self.projection) {
                         self.projection = std::move(projected);
                         self.end = true;
                         return noitem;
                     }
                 } else {
-                    EMPLACE_NEW(self.projection, MAKE_ITEM_AUTO(self.func(std::as_const(*self.last))));
+                    EMPLACE_NEW(self.projection, MAKE_ITEM_AUTO(self.func(as_const(*self.last))));
                 }
-                return stability_t(*self.last);
+                return unstable_ref(*self.last);
             } else {
                 self.end = true;
             }
@@ -4599,16 +4604,18 @@ namespace iter::detail {
             auto operator<=>(const iterator&) const = delete;
             constexpr bool operator==(const iterator& other) const { return outer == other.outer; }
 
-            constexpr bool operator!=(sentinel_t) const { return outer->current.has_value(); }
+            constexpr bool operator!=(sentinel_t) const { return outer && outer->current.has_value(); }
             constexpr bool operator==(sentinel_t) const { return !operator!=(sentinel); }
             constexpr auto& operator*() const { return *outer->current; }
             constexpr auto* operator->() const { return std::addressof(*outer->current); }
             constexpr auto& operator++() {
-                emplace_next(outer->current, outer->i);
+                if (outer)
+                    emplace_next(outer->current, outer->i);
                 return *this;
             }
             constexpr void operator++(int) {
-                emplace_next(outer->current, outer->i);
+                if (outer)
+                    emplace_next(outer->current, outer->i);
             };
 
         private:
@@ -4619,7 +4626,7 @@ namespace iter::detail {
         constexpr auto end() const { return sentinel; }
 
     private:
-        I i;
+        [[no_unique_address]] I i;
         next_t<I> current;
     };
 
@@ -4824,6 +4831,8 @@ namespace iter {
 ITER_X(cycle)
 // Invoke iter::flatten on this iter
 ITER_X(flatten)
+// Invoke iter::batching on this iter
+ITER_X(batching)
 // Invoke iter::box on this iter
 ITER_X(box)
 // Invoke iter::chain on this iter
